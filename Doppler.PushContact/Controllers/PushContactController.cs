@@ -159,9 +159,22 @@ namespace Doppler.PushContact.Controllers
 
         [HttpGet]
         [Route("push-contacts/domains")]
-        public async Task<ActionResult<ApiPage<DomainInfo>>> GetDomains()
+        public async Task<ActionResult<ApiPage<DomainInfo>>> GetDomains(int page, int per_page)
         {
-            throw new NotImplementedException();
+            const int limit = 100;
+
+            if (page < 0)
+            {
+                return BadRequest($"'{nameof(page)}' cannot be lesser than 0.");
+            }
+
+            if (per_page <= 0 || per_page > limit)
+            {
+                return BadRequest($"'{nameof(per_page)}' has to be greater than 0 and lesser than ${limit}.");
+            }
+
+            var apiPage = await _pushContactService.GetDomains(page, per_page);
+            return Ok(apiPage);
         }
     }
 }

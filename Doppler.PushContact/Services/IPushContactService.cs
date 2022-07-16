@@ -1,3 +1,4 @@
+using Doppler.PushContact.ApiModels;
 using Doppler.PushContact.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -17,5 +18,7 @@ namespace Doppler.PushContact.Services
         Task AddHistoryEventsAsync(IEnumerable<PushContactHistoryEvent> pushContactHistoryEvents);
 
         Task<IEnumerable<string>> GetAllDeviceTokensByDomainAsync(string domain);
+
+        Task<ApiPage<DomainInfo>> GetDomains(int page, int per_page);
     }
 }

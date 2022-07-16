@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
+using Doppler.PushContact.ApiModels;
+using System.Linq.Expressions;
 
 namespace Doppler.PushContact.Services
 {
@@ -260,6 +262,77 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error getting {nameof(PushContactModel)}s by {nameof(domain)} {domain}");
+
+                throw;
+            }
+        }
+
+        public async Task<ApiPage<DomainInfo>> GetDomains(int page, int per_page)
+        {
+            try
+            {
+                var domainsFiltered = await PushContacts.Aggregate()
+                    .Group(new BsonDocument
+                    {
+                        { "_id", $"${PushContactDocumentProps.DomainPropName}" },
+                        { "PushContactActiveQuantity",
+                            new BsonDocument("$sum",
+                                new BsonDocument("$cond",
+                                    new BsonArray
+                                    {
+                                        new BsonDocument("$eq",
+                                            new BsonArray
+                                            {
+                                                "$deleted",
+                                                false
+                                            }),
+                                            1,
+                                            0
+                        }))},
+                        { "PushContactInactiveQuantity",
+                            new BsonDocument("$sum",
+                                new BsonDocument("$cond",
+                                    new BsonArray
+                                    {
+                                        new BsonDocument("$eq",
+                                            new BsonArray
+                                            {
+                                                "$deleted",
+                                                true
+                                            }),
+                                            1,
+                                            0
+                        }))}
+                    })
+                    .Sort(new BsonDocument("_id", 1))
+                    .Project(new BsonDocument
+                            {
+                                    { "_id", 0 },
+                                    {$"{PushContactDocumentProps.DomainPropName}", "$_id"},
+                                    {"PushContactInactiveQuantity", 1},
+                                    {"PushContactActiveQuantity", 1},
+                            })
+                    .Skip(page)
+                    .Limit(per_page)
+                    .ToListAsync();
+
+                var newPage = page + domainsFiltered.Count;
+
+                var domainList = domainsFiltered
+                    .Select(x => new DomainInfo()
+                    {
+                        Name = x.GetValue(PushContactDocumentProps.DomainPropName, null)?.AsString,
+                        PushContactActiveQuantity = x.GetValue("PushContactActiveQuantity", null).ToInt32(),
+                        PushContactInactiveQuantity = x.GetValue("PushContactInactiveQuantity", null).ToInt32()
+                    }
+                    )
+                    .ToList();
+
+                return new ApiPage<DomainInfo>(domainList, newPage, per_page);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting the quantity of queries by domain");
 
                 throw;
             }
