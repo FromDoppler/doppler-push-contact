@@ -236,6 +236,45 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
+        public async Task Add_should_returns_badRequest_when_service_thows_argumentException()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+
+            pushContactServiceMock
+                .Setup(x => x.AddAsync(It.IsAny<PushContactModel>()))
+                .ThrowsAsync(new ArgumentException());
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                });
+
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "push-contacts")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(fixture.Create<PushContactModel>())
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Fact]
         public async Task UpdateEmail_should_not_require_token()
         {
             // Arrange

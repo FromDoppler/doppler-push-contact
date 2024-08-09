@@ -207,17 +207,16 @@ with following {nameof(pushContactModel.DeviceToken)}: {pushContactModel.DeviceT
         }
 
         [Theory]
-        [InlineData(null, "someDeviceToken")]
-        [InlineData("someDomain", null)]
-        [InlineData(null, null)]
-        public async Task AddAsync_should_throw_exception_when_domain_or_device_token_are_null_or_empty(string domain, string deviceToken)
+        [InlineData(null)]
+        [InlineData("")]
+        public async Task AddAsync_should_throw_argument_exception_when_device_token_is_null_or_empty(string deviceToken)
         {
             // Arrange
             var fixture = new Fixture();
 
             var pushContactModel = new PushContactModel
             {
-                Domain = domain,
+                Domain = fixture.Create<string>(),
                 DeviceToken = deviceToken,
                 Email = fixture.Create<string>()
             };
@@ -251,7 +250,130 @@ with following {nameof(pushContactModel.DeviceToken)}: {pushContactModel.DeviceT
 
             // Act
             // Assert
-            await Assert.ThrowsAsync<ArgumentNullException>(() => sut.AddAsync(pushContactModel));
+            await Assert.ThrowsAsync<ArgumentException>(() => sut.AddAsync(pushContactModel));
+        }
+
+        [Theory]
+        [InlineData("invalidFirebaseToken", false, "invalidEndpoint", "validAuthValue", "validP256dhValue")]
+        [InlineData("invalidFirebaseToken", false, null, "validAuthValue", "validP256dhValue")]
+        [InlineData("invalidFirebaseToken", false, "https://valid.endpoint.com", "", "validP256dhValue")]
+        [InlineData("invalidFirebaseToken", false, "https://valid.endpoint.com", null, "validP256dhValue")]
+        [InlineData("invalidFirebaseToken", false, "https://valid.endpoint.com", "validAuthValue", "")]
+        [InlineData("invalidFirebaseToken", false, "https://valid.endpoint.com", "validAuthValue", null)]
+        public async Task AddAsync_should_throw_argument_exception_when_deviceToken_and_subscription_are_notValid(
+            string deviceToken,
+            bool isAValidFirebaseToken,
+            string endpoint,
+            string auth,
+            string p256dh
+        )
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var pushContactModel = new PushContactModel
+            {
+                Domain = fixture.Create<string>(),
+                DeviceToken = deviceToken,
+                Email = fixture.Create<string>(),
+                Subscription = new SubscriptionDTO()
+                {
+                    EndPoint = endpoint,
+                    Keys = new SubscriptionKeys()
+                    {
+                        Auth = auth,
+                        P256DH = p256dh,
+                    }
+                }
+            };
+
+            var deviceTokenValidator = new Mock<IDeviceTokenValidator>();
+            deviceTokenValidator
+                .Setup(x => x.IsValidAsync(pushContactModel.DeviceToken))
+                .ReturnsAsync(isAValidFirebaseToken);
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var pushContactsCollection = new Mock<IMongoCollection<BsonDocument>>();
+
+            var sut = CreateSut(
+                deviceTokenValidator: deviceTokenValidator.Object
+            );
+
+            // Act
+            // Assert
+            await Assert.ThrowsAsync<ArgumentException>(() => sut.AddAsync(pushContactModel));
+        }
+
+        [Theory]
+        [InlineData("invalidValidFirebaseToken", false, "https://valid.endpoint.com", "authValue", "p256dhValue")]
+        [InlineData("validFirebaseToken", true, "invalidEndpoint", "authValue", "p256dhValue")]
+        public async Task AddAsync_should_finish_ok_when_subscription_isValid_or_if_deviceToken_isValid_for_Firebase(
+            string deviceToken,
+            bool isAValidFirebaseToken,
+            string endpoint,
+            string auth,
+            string p256dh
+        )
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var pushContactModel = new PushContactModel
+            {
+                Domain = fixture.Create<string>(),
+                DeviceToken = deviceToken,
+                Email = fixture.Create<string>(),
+                Subscription = new SubscriptionDTO
+                {
+                    EndPoint = endpoint,
+                    Keys = new SubscriptionKeys
+                    {
+                        Auth = auth,
+                        P256DH = p256dh
+                    }
+                }
+            };
+
+            var deviceTokenValidator = new Mock<IDeviceTokenValidator>();
+            deviceTokenValidator
+                .Setup(x => x.IsValidAsync(pushContactModel.DeviceToken))
+                .ReturnsAsync(isAValidFirebaseToken);
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var pushContactsCollection = new Mock<IMongoCollection<BsonDocument>>();
+            pushContactsCollection
+                .Setup(x => x.InsertOneAsync(It.IsAny<BsonDocument>(), null, default))
+                .Returns(Task.CompletedTask);
+
+            var mongoDatabase = new Mock<IMongoDatabase>();
+            mongoDatabase
+                .Setup(x => x.GetCollection<BsonDocument>(pushMongoContextSettings.PushContactsCollectionName, null))
+                .Returns(pushContactsCollection.Object);
+
+            var mongoClient = new Mock<IMongoClient>();
+            mongoClient
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabase.Object);
+
+            var loggerMock = new Mock<ILogger<PushContactService>>();
+
+            var sut = CreateSut(
+                mongoClient.Object,
+                Options.Create(pushMongoContextSettings),
+                deviceTokenValidator.Object,
+                loggerMock.Object
+            );
+
+            // Act
+            await sut.AddAsync(pushContactModel);
+
+            // Assert
+            pushContactsCollection.Verify(
+                x => x.InsertOneAsync(It.IsAny<BsonDocument>(), null, default),
+                Times.Once
+            );
         }
 
         [Fact]

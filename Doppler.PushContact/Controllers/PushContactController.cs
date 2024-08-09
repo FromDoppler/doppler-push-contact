@@ -15,6 +15,8 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Doppler.PushContact.Controllers
@@ -51,7 +53,24 @@ namespace Doppler.PushContact.Controllers
         [Route("push-contacts")]
         public async Task<IActionResult> Add([FromBody] PushContactModel pushContactModel)
         {
-            await _pushContactService.AddAsync(pushContactModel);
+            try
+            {
+                await _pushContactService.AddAsync(pushContactModel);
+            }
+            catch (ArgumentException argEx)
+            {
+                return BadRequest(argEx.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred adding a new contact with token: {DeviceToken} and subscription: {Subscription}.",
+                    pushContactModel.DeviceToken,
+                    JsonSerializer.Serialize(pushContactModel.Subscription)
+                );
+                return StatusCode((int)HttpStatusCode.InternalServerError);
+            }
 
             return Ok();
         }
@@ -79,7 +98,13 @@ namespace Doppler.PushContact.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500);
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred updating a contact with token: {DeviceToken} and subscription: {Subscription}.",
+                    deviceToken,
+                    JsonSerializer.Serialize(subscription)
+                );
+                return StatusCode((int)HttpStatusCode.InternalServerError);
             }
         }
 
