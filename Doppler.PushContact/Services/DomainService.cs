@@ -78,7 +78,13 @@ namespace Doppler.PushContact.Services
                 return new Domain
                 {
                     Name = domainDocument.GetValue(DomainDocumentProps.DomainNamePropName).AsString,
-                    IsPushFeatureEnabled = domainDocument.GetValue(DomainDocumentProps.IsPushFeatureEnabledPropName).AsBoolean
+                    IsPushFeatureEnabled = domainDocument.GetValue(DomainDocumentProps.IsPushFeatureEnabledPropName).AsBoolean,
+                    UsesExternalPushDomain = domainDocument.Contains(DomainDocumentProps.UsesExternalPushDomain)
+                        ? domainDocument.GetValue(DomainDocumentProps.UsesExternalPushDomain).AsBoolean
+                        : false,
+                    ExternalPushDomain = domainDocument.Contains(DomainDocumentProps.ExternalPushDomain)
+                        ? domainDocument.GetValue(DomainDocumentProps.ExternalPushDomain).AsString
+                        : null,
                 };
             }
             catch (Exception ex)

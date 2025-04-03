@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Doppler.PushContact.Controllers
 {
-    [Authorize(Policies.ONLY_SUPERUSER)]
+    //[Authorize(Policies.ONLY_SUPERUSER)]
     [ApiController]
     public class DomainController : ControllerBase
     {
@@ -50,6 +50,22 @@ namespace Doppler.PushContact.Controllers
             }
 
             return domain.IsPushFeatureEnabled;
+        }
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("domains/{name}")]
+        [ResponseCache(Location = ResponseCacheLocation.Any, Duration = 120)]
+        public async Task<ActionResult<Domain>> GetDomain([FromRoute] string name)
+        {
+            var domain = await _domainService.GetByNameAsync(name);
+
+            if (domain == null)
+            {
+                return NotFound();
+            }
+
+            return domain;
         }
     }
 }
