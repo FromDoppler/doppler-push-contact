@@ -24,6 +24,8 @@ namespace Doppler.PushContact.Controllers
             _messageSender = messageSender;
         }
 
+        // TODO: analyze separating into two methods (PUT/POST) because using PUT, and not all fields may be provided,
+        // which could result in unintended deletions or resets.
         [HttpPut]
         [Route("domains/{name}")]
         public async Task<IActionResult> Upsert([FromRoute] string name, [FromBody] Domain domain)
