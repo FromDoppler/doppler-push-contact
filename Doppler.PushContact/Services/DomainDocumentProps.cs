@@ -9,5 +9,9 @@ namespace Doppler.PushContact.Services
         public const string IsPushFeatureEnabledPropName = "is_push_feature_enabled";
 
         public const string ModifiedPropName = "modified";
+
+        public const string UsesExternalPushDomain = "usesExternalPushDomain";
+
+        public const string ExternalPushDomain = "externalPushDomain";
     }
 }

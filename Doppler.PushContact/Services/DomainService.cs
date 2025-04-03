@@ -40,6 +40,8 @@ namespace Doppler.PushContact.Services
             var upsertDefinition = Builders<BsonDocument>.Update
                 .Set(DomainDocumentProps.IsPushFeatureEnabledPropName, domain.IsPushFeatureEnabled)
                 .Set(DomainDocumentProps.ModifiedPropName, now)
+                .Set(DomainDocumentProps.UsesExternalPushDomain, domain.UsesExternalPushDomain)
+                .Set(DomainDocumentProps.ExternalPushDomain, domain.ExternalPushDomain)
                 .SetOnInsert(DomainDocumentProps.IdPropName, key)
                 .SetOnInsert(DomainDocumentProps.DomainNamePropName, domain.Name);
 
