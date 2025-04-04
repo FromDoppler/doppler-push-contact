@@ -82,9 +82,10 @@ namespace Doppler.PushContact.Services
                     UsesExternalPushDomain = domainDocument.Contains(DomainDocumentProps.UsesExternalPushDomain)
                         ? domainDocument.GetValue(DomainDocumentProps.UsesExternalPushDomain).AsBoolean
                         : false,
-                    ExternalPushDomain = domainDocument.Contains(DomainDocumentProps.ExternalPushDomain)
-                        ? domainDocument.GetValue(DomainDocumentProps.ExternalPushDomain).AsString
-                        : null,
+                    ExternalPushDomain =
+                        domainDocument.Contains(DomainDocumentProps.ExternalPushDomain) && domainDocument[DomainDocumentProps.ExternalPushDomain] != BsonNull.Value
+                            ? domainDocument[DomainDocumentProps.ExternalPushDomain].AsString
+                            : null,
                 };
             }
             catch (Exception ex)
