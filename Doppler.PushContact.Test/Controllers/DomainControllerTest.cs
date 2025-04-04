@@ -389,7 +389,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task GetDomain_should_response_not_found_when_domain_service_return_null()
+        public async Task GetDomain_should_return_not_found_when_domain_service_return_null()
         {
             // Arrange
             var fixture = new Fixture();
@@ -472,6 +472,46 @@ namespace Doppler.PushContact.Test.Controllers
             Assert.Equal(domain.IsPushFeatureEnabled, responseDomain.IsPushFeatureEnabled);
             Assert.Equal(domain.UsesExternalPushDomain, responseDomain.UsesExternalPushDomain);
             Assert.Equal(domain.ExternalPushDomain, responseDomain.ExternalPushDomain);
+        }
+
+        [Fact]
+        public async Task GetDomain_should_return_internal_server_error_when_domain_service_throw_an_exception()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var name = fixture.Create<string>();
+            var domain = fixture.Create<Domain>();
+
+            var domainServiceMock = new Mock<IDomainService>();
+            domainServiceMock.Setup(x => x.GetByNameAsync(name))
+                .ThrowsAsync(new Exception());
+
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(domainServiceMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                });
+
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{name}");
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.Contains("unexpected error", content, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

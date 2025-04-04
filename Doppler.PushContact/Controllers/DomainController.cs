@@ -3,13 +3,14 @@ using Doppler.PushContact.Models;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Services.Messages;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
 
 namespace Doppler.PushContact.Controllers
 {
-    //[Authorize(Policies.ONLY_SUPERUSER)]
+    [Authorize(Policies.ONLY_SUPERUSER)]
     [ApiController]
     public class DomainController : ControllerBase
     {
@@ -58,14 +59,24 @@ namespace Doppler.PushContact.Controllers
         [ResponseCache(Location = ResponseCacheLocation.Any, Duration = 120)]
         public async Task<ActionResult<Domain>> GetDomain([FromRoute] string name)
         {
-            var domain = await _domainService.GetByNameAsync(name);
-
-            if (domain == null)
+            try
             {
-                return NotFound();
-            }
+                var domain = await _domainService.GetByNameAsync(name);
 
-            return domain;
+                if (domain == null)
+                {
+                    return NotFound();
+                }
+
+                return domain;
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "An unexpected error occurred obtaining domain information." }
+                );
+            }
         }
     }
 }
