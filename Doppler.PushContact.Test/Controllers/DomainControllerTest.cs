@@ -331,11 +331,16 @@ namespace Doppler.PushContact.Test.Controllers
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
                 .ThrowsAsync(new Exception());
 
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -348,6 +353,9 @@ namespace Doppler.PushContact.Test.Controllers
 
             // Assert
             Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.Contains("unexpected error", content, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]

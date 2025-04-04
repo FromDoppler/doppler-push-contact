@@ -43,14 +43,24 @@ namespace Doppler.PushContact.Controllers
         [ResponseCache(Location = ResponseCacheLocation.Any, Duration = 120)]
         public async Task<ActionResult<bool>> GetPushFeatureStatus([FromRoute] string name)
         {
-            var domain = await _domainService.GetByNameAsync(name);
-
-            if (domain == null)
+            try
             {
-                return NotFound();
-            }
+                var domain = await _domainService.GetByNameAsync(name);
 
-            return domain.IsPushFeatureEnabled;
+                if (domain == null)
+                {
+                    return NotFound();
+                }
+
+                return domain.IsPushFeatureEnabled;
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "An unexpected error occurred obtaining domain information." }
+                );
+            }
         }
 
         [AllowAnonymous]
