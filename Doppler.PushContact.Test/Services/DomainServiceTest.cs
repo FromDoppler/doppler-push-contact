@@ -7,7 +7,9 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using Moq;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -24,6 +26,25 @@ namespace Doppler.PushContact.Test.Services
                 mongoClient ?? Mock.Of<IMongoClient>(),
                 pushMongoContextSettings ?? Mock.Of<IOptions<PushMongoContextSettings>>(),
                 logger ?? Mock.Of<ILogger<DomainService>>());
+        }
+
+        private static List<BsonDocument> FakeDomainsDocuments(int count)
+        {
+            var fixture = new Fixture();
+
+            return Enumerable.Repeat(0, count)
+                .Select(x =>
+                {
+                    return new BsonDocument {
+                            { DomainDocumentProps.IdPropName, fixture.Create<string>() },
+                            { DomainDocumentProps.DomainNamePropName, fixture.Create<string>() },
+                            { DomainDocumentProps.IsPushFeatureEnabledPropName, fixture.Create<bool>() },
+                            { DomainDocumentProps.UsesExternalPushDomain, fixture.Create<bool>() },
+                            { DomainDocumentProps.ExternalPushDomain, fixture.Create<string>() },
+                            { DomainDocumentProps.ModifiedPropName, fixture.Create<DateTime>().ToUniversalTime() },
+                    };
+                })
+                .ToList();
         }
 
         [Fact]
@@ -173,6 +194,69 @@ namespace Doppler.PushContact.Test.Services
 
             // Assert
             Assert.Null(result);
+        }
+
+        [Fact]
+        public async Task GetByNameAsync_should_return_domain_OK()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            List<BsonDocument> allDomainDocuments = FakeDomainsDocuments(5);
+
+            var random = new Random();
+            int randomPushContactIndex = random.Next(allDomainDocuments.Count);
+            var domainDocument = allDomainDocuments[randomPushContactIndex];
+            var domainFilter = domainDocument[DomainDocumentProps.DomainNamePropName].AsString;
+
+            var domainExpected = new Domain()
+            {
+                Name = domainFilter,
+                IsPushFeatureEnabled = domainDocument[DomainDocumentProps.IsPushFeatureEnabledPropName].AsBoolean,
+                UsesExternalPushDomain = domainDocument[DomainDocumentProps.UsesExternalPushDomain].AsBoolean,
+                ExternalPushDomain = domainDocument[DomainDocumentProps.ExternalPushDomain].AsString,
+            };
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var domainsCursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+            domainsCursorMock
+                .Setup(_ => _.Current)
+                .Returns(allDomainDocuments.Where(x => x[DomainDocumentProps.DomainNamePropName].AsString == domainFilter));
+
+            domainsCursorMock
+                .SetupSequence(_ => _.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .Returns(Task.FromResult(true)) // first calling to .MoveNextAsync(), returns true (there are results)
+                .Returns(Task.FromResult(false)); // the next time, returns false (there are not more results)
+
+            var domainsCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            domainsCollectionMock
+                .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
+                .ReturnsAsync(domainsCursorMock.Object);
+
+            var mongoDatabase = new Mock<IMongoDatabase>();
+            mongoDatabase
+                .Setup(x => x.GetCollection<BsonDocument>(pushMongoContextSettings.DomainsCollectionName, null))
+                .Returns(domainsCollectionMock.Object);
+
+            var mongoClient = new Mock<IMongoClient>();
+            mongoClient
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabase.Object);
+
+            var sut = CreateSut(
+                mongoClient.Object,
+                Options.Create(pushMongoContextSettings));
+
+            // Act
+            var result = await sut.GetByNameAsync(fixture.Create<string>());
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(domainExpected.Name, result.Name);
+            Assert.Equal(domainExpected.IsPushFeatureEnabled, result.IsPushFeatureEnabled);
+            Assert.Equal(domainExpected.UsesExternalPushDomain, result.UsesExternalPushDomain);
+            Assert.Equal(domainExpected.ExternalPushDomain, result.ExternalPushDomain);
         }
     }
 }

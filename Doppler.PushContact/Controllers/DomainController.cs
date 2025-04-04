@@ -3,6 +3,7 @@ using Doppler.PushContact.Models;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Services.Messages;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
@@ -42,14 +43,50 @@ namespace Doppler.PushContact.Controllers
         [ResponseCache(Location = ResponseCacheLocation.Any, Duration = 120)]
         public async Task<ActionResult<bool>> GetPushFeatureStatus([FromRoute] string name)
         {
-            var domain = await _domainService.GetByNameAsync(name);
-
-            if (domain == null)
+            try
             {
-                return NotFound();
-            }
+                var domain = await _domainService.GetByNameAsync(name);
 
-            return domain.IsPushFeatureEnabled;
+                if (domain == null)
+                {
+                    return NotFound();
+                }
+
+                return domain.IsPushFeatureEnabled;
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "An unexpected error occurred obtaining domain information." }
+                );
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("domains/{name}")]
+        [ResponseCache(Location = ResponseCacheLocation.Any, Duration = 120)]
+        public async Task<ActionResult<Domain>> GetDomain([FromRoute] string name)
+        {
+            try
+            {
+                var domain = await _domainService.GetByNameAsync(name);
+
+                if (domain == null)
+                {
+                    return NotFound();
+                }
+
+                return domain;
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "An unexpected error occurred obtaining domain information." }
+                );
+            }
         }
     }
 }
