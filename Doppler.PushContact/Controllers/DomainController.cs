@@ -63,10 +63,8 @@ namespace Doppler.PushContact.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("domains/{name}")]
-        [ResponseCache(Location = ResponseCacheLocation.Any, Duration = 120)]
         public async Task<ActionResult<Domain>> GetDomain([FromRoute] string name)
         {
             try
@@ -85,6 +83,36 @@ namespace Doppler.PushContact.Controllers
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,
                     new { error = "An unexpected error occurred obtaining domain information." }
+                );
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("domains/{name}/push-configuration")]
+        public async Task<ActionResult<DomainPushConfiguration>> GetPushConfiguration([FromRoute] string name)
+        {
+            try
+            {
+                var domain = await _domainService.GetByNameAsync(name);
+
+                if (domain == null)
+                {
+                    return NotFound();
+                }
+
+                return new DomainPushConfiguration()
+                {
+                    IsPushFeatureEnabled = domain.IsPushFeatureEnabled,
+                    UsesExternalPushDomain = domain.UsesExternalPushDomain,
+                    ExternalPushDomain = domain.ExternalPushDomain,
+                };
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "An unexpected error occurred obtaining domain push configuration." }
                 );
             }
         }

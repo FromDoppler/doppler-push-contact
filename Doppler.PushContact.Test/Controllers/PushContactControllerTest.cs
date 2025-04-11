@@ -75,7 +75,7 @@ namespace Doppler.PushContact.Test.Controllers
         [Theory]
         [InlineData(TestApiUsersData.TOKEN_EMPTY)]
         [InlineData(TestApiUsersData.TOKEN_BROKEN)]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20010908)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
@@ -156,7 +156,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory(Skip = "Now allows anonymous")]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task Add_should_require_a_valid_token_with_isSU_flag(string token)
@@ -314,7 +314,7 @@ namespace Doppler.PushContact.Test.Controllers
         [Theory]
         [InlineData(TestApiUsersData.TOKEN_EMPTY)]
         [InlineData(TestApiUsersData.TOKEN_BROKEN)]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20010908)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
@@ -410,7 +410,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory(Skip = "Now allows anonymous")]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task UpdateEmail_should_require_a_valid_token_with_isSU_flag(string token)
@@ -595,7 +595,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task UpdatePushContactVisitorGuid_should_require_a_valid_token_with_isSU_flag(string token)
@@ -818,7 +818,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task GetBy_should_require_a_valid_token_with_isSU_flag(string token)
@@ -1080,7 +1080,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory(Skip = "Endpoint removed")]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task BulkDelete_should_require_a_valid_token_with_isSU_flag(string token)
@@ -1239,7 +1239,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task Message_should_require_a_valid_token_with_isSU_flag(string token)
@@ -1816,7 +1816,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task Message_By_Visitor_Guid_should_require_a_valid_token_with_isSU_flag(string token)
@@ -2448,7 +2448,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task GetMessages_should_require_a_valid_token_with_isSU_flag(string token)
@@ -2629,7 +2629,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task GetDomains_should_require_a_valid_token_with_isSU_flag(string token)
@@ -2775,7 +2775,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518, "example.com")]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518, "example.com")]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518, "example.com")]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518, "example.com")]
         public async Task GetAllVisitorGuidByDomain_should_require_a_valid_token_with_isSU_flag(string token, string domain)
