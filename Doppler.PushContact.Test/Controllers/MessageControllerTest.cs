@@ -86,7 +86,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task MessageByVisitorGuid_should_require_a_valid_token_with_isSU_flag(string token)
@@ -293,7 +293,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task CreateMessage_should_require_a_valid_token_with_isSU_flag(string token)
@@ -599,7 +599,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Theory]
-        [InlineData(TestApiUsersData.TOKEN_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
         public async Task EnqueueWebPush_should_require_a_valid_token_with_isSU_flag(string token)

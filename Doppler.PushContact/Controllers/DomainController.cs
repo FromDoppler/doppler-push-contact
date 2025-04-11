@@ -63,10 +63,8 @@ namespace Doppler.PushContact.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("domains/{name}")]
-        [ResponseCache(Location = ResponseCacheLocation.Any, Duration = 120)]
         public async Task<ActionResult<Domain>> GetDomain([FromRoute] string name)
         {
             try
