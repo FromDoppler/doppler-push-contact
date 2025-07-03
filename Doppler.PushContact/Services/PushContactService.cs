@@ -726,7 +726,6 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
                 }
 
                 return null;
-                
             }
             catch (MongoException ex)
             {
