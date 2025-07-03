@@ -31,12 +31,14 @@ namespace Doppler.PushContact.Controllers
         private readonly IBackgroundQueue _backgroundQueue;
         private readonly IWebPushEventService _webPushEventService;
         private readonly ILogger<PushContactController> _logger;
+        private readonly IDopplerHttpClient _dopplerHttpClient;
 
         public PushContactController(IPushContactService pushContactService,
             IMessageSender messageSender,
             IMessageRepository messageRepository,
             IBackgroundQueue backgroundQueue,
             IWebPushEventService webPushEventRepository,
+            IDopplerHttpClient dopplerHttpClient,
             ILogger<PushContactController> logger
         )
         {
@@ -45,6 +47,7 @@ namespace Doppler.PushContact.Controllers
             _messageRepository = messageRepository;
             _backgroundQueue = backgroundQueue;
             _webPushEventService = webPushEventRepository;
+            _dopplerHttpClient = dopplerHttpClient;
             _logger = logger;
         }
 
@@ -56,6 +59,16 @@ namespace Doppler.PushContact.Controllers
             try
             {
                 await _pushContactService.AddAsync(pushContactModel);
+
+                // Fire and forget
+                _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
+                {
+                    await _dopplerHttpClient.RegisterVisitorSafeAsync(
+                        pushContactModel.Domain,
+                        pushContactModel.VisitorGuid,
+                        pushContactModel.Email
+                    );
+                });
             }
             catch (ArgumentException argEx)
             {
