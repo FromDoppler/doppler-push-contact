@@ -1,5 +1,6 @@
 using Flurl;
 using Flurl.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
 using System.Threading.Tasks;
@@ -9,10 +10,15 @@ namespace Doppler.PushContact.Services
     public class DopplerHttpClient : IDopplerHttpClient
     {
         private readonly DopplerHttpClientSettings _dopplerHttpClientSettings;
+        private readonly ILogger<DopplerHttpClient> _logger;
 
-        public DopplerHttpClient(IOptions<DopplerHttpClientSettings> dopplerHttpClientSettings)
+        public DopplerHttpClient(
+            IOptions<DopplerHttpClientSettings> dopplerHttpClientSettings,
+            ILogger<DopplerHttpClient> logger
+        )
         {
             _dopplerHttpClientSettings = dopplerHttpClientSettings.Value;
+            _logger = logger;
         }
 
         public async Task<bool> RegisterVisitorSafeAsync(string domain, string visitorGuid, string email)
@@ -32,6 +38,7 @@ namespace Doppler.PushContact.Services
                 var response = await _dopplerHttpClientSettings.DopplerAppServer
                     .AppendPathSegments("Lists", "InternalSubscriber", "SaveVisitorWithEmail")
                     .WithHeader("Origin", _dopplerHttpClientSettings.PushContactApiOrigin) // TODO: review origin setting
+                    .AllowAnyHttpStatus()
                     .PostJsonAsync(new
                     {
                         Domain = domain,
@@ -45,20 +52,54 @@ namespace Doppler.PushContact.Services
                 }
 
                 var errorText = await response.ResponseMessage.Content.ReadAsStringAsync();
-                //_logger.LogError("Fallo el registro del contacto en Doppler. Status: {StatusCode}, Respuesta: {Body}", response.StatusCode, errorText);
+                _logger.LogError(
+                    "Doppler contact registration failed. Status: {StatusCode}, Response: {Body}, Domain: {Domain}, VisitorGuid: {VisitorGuid}, Email: {ContactEmail}",
+                    response.StatusCode,
+                    errorText,
+                    domain,
+                    visitorGuid,
+                    email
+                );
                 return false;
             }
             catch (FlurlHttpException ex)
             {
-                var errorText = await ex.GetResponseStringAsync();
-                //_logger.LogError(ex, "Excepción al llamar al endpoint de Doppler. Detalles: {Body}", errorText);
+                var errorText = await GetFlurlErrorMessageAsync(ex);
+                _logger.LogError(
+                    ex,
+                    "Unexpected error calling the Doppler endpoint. Response: {Response}, Domain: {Domain}, VisitorGuid: {VisitorGuid}, Email: {ContactEmail}",
+                    errorText,
+                    domain,
+                    visitorGuid,
+                    email
+                );
                 return false;
             }
             catch (Exception ex)
             {
-                //_logger.LogError(ex, "Excepción inesperada al registrar el contacto en Doppler.");
+                _logger.LogError(
+                    ex,
+                    "Unexpected error registering a Doppler contact. Domain: {Domain}, VisitorGuid: {VisitorGuid}, Email: {ContactEmail}",
+                    domain,
+                    visitorGuid,
+                    email
+                );
                 return false;
             }
+        }
+
+        private static async Task<string> GetFlurlErrorMessageAsync(FlurlHttpException ex)
+        {
+            if (ex.Call.Response != null)
+            {
+                var responseText = await ex.GetResponseStringAsync();
+                if (!string.IsNullOrWhiteSpace(responseText))
+                {
+                    return responseText;
+                }
+            }
+
+            return ex.Message;
         }
     }
 }
