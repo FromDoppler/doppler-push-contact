@@ -39,5 +39,6 @@ namespace Doppler.PushContact.Services
 
         Task<bool> GetEnabledByVisitorGuid(string domain, string visitorGuid);
         Task<string> GetPushContactDomainAsync(string pushContactId);
+        Task<VisitorInfoDTO> GetVisitorInfoSafeAsync(string deviceToken);
     }
 }
