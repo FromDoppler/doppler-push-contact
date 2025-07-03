@@ -40,6 +40,7 @@ namespace Doppler.PushContact
             services.AddPushServices(Configuration);
             services.AddMessageSender(Configuration);
             services.AddMessageQueueBroker(Configuration);
+            services.AddDopplerHttpClient(Configuration);
             services.AddScoped<IWebPushPublisherService, WebPushPublisherService>();
             services.AddScoped<IMessageRepository, MessageRepository>();
             services.AddScoped<IWebPushEventRepository, WebPushEventRepository>();
