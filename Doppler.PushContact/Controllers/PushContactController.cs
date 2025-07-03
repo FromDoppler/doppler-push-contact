@@ -160,7 +160,22 @@ namespace Doppler.PushContact.Controllers
         [Route("push-contacts/{deviceToken}/email")]
         public async Task<IActionResult> UpdateEmail([FromRoute] string deviceToken, [FromBody] string email)
         {
+            // TODO: add exceptions treatment
             await _pushContactService.UpdateEmailAsync(deviceToken, email);
+
+            // Fire and forget
+            _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
+            {
+                var visitorInfo = await _pushContactService.GetVisitorInfoSafeAsync(deviceToken);
+                if (visitorInfo != null)
+                {
+                    await _dopplerHttpClient.RegisterVisitorSafeAsync(
+                        visitorInfo.Domain,
+                        visitorInfo.VisitorGuid,
+                        visitorInfo.Email
+                    );
+                }
+            });
 
             return Ok();
         }
