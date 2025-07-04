@@ -37,7 +37,7 @@ namespace Doppler.PushContact.Services
             {
                 var response = await _dopplerHttpClientSettings.DopplerAppServer
                     .AppendPathSegments("Lists", "InternalSubscriber", "SaveVisitorWithEmail")
-                    .WithHeader("Origin", _dopplerHttpClientSettings.PushContactApiOrigin) // TODO: review origin setting
+                    .WithHeader("X-Internal-Token", _dopplerHttpClientSettings.InternalToken)
                     .AllowAnyHttpStatus()
                     .PostJsonAsync(new
                     {
