@@ -10,6 +10,7 @@ using Doppler.PushContact.Services.Queue;
 using Doppler.PushContact.Transversal;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -78,11 +79,11 @@ namespace Doppler.PushContact.Controllers
             {
                 _logger.LogError(
                     ex,
-                    "An unexpected error occurred adding a new contact with token: {DeviceToken} and subscription: {Subscription}.",
+                    "Unexpected error adding a new contact with token: {DeviceToken} and subscription: {Subscription}.",
                     pushContactModel.DeviceToken,
                     JsonSerializer.Serialize(pushContactModel.Subscription)
                 );
-                return StatusCode((int)HttpStatusCode.InternalServerError);
+                return StatusCode(StatusCodes.Status500InternalServerError);
             }
 
             return Ok();
@@ -186,7 +187,7 @@ namespace Doppler.PushContact.Controllers
                     email,
                     deviceToken
                 );
-                return StatusCode((int)HttpStatusCode.InternalServerError);
+                return StatusCode(StatusCodes.Status500InternalServerError);
             }
 
             return Ok();
