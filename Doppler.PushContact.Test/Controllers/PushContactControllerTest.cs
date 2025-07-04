@@ -224,7 +224,7 @@ namespace Doppler.PushContact.Test.Controllers
                     // which is different from if it had been registered with AddSingleton.
                     var descriptor = services.FirstOrDefault(
                         d => d.ServiceType == typeof(IHostedService) &&
-                             d.ImplementationType == typeof(QueueBackgroundService));
+                            d.ImplementationType == typeof(QueueBackgroundService));
                     if (descriptor != null)
                     {
                         services.Remove(descriptor);
@@ -289,7 +289,7 @@ namespace Doppler.PushContact.Test.Controllers
                     // which is different from if it had been registered with AddSingleton.
                     var descriptor = services.FirstOrDefault(
                         d => d.ServiceType == typeof(IHostedService) &&
-                             d.ImplementationType == typeof(QueueBackgroundService));
+                            d.ImplementationType == typeof(QueueBackgroundService));
                     if (descriptor != null)
                     {
                         services.Remove(descriptor);
@@ -700,7 +700,7 @@ namespace Doppler.PushContact.Test.Controllers
                     // which is different from if it had been registered with AddSingleton.
                     var descriptor = services.FirstOrDefault(
                         d => d.ServiceType == typeof(IHostedService) &&
-                             d.ImplementationType == typeof(QueueBackgroundService));
+                            d.ImplementationType == typeof(QueueBackgroundService));
                     if (descriptor != null)
                     {
                         services.Remove(descriptor);
@@ -739,6 +739,7 @@ namespace Doppler.PushContact.Test.Controllers
         [Fact]
         public async Task UpdateEmail_should_return_internal_server_error_when_service_throw_an_exception()
         {
+            // TODO: corregir este test
             // Arrange
             var fixture = new Fixture();
 
