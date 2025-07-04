@@ -10,6 +10,7 @@ using Doppler.PushContact.Services.Queue;
 using Doppler.PushContact.Transversal;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -31,12 +32,14 @@ namespace Doppler.PushContact.Controllers
         private readonly IBackgroundQueue _backgroundQueue;
         private readonly IWebPushEventService _webPushEventService;
         private readonly ILogger<PushContactController> _logger;
+        private readonly IDopplerHttpClient _dopplerHttpClient;
 
         public PushContactController(IPushContactService pushContactService,
             IMessageSender messageSender,
             IMessageRepository messageRepository,
             IBackgroundQueue backgroundQueue,
             IWebPushEventService webPushEventRepository,
+            IDopplerHttpClient dopplerHttpClient,
             ILogger<PushContactController> logger
         )
         {
@@ -45,6 +48,7 @@ namespace Doppler.PushContact.Controllers
             _messageRepository = messageRepository;
             _backgroundQueue = backgroundQueue;
             _webPushEventService = webPushEventRepository;
+            _dopplerHttpClient = dopplerHttpClient;
             _logger = logger;
         }
 
@@ -56,6 +60,16 @@ namespace Doppler.PushContact.Controllers
             try
             {
                 await _pushContactService.AddAsync(pushContactModel);
+
+                // Fire and forget
+                _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
+                {
+                    await _dopplerHttpClient.RegisterVisitorSafeAsync(
+                        pushContactModel.Domain,
+                        pushContactModel.VisitorGuid,
+                        pushContactModel.Email
+                    );
+                });
             }
             catch (ArgumentException argEx)
             {
@@ -65,11 +79,11 @@ namespace Doppler.PushContact.Controllers
             {
                 _logger.LogError(
                     ex,
-                    "An unexpected error occurred adding a new contact with token: {DeviceToken} and subscription: {Subscription}.",
+                    "Unexpected error adding a new contact with token: {DeviceToken} and subscription: {Subscription}.",
                     pushContactModel.DeviceToken,
                     JsonSerializer.Serialize(pushContactModel.Subscription)
                 );
-                return StatusCode((int)HttpStatusCode.InternalServerError);
+                return StatusCode(StatusCodes.Status500InternalServerError);
             }
 
             return Ok();
@@ -147,7 +161,34 @@ namespace Doppler.PushContact.Controllers
         [Route("push-contacts/{deviceToken}/email")]
         public async Task<IActionResult> UpdateEmail([FromRoute] string deviceToken, [FromBody] string email)
         {
-            await _pushContactService.UpdateEmailAsync(deviceToken, email);
+            try
+            {
+                await _pushContactService.UpdateEmailAsync(deviceToken, email);
+
+                // Fire and forget
+                _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
+                {
+                    var visitorInfo = await _pushContactService.GetVisitorInfoSafeAsync(deviceToken);
+                    if (visitorInfo != null)
+                    {
+                        await _dopplerHttpClient.RegisterVisitorSafeAsync(
+                            visitorInfo.Domain,
+                            visitorInfo.VisitorGuid,
+                            visitorInfo.Email
+                        );
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Unexpected error updating the email: {ContactEmail} for contact with token: {DeviceToken}.",
+                    email,
+                    deviceToken
+                );
+                return StatusCode(StatusCodes.Status500InternalServerError);
+            }
 
             return Ok();
         }
