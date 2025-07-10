@@ -78,8 +78,8 @@ namespace Doppler.PushContact.Repositories
             var sizeFromConfig = _pushMongoContextSettings?.Value?.CursorBatchSize ?? 0;
             var batchSize = sizeFromConfig > 0 ? sizeFromConfig : 500;
 
-            var filter = Builders<BsonDocument>.Filter.Eq(PushContactDocumentProps.DomainPropName, domain) &
-                         Builders<BsonDocument>.Filter.Eq(PushContactDocumentProps.DeletedPropName, false);
+            var filter = Builders<BsonDocument>.Filter.Eq(PushContactDocumentProps.DomainPropName, domain)
+                & Builders<BsonDocument>.Filter.Eq(PushContactDocumentProps.DeletedPropName, false);
 
             var options = new FindOptions<BsonDocument>
             {
