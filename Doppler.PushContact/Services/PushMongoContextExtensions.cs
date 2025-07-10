@@ -30,6 +30,8 @@ namespace Doppler.PushContact.Services
                 {
                     var mongoClient = new MongoClient(mongoUrl);
                     var database = mongoClient.GetDatabase(pushMongoContextSettings.DatabaseName);
+
+                    // push-contacts indexes
                     var pushContacts = database.GetCollection<BsonDocument>(pushMongoContextSettings.PushContactsCollectionName);
 
                     var deviceTokenAsUniqueIndex = new CreateIndexModel<BsonDocument>(
@@ -42,6 +44,14 @@ namespace Doppler.PushContact.Services
                     new CreateIndexOptions { Unique = false });
                     pushContacts.Indexes.CreateOne(domainAsSingleFieldIndex);
 
+                    var domainAndDeletedIndex = new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys
+                        .Ascending(PushContactDocumentProps.DomainPropName)
+                        .Ascending(PushContactDocumentProps.DeletedPropName),
+                    new CreateIndexOptions { Unique = false });
+                    pushContacts.Indexes.CreateOne(domainAndDeletedIndex);
+
+                    // domains indexes
                     var domains = database.GetCollection<BsonDocument>(pushMongoContextSettings.DomainsCollectionName);
 
                     var domainNameAsUniqueIndex = new CreateIndexModel<BsonDocument>(
@@ -49,6 +59,7 @@ namespace Doppler.PushContact.Services
                     new CreateIndexOptions { Unique = true });
                     domains.Indexes.CreateOne(domainNameAsUniqueIndex);
 
+                    // messages indexes
                     var messages = database.GetCollection<BsonDocument>(pushMongoContextSettings.MessagesCollectionName);
 
                     var messageIdAsUniqueIndex = new CreateIndexModel<BsonDocument>(
