@@ -183,7 +183,7 @@ namespace Doppler.PushContact.Services
             });
         }
 
-        private async Task ProcessWebPushBatchAsync(IEnumerable<SubscriptionInfoDTO> batch, WebPushDTO messageDTO, CancellationToken cancellationToken)
+        internal virtual async Task ProcessWebPushBatchAsync(IEnumerable<SubscriptionInfoDTO> batch, WebPushDTO messageDTO, CancellationToken cancellationToken)
         {
             await Parallel.ForEachAsync(batch, cancellationToken, async (subscription, ct) =>
             {

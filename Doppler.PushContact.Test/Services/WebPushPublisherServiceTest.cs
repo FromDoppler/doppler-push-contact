@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -594,5 +595,190 @@ namespace Doppler.PushContact.Test.Services
                 Times.Once
             );
         }
+
+        [Fact]
+        public async Task ProcessWebPushInBatches_should_process_items_in_batches_based_on_configured_batch_size()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+            var webPushDTO = new WebPushDTO
+            {
+                Title = fixture.Create<string>(),
+                Body = fixture.Create<string>(),
+                MessageId = messageId
+            };
+
+            var subscriptions = new List<SubscriptionInfoDTO>
+            {
+                // 3 con Subscription valida (deben entrar a ProcessWebPushBatchAsync)
+                new() { Subscription = new SubscriptionDTO { EndPoint = "https://fcm.googleapis.com", Keys = new SubscriptionKeys { Auth = "a", P256DH = "b" } }, PushContactId = "1" },
+                new() { Subscription = new SubscriptionDTO { EndPoint = "https://fcm.googleapis.com", Keys = new SubscriptionKeys { Auth = "c", P256DH = "d" } }, PushContactId = "2" },
+                new() { Subscription = new SubscriptionDTO { EndPoint = "https://fcm.googleapis.com", Keys = new SubscriptionKeys { Auth = "e", P256DH = "f" } }, PushContactId = "3" },
+
+                // 3 con DeviceToken (deben entrar a SendFirebaseWebPushAsync)
+                new() { DeviceToken = "device1" },
+                new() { DeviceToken = "device2" },
+                new() { DeviceToken = "device3" },
+            };
+
+            var backgroundQueueMock = new Mock<IBackgroundQueue>();
+            Func<CancellationToken, Task> capturedFunctionToBeSimulated = null;
+            backgroundQueueMock
+                .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
+                .Callback<Func<CancellationToken, Task>>(func => capturedFunctionToBeSimulated = func);
+
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
+            pushContactRepositoryMock.Setup(r => r.GetSubscriptionInfoByDomainAsStreamAsync(domain, It.IsAny<CancellationToken>()))
+                .Returns(subscriptions.ToAsyncEnumerable());
+
+            var messageSenderMock = new Mock<IMessageSender>();
+            var webPushPublisherServiceMock = new Mock<WebPushPublisherService>(
+                pushContactRepositoryMock.Object,
+                backgroundQueueMock.Object,
+                messageSenderMock.Object,
+                Mock.Of<ILogger<WebPushPublisherService>>(),
+                Mock.Of<IMessageQueuePublisher>(),
+                Options.Create(new WebPushPublisherSettings { ProcessPushBatchSize = 2 }) // batch size 2
+            )
+            { CallBase = true };
+
+            webPushPublisherServiceMock
+                .Setup(x => x.ProcessWebPushBatchAsync(It.IsAny<IEnumerable<SubscriptionInfoDTO>>(), webPushDTO, It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask)
+                .Verifiable();
+
+            // Act
+            webPushPublisherServiceMock.Object.ProcessWebPushInBatches(domain, webPushDTO, null);
+
+            // Assert
+            Assert.NotNull(capturedFunctionToBeSimulated);
+            await capturedFunctionToBeSimulated(CancellationToken.None);
+
+            // 3 subscriptions → 2 en primer batch, 1 en batch final → 2 llamadas
+            webPushPublisherServiceMock.Verify(x =>
+                x.ProcessWebPushBatchAsync(It.IsAny<IEnumerable<SubscriptionInfoDTO>>(), webPushDTO, It.IsAny<CancellationToken>()),
+                Times.Exactly(2));
+
+            // 3 deviceTokens → 2 en primer batch, 1 en final → 2 llamadas
+            messageSenderMock.Verify(x =>
+                x.SendFirebaseWebPushAsync(webPushDTO, It.Is<List<string>>(l => l.Count <= 2), null),
+                Times.Exactly(2));
+        }
+
+        [Fact]
+        public async Task ProcessWebPushInBatches_should_log_warning_and_do_nothing_when_cancelled_before_starting()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var webPushDTO = new WebPushDTO
+            {
+                Title = fixture.Create<string>(),
+                Body = fixture.Create<string>(),
+                MessageId = fixture.Create<Guid>()
+            };
+
+            var cancellationToken = new CancellationToken(canceled: true);
+
+            var backgroundQueueMock = new Mock<IBackgroundQueue>();
+            Func<CancellationToken, Task> capturedFunctionToBeSimulated = null;
+            backgroundQueueMock
+                .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
+                .Callback<Func<CancellationToken, Task>>(func => capturedFunctionToBeSimulated = func);
+
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
+            var webPushQueueSettings = new WebPushPublisherSettings { ProcessPushBatchSize = 2 };
+
+            var sut = CreateSut(
+                pushContactRepository: pushContactRepositoryMock.Object,
+                backgroundQueue: backgroundQueueMock.Object,
+                messageSender: messageSenderMock.Object,
+                messageQueuePublisher: Mock.Of<IMessageQueuePublisher>(),
+                logger: loggerMock.Object,
+                webPushQueueSettings: Options.Create(webPushQueueSettings)
+            );
+
+            // Act
+            sut.ProcessWebPushInBatches(domain, webPushDTO, null);
+
+            // Assert
+            Assert.NotNull(capturedFunctionToBeSimulated);
+            await capturedFunctionToBeSimulated(cancellationToken);
+
+            // verifica que NO se llamaron metodos
+            messageSenderMock.Verify(m => m.SendFirebaseWebPushAsync(It.IsAny<WebPushDTO>(), It.IsAny<List<string>>(), It.IsAny<string>()), Times.Never);
+            pushContactRepositoryMock.Verify(r => r.GetSubscriptionInfoByDomainAsStreamAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+
+            // verifica que se logueo el warning
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, _) => v.ToString().Contains("WebPush processing was cancelled before starting")),
+                    null,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task ProcessWebPushInBatches_should_log_error_when_exception_occurs()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var webPushDTO = new WebPushDTO
+            {
+                Title = fixture.Create<string>(),
+                Body = fixture.Create<string>(),
+                MessageId = fixture.Create<Guid>()
+            };
+
+            var expectedException = new Exception("Something went wrong");
+
+            var backgroundQueueMock = new Mock<IBackgroundQueue>();
+            Func<CancellationToken, Task> capturedFunc = null;
+            backgroundQueueMock
+                .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
+                .Callback<Func<CancellationToken, Task>>(func => capturedFunc = func);
+
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
+            pushContactRepositoryMock
+                .Setup(r => r.GetSubscriptionInfoByDomainAsStreamAsync(domain, It.IsAny<CancellationToken>()))
+                .Throws(expectedException);
+
+            var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
+            var messageSenderMock = new Mock<IMessageSender>();
+
+            var sut = CreateSut(
+                pushContactRepository: pushContactRepositoryMock.Object,
+                backgroundQueue: backgroundQueueMock.Object,
+                messageSender: messageSenderMock.Object,
+                messageQueuePublisher: Mock.Of<IMessageQueuePublisher>(),
+                logger: loggerMock.Object,
+                webPushQueueSettings: Options.Create(new WebPushPublisherSettings())
+            );
+
+            // Act
+            sut.ProcessWebPushInBatches(domain, webPushDTO, null);
+
+            // Assert
+            Assert.NotNull(capturedFunc);
+            await capturedFunc(CancellationToken.None);
+
+            // verifica que se logueo el error
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, _) => v.ToString().Contains("An unexpected error occurred processing webpush")),
+                    expectedException,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+        }
+
     }
 }
