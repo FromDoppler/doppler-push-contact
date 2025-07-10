@@ -104,12 +104,15 @@ namespace Doppler.PushContact.Services
                 {
                     _logger.LogInformation("Starting to process webpush for domain: {Domain}, messageId: {MessageId}", domain, messageDTO.MessageId);
 
-                    var deviceTokens = new List<string>();
-                    var batchToEnqueueSubscriptions = new List<SubscriptionInfoDTO>();
+                    var deviceTokensBatch = new List<string>();
+                    int processedDeviceTokensCount = 0;
+                    int deviceTokenBatchBatchIndex = 0;
 
-                    int processedCount = 0;
-                    int batchIndex = 0;
-                    const int batchSize = 5; // quantity of valid subscriptions before to fire a batch process
+                    var subscriptionsBatch = new List<SubscriptionInfoDTO>();
+                    int processedSubscriptionsCount = 0;
+                    int subscriptionsBatchIndex = 0;
+
+                    const int batchSize = 5; // quantity of valid subscriptions/tokens before to fire a batch process
 
                     // use "await foreach" to consume a method that returns results as a stream
                     await foreach (var subscription in _pushContactRepository.GetSubscriptionInfoByDomainAsStreamAsync(domain, cancellationToken))
@@ -120,37 +123,48 @@ namespace Doppler.PushContact.Services
                             !string.IsNullOrEmpty(subscription.Subscription.Keys.Auth) &&
                             !string.IsNullOrEmpty(subscription.Subscription.Keys.P256DH))
                         {
-                            batchToEnqueueSubscriptions.Add(subscription);
-                            if (batchToEnqueueSubscriptions.Count >= batchSize)
+                            subscriptionsBatch.Add(subscription);
+
+                            if (subscriptionsBatch.Count >= batchSize)
                             {
-                                processedCount += batchToEnqueueSubscriptions.Count;
-                                _logger.LogDebug("Processing batch #{BatchIndex}, total processed so far: {Count}", ++batchIndex, processedCount);
-                                await ProcessWebPushBatchAsync(batchToEnqueueSubscriptions, messageDTO, cancellationToken);
-                                batchToEnqueueSubscriptions.Clear();
+                                processedSubscriptionsCount += subscriptionsBatch.Count;
+                                await ProcessWebPushBatchAsync(subscriptionsBatch, messageDTO, cancellationToken);
+                                _logger.LogDebug("Processed subscriptions batch #{BatchIndex}, processed so far: {Count}", ++subscriptionsBatchIndex, processedSubscriptionsCount);
+                                subscriptionsBatch.Clear();
                             }
                         }
                         else if (!string.IsNullOrEmpty(subscription.DeviceToken))
                         {
-                            deviceTokens.Add(subscription.DeviceToken);
+                            deviceTokensBatch.Add(subscription.DeviceToken);
+
+                            if (deviceTokensBatch.Count >= batchSize)
+                            {
+                                processedDeviceTokensCount += deviceTokensBatch.Count;
+                                await _messageSender.SendFirebaseWebPushAsync(messageDTO, deviceTokensBatch, authenticationApiToken);
+                                _logger.LogDebug("Processed device tokens batch #{BatchIndex}, processed so far: {Count}", ++deviceTokenBatchBatchIndex, processedDeviceTokensCount);
+                                deviceTokensBatch.Clear();
+                            }
                         }
                     }
 
-                    if (batchToEnqueueSubscriptions.Count > 0)
+                    if (subscriptionsBatch.Count > 0)
                     {
-                        processedCount += batchToEnqueueSubscriptions.Count;
-                        _logger.LogDebug("Processing final batch #{BatchIndex}, total processed so far: {Count}", ++batchIndex, processedCount);
-                        await ProcessWebPushBatchAsync(batchToEnqueueSubscriptions, messageDTO, cancellationToken);
+                        processedSubscriptionsCount += subscriptionsBatch.Count;
+                        await ProcessWebPushBatchAsync(subscriptionsBatch, messageDTO, cancellationToken);
+                        _logger.LogDebug("Processed final subscriptions batch #{BatchIndex}, processed: {Count}", ++subscriptionsBatchIndex, processedSubscriptionsCount);
                     }
 
-                    if (deviceTokens.Count > 0)
+                    if (deviceTokensBatch.Count > 0)
                     {
-                        await _messageSender.SendFirebaseWebPushAsync(messageDTO, deviceTokens, authenticationApiToken);
+                        processedDeviceTokensCount += deviceTokensBatch.Count;
+                        await _messageSender.SendFirebaseWebPushAsync(messageDTO, deviceTokensBatch, authenticationApiToken);
+                        _logger.LogDebug("Processed final device tokens batch #{BatchIndex}, processed: {Count}", ++deviceTokenBatchBatchIndex, processedDeviceTokensCount);
                     }
 
                     _logger.LogInformation(
                         "Finished processing {TotalSubscriptions} subscriptions and {TotalDeviceToken} deviceTokens, for domain: {Domain}",
-                        processedCount,
-                        deviceTokens.Count,
+                        processedSubscriptionsCount,
+                        processedDeviceTokensCount,
                         domain
                     );
                 }
@@ -224,6 +238,7 @@ namespace Doppler.PushContact.Services
                 );
             }
         }
+
         public string GetQueueName(string endpoint)
         {
             foreach (var mapping in _pushEndpointMappings)
