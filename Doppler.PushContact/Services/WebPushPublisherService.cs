@@ -23,6 +23,7 @@ namespace Doppler.PushContact.Services
         private readonly ILogger<WebPushPublisherService> _logger;
         private readonly IMessageQueuePublisher _messageQueuePublisher;
         private readonly Dictionary<string, List<string>> _pushEndpointMappings;
+        private readonly IOptions<WebPushPublisherSettings> _webPushPublisherSettings;
 
         private const string QUEUE_NAME_SUFIX = "webpush.queue";
         private const string DEFAULT_QUEUE_NAME = $"default.{QUEUE_NAME_SUFIX}";
@@ -49,6 +50,7 @@ namespace Doppler.PushContact.Services
             _pushContactApiUrl = webPushQueueSettings.Value.PushContactApiUrl;
             _clickedEventEndpointPath = webPushQueueSettings.Value.ClickedEventEndpointPath;
             _receivedEventEndpointPath = webPushQueueSettings.Value.ReceivedEventEndpointPath;
+            _webPushPublisherSettings = webPushQueueSettings;
         }
 
         public void ProcessWebPush(string domain, WebPushDTO messageDTO, string authenticationApiToken = null)
@@ -112,7 +114,8 @@ namespace Doppler.PushContact.Services
                     int processedSubscriptionsCount = 0;
                     int subscriptionsBatchIndex = 0;
 
-                    const int batchSize = 5; // quantity of valid subscriptions/tokens before to fire a batch process
+                    var sizeFromConfig = _webPushPublisherSettings?.Value?.ProcessPushBatchSize ?? 0;
+                    var batchSize = sizeFromConfig > 0 ? sizeFromConfig : 500; // quantity of valid subscriptions/tokens before to fire a batch process
 
                     // use "await foreach" to consume a method that returns results as a stream
                     await foreach (var subscription in _pushContactRepository.GetSubscriptionInfoByDomainAsStreamAsync(domain, cancellationToken))
