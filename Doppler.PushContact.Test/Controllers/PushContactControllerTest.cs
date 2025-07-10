@@ -5,6 +5,7 @@ using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.Models.PushContactApiResponses;
+using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Services.Messages;
 using Doppler.PushContact.Test.Controllers.Utils;
@@ -3352,6 +3353,7 @@ namespace Doppler.PushContact.Test.Controllers
             var pushContactServiceMock = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var pushContactRepository = new Mock<IPushContactRepository>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -3360,6 +3362,7 @@ namespace Doppler.PushContact.Test.Controllers
                     services.AddSingleton(pushContactServiceMock.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(pushContactRepository.Object);
 
                     var TestKey = "5Rz2VJbnjbhPfEKn3Ryd0E+u7jzOT2KCBicmM5wUq5Y=";
                     var TestIV = "7yZ8kT8L7UeO8JpH3Ir6jQ==";

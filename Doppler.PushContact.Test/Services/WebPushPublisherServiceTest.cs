@@ -2,6 +2,7 @@ using AutoFixture;
 using Doppler.PushContact.DTOs;
 using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.QueuingService.MessageQueueBroker;
+using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Services.Messages;
 using Doppler.PushContact.Services.Queue;
@@ -56,7 +57,7 @@ namespace Doppler.PushContact.Test.Services
         private const string DEFAULT_QUEUE_NAME = $"default.{QUEUE_NAME_SUFIX}";
 
         private static WebPushPublisherService CreateSut(
-            IPushContactService pushContactService = null,
+            IPushContactRepository pushContactRepository = null,
             IBackgroundQueue backgroundQueue = null,
             IMessageSender messageSender = null,
             ILogger<WebPushPublisherService> logger = null,
@@ -65,7 +66,7 @@ namespace Doppler.PushContact.Test.Services
         )
         {
             return new WebPushPublisherService(
-                pushContactService ?? Mock.Of<IPushContactService>(),
+                pushContactRepository ?? Mock.Of<IPushContactRepository>(),
                 backgroundQueue ?? Mock.Of<IBackgroundQueue>(),
                 messageSender ?? Mock.Of<IMessageSender>(),
                 logger ?? Mock.Of<ILogger<WebPushPublisherService>>(),
@@ -106,7 +107,7 @@ namespace Doppler.PushContact.Test.Services
                 .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
                 .Callback<Func<CancellationToken, Task>>(func => capturedFunctionToBeSimulated = func);
 
-            var pushContactServiceMock = new Mock<IPushContactService>();
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
             var subscriptions = new List<SubscriptionInfoDTO>
             {
                 new SubscriptionInfoDTO
@@ -123,7 +124,7 @@ namespace Doppler.PushContact.Test.Services
                 },
             };
 
-            pushContactServiceMock
+            pushContactRepositoryMock
                 .Setup(s => s.GetAllSubscriptionInfoByDomainAsync(domain))
                 .ReturnsAsync(subscriptions);
 
@@ -131,7 +132,7 @@ namespace Doppler.PushContact.Test.Services
             var messageQueuePublisherMock = new Mock<IMessageQueuePublisher>();
 
             var sut = CreateSut(
-                pushContactService: pushContactServiceMock.Object,
+                pushContactRepository: pushContactRepositoryMock.Object,
                 backgroundQueue: backgroundQueueMock.Object,
                 messageSender: messageSenderMock.Object,
                 messageQueuePublisher: messageQueuePublisherMock.Object
@@ -199,7 +200,7 @@ namespace Doppler.PushContact.Test.Services
                 .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
                 .Callback<Func<CancellationToken, Task>>(func => capturedFunctionToBeSimulated = func);
 
-            var pushContactServiceMock = new Mock<IPushContactService>();
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
             var subscriptions = new List<SubscriptionInfoDTO>
             {
                 new SubscriptionInfoDTO
@@ -217,7 +218,7 @@ namespace Doppler.PushContact.Test.Services
                 },
             };
 
-            pushContactServiceMock
+            pushContactRepositoryMock
                 .Setup(s => s.GetAllSubscriptionInfoByDomainAsync(domain))
                 .ReturnsAsync(subscriptions);
 
@@ -225,7 +226,7 @@ namespace Doppler.PushContact.Test.Services
             var messageQueuePublisherMock = new Mock<IMessageQueuePublisher>();
 
             var sut = CreateSut(
-                pushContactService: pushContactServiceMock.Object,
+                pushContactRepository: pushContactRepositoryMock.Object,
                 backgroundQueue: backgroundQueueMock.Object,
                 messageSender: messageSenderMock.Object,
                 messageQueuePublisher: messageQueuePublisherMock.Object
@@ -283,15 +284,15 @@ namespace Doppler.PushContact.Test.Services
                 .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
                 .Callback<Func<CancellationToken, Task>>(func => capturedFunctionToBeSimulated = func);
 
-            var pushContactServiceMock = new Mock<IPushContactService>();
-            pushContactServiceMock
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
+            pushContactRepositoryMock
                 .Setup(s => s.GetAllSubscriptionInfoByDomainAsync(domain))
                 .Throws(new Exception());
 
             var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
 
             var sut = CreateSut(
-                pushContactService: pushContactServiceMock.Object,
+                pushContactRepository: pushContactRepositoryMock.Object,
                 backgroundQueue: backgroundQueueMock.Object,
                 logger: loggerMock.Object
             );
@@ -339,7 +340,7 @@ namespace Doppler.PushContact.Test.Services
                 .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
                 .Callback<Func<CancellationToken, Task>>(func => capturedFunctionToBeSimulated = func);
 
-            var pushContactServiceMock = new Mock<IPushContactService>();
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
             var subscriptions = new List<SubscriptionInfoDTO>
             {
                 new SubscriptionInfoDTO
@@ -356,7 +357,7 @@ namespace Doppler.PushContact.Test.Services
                 },
             };
 
-            pushContactServiceMock
+            pushContactRepositoryMock
                 .Setup(s => s.GetAllSubscriptionInfoByDomainAsync(domain))
                 .ReturnsAsync(subscriptions);
 
@@ -368,7 +369,7 @@ namespace Doppler.PushContact.Test.Services
             var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
 
             var sut = CreateSut(
-                pushContactService: pushContactServiceMock.Object,
+                pushContactRepository: pushContactRepositoryMock.Object,
                 backgroundQueue: backgroundQueueMock.Object,
                 messageQueuePublisher: messageQueuePublisherMock.Object,
                 logger: loggerMock.Object
@@ -421,7 +422,7 @@ namespace Doppler.PushContact.Test.Services
                 .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
                 .Callback<Func<CancellationToken, Task>>(func => capturedFunctionToBeSimulated = func);
 
-            var pushContactServiceMock = new Mock<IPushContactService>();
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
             var subscriptions = new List<SubscriptionInfoDTO>
             {
                 new SubscriptionInfoDTO
@@ -439,7 +440,7 @@ namespace Doppler.PushContact.Test.Services
                 }
             };
 
-            pushContactServiceMock
+            pushContactRepositoryMock
                 .Setup(s => s.GetAllSubscriptionInfoByDomainAsync(domain))
                 .ReturnsAsync(subscriptions);
 
@@ -459,7 +460,7 @@ namespace Doppler.PushContact.Test.Services
             var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
 
             var sut = CreateSut(
-                pushContactService: pushContactServiceMock.Object,
+                pushContactRepository: pushContactRepositoryMock.Object,
                 backgroundQueue: backgroundQueueMock.Object,
                 messageSender: messageSenderMock.Object,
                 messageQueuePublisher: messageQueuePublisherMock.Object,
@@ -527,7 +528,7 @@ namespace Doppler.PushContact.Test.Services
                 .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
                 .Callback<Func<CancellationToken, Task>>(func => capturedFunctionToBeSimulated = func);
 
-            var pushContactServiceMock = new Mock<IPushContactService>();
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
             var subscriptions = new List<SubscriptionInfoDTO>
             {
                 new SubscriptionInfoDTO
@@ -545,7 +546,7 @@ namespace Doppler.PushContact.Test.Services
                 }
             };
 
-            pushContactServiceMock
+            pushContactRepositoryMock
                 .Setup(s => s.GetAllSubscriptionInfoByDomainAsync(domain))
                 .ReturnsAsync(subscriptions);
 
@@ -565,7 +566,7 @@ namespace Doppler.PushContact.Test.Services
             var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
 
             var sut = CreateSut(
-                pushContactService: pushContactServiceMock.Object,
+                pushContactRepository: pushContactRepositoryMock.Object,
                 backgroundQueue: backgroundQueueMock.Object,
                 messageSender: messageSenderMock.Object,
                 messageQueuePublisher: messageQueuePublisherMock.Object,
