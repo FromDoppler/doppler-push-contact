@@ -1,5 +1,6 @@
 using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.QueuingService.MessageQueueBroker;
+using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services.Messages;
 using Doppler.PushContact.Services.Queue;
 using Doppler.PushContact.Transversal;
@@ -15,7 +16,7 @@ namespace Doppler.PushContact.Services
 {
     public class WebPushPublisherService : IWebPushPublisherService
     {
-        private readonly IPushContactService _pushContactService;
+        private readonly IPushContactRepository _pushContactRepository;
         private readonly IBackgroundQueue _backgroundQueue;
         private readonly IMessageSender _messageSender;
         private readonly ILogger<WebPushPublisherService> _logger;
@@ -30,7 +31,7 @@ namespace Doppler.PushContact.Services
         private readonly string _pushContactApiUrl;
 
         public WebPushPublisherService(
-            IPushContactService pushContactService,
+            IPushContactRepository pushContactRepository,
             IBackgroundQueue backgroundQueue,
             IMessageSender messageSender,
             ILogger<WebPushPublisherService> logger,
@@ -38,7 +39,7 @@ namespace Doppler.PushContact.Services
             IOptions<WebPushPublisherSettings> webPushQueueSettings
         )
         {
-            _pushContactService = pushContactService;
+            _pushContactRepository = pushContactRepository;
             _backgroundQueue = backgroundQueue;
             _messageSender = messageSender;
             _logger = logger;
@@ -56,7 +57,7 @@ namespace Doppler.PushContact.Services
                 try
                 {
                     var deviceTokens = new List<string>();
-                    var subscriptionsInfo = await _pushContactService.GetAllSubscriptionInfoByDomainAsync(domain);
+                    var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByDomainAsync(domain);
                     foreach (var subscription in subscriptionsInfo)
                     {
                         if (subscription.Subscription != null &&

@@ -1,0 +1,137 @@
+using Doppler.PushContact.DTOs;
+using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Entities;
+using Doppler.PushContact.Repositories.Interfaces;
+using Doppler.PushContact.Services;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MongoDB.Bson;
+using MongoDB.Driver;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace Doppler.PushContact.Repositories
+{
+    public class PushContactRepository : IPushContactRepository
+    {
+        private readonly IMongoClient _mongoClient;
+        private readonly IOptions<PushMongoContextSettings> _pushMongoContextSettings;
+        private readonly ILogger<PushContactRepository> _logger;
+
+        public PushContactRepository(
+            IMongoClient mongoClient,
+            IOptions<PushMongoContextSettings> pushMongoContextSettings,
+            ILogger<PushContactRepository> logger)
+        {
+            _mongoClient = mongoClient;
+            _pushMongoContextSettings = pushMongoContextSettings;
+            _logger = logger;
+        }
+
+        public async Task<IEnumerable<SubscriptionInfoDTO>> GetAllSubscriptionInfoByDomainAsync(string domain)
+        {
+            if (string.IsNullOrEmpty(domain))
+            {
+                throw new ArgumentException($"'{nameof(domain)}' cannot be null or empty.", nameof(domain));
+            }
+
+            var filterBuilder = Builders<BsonDocument>.Filter;
+
+            var filter = filterBuilder.Eq(PushContactDocumentProps.DomainPropName, domain)
+                & filterBuilder.Eq(PushContactDocumentProps.DeletedPropName, false);
+
+            var options = new FindOptions<BsonDocument>
+            {
+                Projection = Builders<BsonDocument>.Projection
+                .Include(PushContactDocumentProps.DeviceTokenPropName)
+                .Include(PushContactDocumentProps.Subscription_PropName)
+                .Include(PushContactDocumentProps.IdPropName)
+            };
+
+            try
+            {
+                var pushContacts = await (await PushContacts.FindAsync(filter, options)).ToListAsync();
+                return GetSubscriptionsInfoFromBsonDocuments(pushContacts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting {nameof(SubscriptionInfoDTO)}s by {nameof(domain)} {domain}");
+
+                throw;
+            }
+        }
+
+        private List<SubscriptionInfoDTO> GetSubscriptionsInfoFromBsonDocuments(List<BsonDocument> pushContacts)
+        {
+            return pushContacts.Select(x =>
+            {
+                var DEVTOKEN_PROP_NAME = PushContactDocumentProps.DeviceTokenPropName;
+                var SUBSCRIPTION_PROP_NAME = PushContactDocumentProps.Subscription_PropName;
+                var ENDPOINT_PROP_NAME = PushContactDocumentProps.Subscription_EndPoint_PropName;
+                var AUTH_PROP_NAME = PushContactDocumentProps.Subscription_Auth_PropName;
+                var P256DH_PROP_NAME = PushContactDocumentProps.Subscription_P256DH_PropName;
+                var _ID_PROP_NAME = PushContactDocumentProps.IdPropName;
+
+                var deviceToken = x.Contains(DEVTOKEN_PROP_NAME) && !x[DEVTOKEN_PROP_NAME].IsBsonNull
+                    ? x[DEVTOKEN_PROP_NAME].AsString
+                    : null;
+
+                var _id = x[_ID_PROP_NAME].AsString;
+
+                if (x.Contains(SUBSCRIPTION_PROP_NAME) && !x[SUBSCRIPTION_PROP_NAME].IsBsonNull)
+                {
+                    var subscriptionDoc = x[SUBSCRIPTION_PROP_NAME].AsBsonDocument;
+
+                    var endPoint = subscriptionDoc.Contains(ENDPOINT_PROP_NAME) && !subscriptionDoc[ENDPOINT_PROP_NAME].IsBsonNull
+                        ? subscriptionDoc[ENDPOINT_PROP_NAME].AsString
+                        : null;
+
+                    var auth = subscriptionDoc.Contains(AUTH_PROP_NAME) && !subscriptionDoc[AUTH_PROP_NAME].IsBsonNull
+                        ? subscriptionDoc[AUTH_PROP_NAME].AsString
+                        : null;
+
+                    var p256dh = subscriptionDoc.Contains(P256DH_PROP_NAME) && !subscriptionDoc[P256DH_PROP_NAME].IsBsonNull
+                        ? subscriptionDoc[P256DH_PROP_NAME].AsString
+                        : null;
+
+                    var subscriptionModel = new SubscriptionDTO
+                    {
+                        EndPoint = endPoint,
+                        Keys = new SubscriptionKeys
+                        {
+                            Auth = auth,
+                            P256DH = p256dh
+                        }
+                    };
+
+                    return new SubscriptionInfoDTO
+                    {
+                        DeviceToken = deviceToken,
+                        Subscription = subscriptionModel,
+                        PushContactId = _id,
+                    };
+                }
+                else
+                {
+                    return new SubscriptionInfoDTO
+                    {
+                        DeviceToken = deviceToken,
+                        Subscription = null,
+                        PushContactId = _id,
+                    };
+                }
+            }).ToList();
+        }
+
+        private IMongoCollection<BsonDocument> PushContacts
+        {
+            get
+            {
+                var database = _mongoClient.GetDatabase(_pushMongoContextSettings.Value.DatabaseName);
+                return database.GetCollection<BsonDocument>(_pushMongoContextSettings.Value.PushContactsCollectionName);
+            }
+        }
+    }
+}
