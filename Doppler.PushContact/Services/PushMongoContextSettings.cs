@@ -14,5 +14,6 @@ namespace Doppler.PushContact.Services
 
         public string MessagesCollectionName { get; set; }
         public string WebPushEventCollectionName { get; set; }
+        public int CursorBatchSize { get; set; }
     }
 }
