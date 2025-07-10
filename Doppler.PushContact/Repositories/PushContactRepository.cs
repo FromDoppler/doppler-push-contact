@@ -171,64 +171,7 @@ namespace Doppler.PushContact.Repositories
 
         private List<SubscriptionInfoDTO> GetSubscriptionsInfoFromBsonDocuments(List<BsonDocument> pushContacts)
         {
-            return pushContacts.Select(x =>
-            {
-                var DEVTOKEN_PROP_NAME = PushContactDocumentProps.DeviceTokenPropName;
-                var SUBSCRIPTION_PROP_NAME = PushContactDocumentProps.Subscription_PropName;
-                var ENDPOINT_PROP_NAME = PushContactDocumentProps.Subscription_EndPoint_PropName;
-                var AUTH_PROP_NAME = PushContactDocumentProps.Subscription_Auth_PropName;
-                var P256DH_PROP_NAME = PushContactDocumentProps.Subscription_P256DH_PropName;
-                var _ID_PROP_NAME = PushContactDocumentProps.IdPropName;
-
-                var deviceToken = x.Contains(DEVTOKEN_PROP_NAME) && !x[DEVTOKEN_PROP_NAME].IsBsonNull
-                    ? x[DEVTOKEN_PROP_NAME].AsString
-                    : null;
-
-                var _id = x[_ID_PROP_NAME].AsString;
-
-                if (x.Contains(SUBSCRIPTION_PROP_NAME) && !x[SUBSCRIPTION_PROP_NAME].IsBsonNull)
-                {
-                    var subscriptionDoc = x[SUBSCRIPTION_PROP_NAME].AsBsonDocument;
-
-                    var endPoint = subscriptionDoc.Contains(ENDPOINT_PROP_NAME) && !subscriptionDoc[ENDPOINT_PROP_NAME].IsBsonNull
-                        ? subscriptionDoc[ENDPOINT_PROP_NAME].AsString
-                        : null;
-
-                    var auth = subscriptionDoc.Contains(AUTH_PROP_NAME) && !subscriptionDoc[AUTH_PROP_NAME].IsBsonNull
-                        ? subscriptionDoc[AUTH_PROP_NAME].AsString
-                        : null;
-
-                    var p256dh = subscriptionDoc.Contains(P256DH_PROP_NAME) && !subscriptionDoc[P256DH_PROP_NAME].IsBsonNull
-                        ? subscriptionDoc[P256DH_PROP_NAME].AsString
-                        : null;
-
-                    var subscriptionModel = new SubscriptionDTO
-                    {
-                        EndPoint = endPoint,
-                        Keys = new SubscriptionKeys
-                        {
-                            Auth = auth,
-                            P256DH = p256dh
-                        }
-                    };
-
-                    return new SubscriptionInfoDTO
-                    {
-                        DeviceToken = deviceToken,
-                        Subscription = subscriptionModel,
-                        PushContactId = _id,
-                    };
-                }
-                else
-                {
-                    return new SubscriptionInfoDTO
-                    {
-                        DeviceToken = deviceToken,
-                        Subscription = null,
-                        PushContactId = _id,
-                    };
-                }
-            }).ToList();
+            return pushContacts.Select(GetSubscriptionInfoFromBson).ToList();
         }
 
         private IMongoCollection<BsonDocument> PushContacts
