@@ -78,9 +78,9 @@ namespace Doppler.PushContact.Services.Messages
                 .Eq(MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard));
 
             var updateDefinition = Builders<BsonDocument>.Update
-                .Set(MessageDocumentProps.SentPropName, sent)
-                .Set(MessageDocumentProps.DeliveredPropName, delivered)
-                .Set(MessageDocumentProps.NotDeliveredPropName, notDelivered);
+                .Inc(MessageDocumentProps.SentPropName, sent)
+                .Inc(MessageDocumentProps.DeliveredPropName, delivered)
+                .Inc(MessageDocumentProps.NotDeliveredPropName, notDelivered);
 
             try
             {
@@ -88,9 +88,7 @@ namespace Doppler.PushContact.Services.Messages
             }
             catch (Exception e)
             {
-                _logger.LogError(e, @$"Error updating message with {nameof(messageId)} {messageId}");
-
-                throw;
+                _logger.LogError(e, @$"Error updating message counters with {nameof(messageId)} {messageId}");
             }
         }
 
