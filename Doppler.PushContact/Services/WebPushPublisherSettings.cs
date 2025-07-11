@@ -8,5 +8,6 @@ namespace Doppler.PushContact.Services
         public string ClickedEventEndpointPath { get; set; }
         public string ReceivedEventEndpointPath { get; set; }
         public string PushContactApiUrl { get; set; }
+        public int ProcessPushBatchSize { get; set; }
     }
 }

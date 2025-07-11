@@ -139,7 +139,7 @@ namespace Doppler.PushContact.Controllers
 
             var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
 
-            _webPushPublisherService.ProcessWebPush(domain, webPushDTO, authenticationApiToken);
+            _webPushPublisherService.ProcessWebPushInBatches(domain, webPushDTO, authenticationApiToken);
 
             return Accepted(new MessageResult()
             {

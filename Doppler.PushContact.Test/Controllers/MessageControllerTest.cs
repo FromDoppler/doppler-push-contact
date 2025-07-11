@@ -808,8 +808,8 @@ namespace Doppler.PushContact.Test.Controllers
             _output.WriteLine(response.GetHeadersAsString());
 
             // Assert
-            // verify ProcessWebPush was called once
-            webPushPublisherServiceMock.Verify(x => x.ProcessWebPush(domain, It.IsAny<WebPushDTO>(), It.IsAny<string>()), Times.Once);
+            // verify ProcessWebPushInBatches was called once
+            webPushPublisherServiceMock.Verify(x => x.ProcessWebPushInBatches(domain, It.IsAny<WebPushDTO>(), It.IsAny<string>()), Times.Once);
 
             Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
 

@@ -152,6 +152,166 @@ namespace Doppler.PushContact.Test.Repositories
                 );
         }
 
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        public async Task GetSubscriptionInfoByDomainAsStreamAsync_should_throw_argument_exception_when_domain_is_null_or_empty
+            (string domain)
+        {
+            // Arrange
+            var sut = CreateSut();
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            {
+                await foreach (var _ in sut.GetSubscriptionInfoByDomainAsStreamAsync(domain)) { }
+            });
+        }
+
+        [Fact]
+        public async Task GetSubscriptionInfoByDomainAsStreamAsync_should_log_warning_when_cancelled()
+        {
+            // Arrange
+            var loggerMock = new Mock<ILogger<PushContactRepository>>();
+            var cts = new CancellationTokenSource();
+            cts.Cancel(); // simulate cancelled
+
+            var cursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+            cursorMock.SetupSequence(c => c.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            cursorMock.SetupGet(c => c.Current).Returns(new List<BsonDocument> { new BsonDocument() });
+
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            collectionMock.Setup(c => c.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(cursorMock.Object);
+
+            var mongoDatabaseMock = new Mock<IMongoDatabase>();
+            mongoDatabaseMock.Setup(d => d.GetCollection<BsonDocument>(It.IsAny<string>(), null)).Returns(collectionMock.Object);
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock.Setup(c => c.GetDatabase(It.IsAny<string>(), null)).Returns(mongoDatabaseMock.Object);
+
+            var sut = CreateSut(
+                mongoClientMock.Object,
+                Options.Create(new PushMongoContextSettings()),
+                logger: loggerMock.Object
+            );
+
+            // Act
+            await foreach (var _ in sut.GetSubscriptionInfoByDomainAsStreamAsync("test-domain", cts.Token)) { }
+
+            // Assert
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Streaming cancelled")),
+                    null,
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task GetSubscriptionInfoByDomainAsStreamAsync_should_yield_results()
+        {
+            // Arrange
+            var doc = new BsonDocument
+            {
+                { PushContactDocumentProps.DeviceTokenPropName, "dev-token" },
+                { PushContactDocumentProps.IdPropName, ObjectId.GenerateNewId() },
+                { PushContactDocumentProps.Subscription_PropName, new BsonDocument {
+                    { PushContactDocumentProps.Subscription_EndPoint_PropName, "endpoint" },
+                    { PushContactDocumentProps.Subscription_Auth_PropName, "auth" },
+                    { PushContactDocumentProps.Subscription_P256DH_PropName, "p256dh" }
+                }}
+            };
+
+            var cursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+            cursorMock.SetupSequence(c => c.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+            cursorMock.SetupGet(c => c.Current).Returns(new List<BsonDocument> { doc });
+
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            collectionMock.Setup(c => c.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(cursorMock.Object);
+
+            var mongoDatabaseMock = new Mock<IMongoDatabase>();
+            mongoDatabaseMock.Setup(d => d.GetCollection<BsonDocument>(It.IsAny<string>(), null)).Returns(collectionMock.Object);
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock.Setup(c => c.GetDatabase(It.IsAny<string>(), null)).Returns(mongoDatabaseMock.Object);
+
+            var sut = CreateSut(
+                mongoClientMock.Object,
+                Options.Create(new PushMongoContextSettings()),
+                logger: Mock.Of<ILogger<PushContactRepository>>()
+            );
+
+            // Act
+            var results = new List<SubscriptionInfoDTO>();
+            await foreach (var item in sut.GetSubscriptionInfoByDomainAsStreamAsync("test-domain"))
+            {
+                results.Add(item);
+            }
+
+            // Assert
+            Assert.Single(results);
+            Assert.Equal("dev-token", results[0].DeviceToken);
+            Assert.NotNull(results[0].Subscription);
+            Assert.Equal("endpoint", results[0].Subscription.EndPoint);
+        }
+
+        [Fact]
+        public async Task GetSubscriptionInfoByDomainAsStreamAsync_should_return_Null_subscription_when_subscription_is_incomplete()
+        {
+            // Arrange
+            var doc = new BsonDocument
+            {
+                { PushContactDocumentProps.DeviceTokenPropName, "incomplete-subscription-token" },
+                { PushContactDocumentProps.IdPropName, ObjectId.GenerateNewId() },
+                { PushContactDocumentProps.Subscription_PropName, new BsonDocument {
+                    // intentionally missing required fields like auth and p256dh
+                    { PushContactDocumentProps.Subscription_EndPoint_PropName, "endpoint" }
+                }}
+            };
+
+            var cursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+            cursorMock.SetupSequence(c => c.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+            cursorMock.SetupGet(c => c.Current).Returns(new List<BsonDocument> { doc });
+
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            collectionMock.Setup(c => c.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(cursorMock.Object);
+
+            var mongoDatabaseMock = new Mock<IMongoDatabase>();
+            mongoDatabaseMock.Setup(d => d.GetCollection<BsonDocument>(It.IsAny<string>(), null)).Returns(collectionMock.Object);
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock.Setup(c => c.GetDatabase(It.IsAny<string>(), null)).Returns(mongoDatabaseMock.Object);
+
+            var sut = CreateSut(
+                mongoClientMock.Object,
+                Options.Create(new PushMongoContextSettings()),
+                logger: Mock.Of<ILogger<PushContactRepository>>()
+            );
+
+            // Act
+            var results = new List<SubscriptionInfoDTO>();
+            await foreach (var item in sut.GetSubscriptionInfoByDomainAsStreamAsync("test-domain"))
+            {
+                results.Add(item);
+            }
+
+            // Assert
+            Assert.Single(results);
+            var result = results[0];
+            Assert.Equal("incomplete-subscription-token", result.DeviceToken);
+            Assert.Null(result.Subscription); // should be null because the subscription is not complete
+        }
+
         private static BsonDocument FakeSubscriptionDocument()
         {
             var fixture = new Fixture();
