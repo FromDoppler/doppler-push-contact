@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using System;
 using Xunit;
+using MongoDB.Bson.Serialization;
 
 namespace Doppler.PushContact.Test.Services.Messages
 {
@@ -225,6 +226,111 @@ namespace Doppler.PushContact.Test.Services.Messages
                     It.Is<LogLevel>(l => l == LogLevel.Error),
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) => v.ToString() == $"Unexpected error getting Message by {nameof(messageId)} {messageId}"),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateDeliveriesAsync_should_call_UpdateOneAsync_with_expected_filter_and_update()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+            var sent = 2;
+            var delivered = 1;
+            var notDelivered = 3;
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var databaseMock = new Mock<IMongoDatabase>();
+            var mongoClientMock = new Mock<IMongoClient>();
+
+            var settings = Options.Create(new PushMongoContextSettings
+            {
+                DatabaseName = "TestDatabase",
+                MessagesCollectionName = "TestCollection"
+            });
+
+            databaseMock
+                .Setup(d => d.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
+                .Returns(collectionMock.Object);
+
+            mongoClientMock
+                .Setup(c => c.GetDatabase(settings.Value.DatabaseName, null))
+                .Returns(databaseMock.Object);
+
+            var sut = CreateSut(mongoClientMock.Object, settings, loggerMock.Object);
+
+            // Act
+            await sut.UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered);
+
+            // Assert
+            collectionMock.Verify(x => x.UpdateOneAsync(
+                It.Is<FilterDefinition<BsonDocument>>(f => // the filter contains the messageId field
+                    f.Render(BsonSerializer.SerializerRegistry.GetSerializer<BsonDocument>(), BsonSerializer.SerializerRegistry)
+                    .ToString().Contains(messageId.ToString())),
+                It.Is<UpdateDefinition<BsonDocument>>(u => // the udpdate definition contains sent, delivered and notDelivered fields
+                    u.Render(BsonSerializer.SerializerRegistry.GetSerializer<BsonDocument>(), BsonSerializer.SerializerRegistry)
+                    .ToString().Contains($"{MessageDocumentProps.SentPropName}") &&
+                    u.Render(BsonSerializer.SerializerRegistry.GetSerializer<BsonDocument>(), BsonSerializer.SerializerRegistry)
+                    .ToString().Contains($"{MessageDocumentProps.DeliveredPropName}") &&
+                    u.Render(BsonSerializer.SerializerRegistry.GetSerializer<BsonDocument>(), BsonSerializer.SerializerRegistry)
+                    .ToString().Contains($"{MessageDocumentProps.NotDeliveredPropName}")),
+                It.IsAny<UpdateOptions>(), // options parameter
+                It.IsAny<CancellationToken>()), // cancelation token parameter
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateDeliveriesAsync_should_log_error_when_update_fails()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+            var sent = 2;
+            var delivered = 1;
+            var notDelivered = 3;
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var databaseMock = new Mock<IMongoDatabase>();
+            var mongoClientMock = new Mock<IMongoClient>();
+
+            var settings = Options.Create(new PushMongoContextSettings
+            {
+                DatabaseName = "TestDatabase",
+                MessagesCollectionName = "TestCollection"
+            });
+
+            collectionMock
+                .Setup(x => x.UpdateOneAsync(
+                    It.IsAny<FilterDefinition<BsonDocument>>(),
+                    It.IsAny<UpdateDefinition<BsonDocument>>(),
+                    It.IsAny<UpdateOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("some error"));
+
+            databaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
+                .Returns(collectionMock.Object);
+
+            mongoClientMock
+                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
+                .Returns(databaseMock.Object);
+
+            var sut = CreateSut(mongoClientMock.Object, settings, loggerMock.Object);
+
+            // Act
+            await sut.UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered);
+
+            // Assert
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) =>
+                        v.ToString().Contains($"Error updating message counters with messageId {messageId}")),
                     It.IsAny<Exception>(),
                     It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
                 Times.Once);
