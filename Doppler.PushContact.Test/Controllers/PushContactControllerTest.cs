@@ -1,5 +1,6 @@
 using AutoFixture;
 using Doppler.PushContact.ApiModels;
+using Doppler.PushContact.Controllers;
 using Doppler.PushContact.DTOs;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
@@ -8,11 +9,17 @@ using Doppler.PushContact.Models.PushContactApiResponses;
 using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Services.Messages;
+using Doppler.PushContact.Services.Queue;
 using Doppler.PushContact.Test.Controllers.Utils;
+using Doppler.PushContact.Test.Dummies;
 using Doppler.PushContact.Transversal;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using MongoDB.Driver;
 using Moq;
 using System;
 using System.Collections.Generic;
@@ -194,11 +201,8 @@ namespace Doppler.PushContact.Test.Controllers
             Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         }
 
-        [Theory]
-        [InlineData(false, HttpStatusCode.OK)]
-        [InlineData(true, HttpStatusCode.InternalServerError)]
-        public async Task Add_should_return_expected_status_code_depending_on_service_add_result
-            (bool addResultWithException, HttpStatusCode expectedHttpStatusCode)
+        [Fact]
+        public async Task Add_should_return_Ok()
         {
             // Arrange
             var fixture = new Fixture();
@@ -209,12 +213,26 @@ namespace Doppler.PushContact.Test.Controllers
 
             pushContactServiceMock
                 .Setup(x => x.AddAsync(It.IsAny<PushContactModel>()))
-                .Returns(addResultWithException ? Task.FromException(new Exception()) : Task.CompletedTask);
+                .Returns(Task.CompletedTask);
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
+                    // Remove QueueBackgroundService registered in Startup.cs.
+                    // This is not removed automatically because it was registered using AddHostedService,
+                    // which is different from if it had been registered with AddSingleton.
+                    var descriptor = services.FirstOrDefault(
+                        d => d.ServiceType == typeof(IHostedService) &&
+                            d.ImplementationType == typeof(QueueBackgroundService));
+                    if (descriptor != null)
+                    {
+                        services.Remove(descriptor);
+                    }
+
+                    // Now, replace by a dummy service
+                    services.AddSingleton<IHostedService, NoOpBackgroundService>();
+
                     services.AddSingleton(pushContactServiceMock.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
@@ -233,7 +251,89 @@ namespace Doppler.PushContact.Test.Controllers
             _output.WriteLine(response.GetHeadersAsString());
 
             // Assert
-            Assert.Equal(expectedHttpStatusCode, response.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task Add_should_trigger_visitor_registration_in_background()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var email = fixture.Create<string>();
+            var domain = fixture.Create<string>();
+            var visitorGuid = fixture.Create<string>();
+
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var dopplerHttpClientMock = new Mock<IDopplerHttpClient>();
+            var backgroundQueueMock = new Mock<IBackgroundQueue>();
+
+            Func<CancellationToken, Task> backgroundJob = null;
+
+            backgroundQueueMock
+                .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
+                .Callback<Func<CancellationToken, Task>>(job => backgroundJob = job);
+
+            pushContactServiceMock
+                .Setup(x => x.AddAsync(It.IsAny<PushContactModel>()))
+                .Returns(Task.CompletedTask);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    // Remove QueueBackgroundService registered in Startup.cs.
+                    // This is not removed automatically because it was registered using AddHostedService,
+                    // which is different from if it had been registered with AddSingleton.
+                    var descriptor = services.FirstOrDefault(
+                        d => d.ServiceType == typeof(IHostedService) &&
+                            d.ImplementationType == typeof(QueueBackgroundService));
+                    if (descriptor != null)
+                    {
+                        services.Remove(descriptor);
+                    }
+
+                    // Now, replace by a dummy service
+                    services.AddSingleton<IHostedService, NoOpBackgroundService>();
+
+                    services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(dopplerHttpClientMock.Object);
+                    services.AddSingleton(backgroundQueueMock.Object);
+                });
+
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+
+            var contact = new PushContactModel
+            {
+                Domain = domain,
+                VisitorGuid = visitorGuid,
+                Email = email,
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "push-contacts")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(contact)
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            Assert.NotNull(backgroundJob);
+            await backgroundJob(CancellationToken.None);
+
+            // Assert
+            dopplerHttpClientMock.Verify(x =>
+                x.RegisterVisitorSafeAsync(domain, visitorGuid, email),
+                Times.Once);
         }
 
         [Fact]
@@ -273,6 +373,56 @@ namespace Doppler.PushContact.Test.Controllers
 
             // Assert
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task Add_should_return_internal_server_error_when_service_throw_an_exception()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var loggerMock = new Mock<ILogger<PushContactController>>();
+
+            pushContactServiceMock
+                .Setup(x => x.AddAsync(It.IsAny<PushContactModel>()))
+                .ThrowsAsync(new Exception());
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "push-contacts")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(fixture.Create<PushContactModel>())
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            // Assert
+            Assert.Equal(StatusCodes.Status500InternalServerError, (int)response.StatusCode);
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Unexpected error adding a new contact with token")),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
         }
 
         [Fact]
@@ -463,7 +613,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task UpdateEmail_should_return_ok_when_service_does_not_throw_an_exception()
+        public async Task UpdateEmail_should_return_OK()
         {
             // Arrange
             var fixture = new Fixture();
@@ -505,8 +655,91 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
+        public async Task UpdateEmail_should_trigger_visitor_registration_in_background()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var deviceToken = fixture.Create<string>();
+            var email = fixture.Create<string>();
+            var domain = fixture.Create<string>();
+            var visitorGuid = fixture.Create<string>();
+
+            var visitorInfo = new VisitorInfoDTO
+            {
+                Domain = domain,
+                VisitorGuid = visitorGuid,
+                Email = email
+            };
+
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            var dopplerHttpClientMock = new Mock<IDopplerHttpClient>();
+            var backgroundQueueMock = new Mock<IBackgroundQueue>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+
+            pushContactServiceMock
+                .Setup(x => x.UpdateEmailAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+
+            pushContactServiceMock
+                .Setup(x => x.GetVisitorInfoSafeAsync(deviceToken))
+                .ReturnsAsync(visitorInfo);
+
+            Func<CancellationToken, Task> backgroundJob = null;
+
+            backgroundQueueMock
+                .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
+                .Callback<Func<CancellationToken, Task>>(job => backgroundJob = job);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    // Remove QueueBackgroundService registered in Startup.cs.
+                    // This is not removed automatically because it was registered using AddHostedService,
+                    // which is different from if it had been registered with AddSingleton.
+                    var descriptor = services.FirstOrDefault(
+                        d => d.ServiceType == typeof(IHostedService) &&
+                            d.ImplementationType == typeof(QueueBackgroundService));
+                    if (descriptor != null)
+                    {
+                        services.Remove(descriptor);
+                    }
+
+                    // Now, replace by a dummy service
+                    services.AddSingleton<IHostedService, NoOpBackgroundService>();
+
+                    services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(dopplerHttpClientMock.Object);
+                    services.AddSingleton(backgroundQueueMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                });
+            }).CreateClient();
+
+            var request = new HttpRequestMessage(HttpMethod.Put, $"push-contacts/{deviceToken}/email")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(email)
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            Assert.NotNull(backgroundJob);
+            await backgroundJob(CancellationToken.None);
+
+            // Assert
+            dopplerHttpClientMock.Verify(x =>
+                x.RegisterVisitorSafeAsync(visitorInfo.Domain, visitorInfo.VisitorGuid, visitorInfo.Email),
+                Times.Once);
+        }
+
+        [Fact]
         public async Task UpdateEmail_should_return_internal_server_error_when_service_throw_an_exception()
         {
+            // TODO: corregir este test
             // Arrange
             var fixture = new Fixture();
 
@@ -514,16 +747,27 @@ namespace Doppler.PushContact.Test.Controllers
             var email = fixture.Create<string>();
 
             var pushContactServiceMock = new Mock<IPushContactService>();
+            var loggerMock = new Mock<ILogger<PushContactController>>();
 
             pushContactServiceMock
                 .Setup(x => x.UpdateEmailAsync(It.IsAny<string>(), It.IsAny<string>()))
                 .ThrowsAsync(new Exception());
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+            var mongoDatabaseMock = new Mock<IMongoDatabase>();
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabaseMock.Object);
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(loggerMock.Object);
+                    services.AddSingleton(mongoClientMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -539,7 +783,15 @@ namespace Doppler.PushContact.Test.Controllers
             _output.WriteLine(response.GetHeadersAsString());
 
             // Assert
-            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+            Assert.Equal(StatusCodes.Status500InternalServerError, (int)response.StatusCode);
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Unexpected error updating the email:")),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
         }
 
         [Theory]

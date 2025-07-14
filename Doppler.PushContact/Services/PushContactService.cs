@@ -704,6 +704,41 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
             }
         }
 
+        public async Task<VisitorInfoDTO> GetVisitorInfoSafeAsync(string deviceToken)
+        {
+            var filterBuilder = Builders<BsonDocument>.Filter;
+
+            var filter = filterBuilder.Eq(PushContactDocumentProps.DeviceTokenPropName, deviceToken)
+                & filterBuilder.Eq(PushContactDocumentProps.DeletedPropName, false);
+
+            try
+            {
+                var pushContact = await PushContacts.Find(filter).FirstOrDefaultAsync();
+
+                if (pushContact != null)
+                {
+                    return new VisitorInfoDTO
+                    {
+                        Domain = pushContact.GetValue(PushContactDocumentProps.DomainPropName, null)?.AsString,
+                        VisitorGuid = pushContact.GetValue(PushContactDocumentProps.VisitorGuidPropName, null)?.AsString,
+                        Email = pushContact.GetValue(PushContactDocumentProps.EmailPropName, null)?.AsString
+                    };
+                }
+
+                return null;
+            }
+            catch (MongoException ex)
+            {
+                _logger.LogError(ex, $"MongoException getting Visitor Info by {nameof(deviceToken)} {deviceToken}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Unexpected error getting Visitor Info by {nameof(deviceToken)} {deviceToken}");
+                throw;
+            }
+        }
+
         private IMongoCollection<BsonDocument> PushContacts
         {
             get
