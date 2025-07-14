@@ -121,6 +121,47 @@ namespace Doppler.PushContact.Test.Services
         }
 
         [Fact]
+        public async Task RegisterVisitorSafeAsync_should_log_when_ResponseBody_is_empty()
+        {
+            // Arrange
+            var domain = "testdomain.com";
+            var visitorGuid = Guid.NewGuid().ToString();
+            var email = "test@example.com";
+
+            var loggerMock = new Mock<ILogger<DopplerHttpClient>>();
+            var settings = new DopplerHttpClientSettings
+            {
+                DopplerAppServer = "https://fake.doppler.com",
+                InternalToken = "fake-token"
+            };
+
+            var validSettings = GetValidSettings();
+            var optionsMock = Mock.Of<IOptions<DopplerHttpClientSettings>>(o => o.Value == validSettings);
+
+            var sut = CreateSut(optionsMock, loggerMock.Object);
+
+            using var httpTest = new HttpTest();
+
+            httpTest.RespondWith("", 500); // empty body
+
+            // Act
+            var result = await sut.RegisterVisitorSafeAsync(domain, visitorGuid, email);
+
+            // Assert
+            Assert.False(result);
+
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Doppler contact registration failed")),
+                    It.IsAny<Exception>(),
+                    (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()
+                ),
+                Times.Once);
+        }
+
+        [Fact]
         public async Task RegisterVisitorSafeAsync_should_return_false_and_log_FlurlHttpException()
         {
             // Arrange

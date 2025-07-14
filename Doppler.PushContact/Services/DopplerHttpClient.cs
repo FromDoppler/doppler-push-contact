@@ -51,7 +51,8 @@ namespace Doppler.PushContact.Services
                     return true;
                 }
 
-                var errorText = await response.ResponseMessage.Content.ReadAsStringAsync();
+                var errorText = await GetErrorMessageFromResponseAsync(response);
+
                 _logger.LogError(
                     "Doppler contact registration failed. Status: {StatusCode}, Response: {Body}, Domain: {Domain}, VisitorGuid: {VisitorGuid}, Email: {ContactEmail}",
                     response.StatusCode,
@@ -100,6 +101,20 @@ namespace Doppler.PushContact.Services
             }
 
             return ex.Message;
+        }
+
+        private static async Task<string> GetErrorMessageFromResponseAsync(IFlurlResponse response)
+        {
+            if (response?.ResponseMessage?.Content != null)
+            {
+                var body = await response.ResponseMessage.Content.ReadAsStringAsync();
+                if (!string.IsNullOrWhiteSpace(body))
+                {
+                    return body;
+                }
+            }
+
+            return response?.ResponseMessage?.ReasonPhrase ?? "No response body";
         }
     }
 }
