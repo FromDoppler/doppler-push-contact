@@ -1,6 +1,7 @@
 using Doppler.PushContact.DopplerSecurity;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Models;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Services.Messages;
 using Microsoft.AspNetCore.Authentication;
@@ -9,7 +10,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Doppler.PushContact.Controllers
@@ -66,6 +69,76 @@ namespace Doppler.PushContact.Controllers
             {
                 MessageId = messageId
             });
+        }
+
+        [HttpPost]
+        [Route("messages/{messageId}/visitors/{visitorGuid}")]
+        public async Task<IActionResult> MessageByVisitorGuid2(
+            [FromRoute] Guid messageId,
+            [FromRoute] string visitorGuid,
+            [FromBody] MessageReplacements messageReplacements
+        )
+        {
+            if (string.IsNullOrWhiteSpace(visitorGuid))
+            {
+                return BadRequest("'visitorGuid' cannot be empty.");
+            }
+
+            try
+            {
+                var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
+                if (message == null)
+                {
+                    return NotFound();
+                }
+
+                var missingFieldsInTitle = GetMissingReplacements(message.Title, messageReplacements.Values);
+                var missingFieldsInBody = GetMissingReplacements(message.Body, messageReplacements.Values);
+                if (messageReplacements.ReplacementIsMandatory && (missingFieldsInTitle.Count > 0 || missingFieldsInBody.Count > 0))
+                {
+                    return BadRequest(new
+                    {
+                        error = "Missing replacements values in title or body.",
+                        missingFieldsInTitle,
+                        missingFieldsInBody,
+                    });
+                }
+
+                // TODO: add sending logic
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred sending web push. MessageId: {MessageId} and visitorGuid: {VisitorGuid}",
+                    messageId,
+                    visitorGuid
+                );
+                return BadRequest("Unexpected error sending web push.");
+            }
+
+            return Ok(new MessageResult
+            {
+                MessageId = messageId
+            });
+        }
+
+        private List<string> GetMissingReplacements(string content, Dictionary<string, string> values)
+        {
+            var lowerKeys = values.Keys.Select(k => k.ToLowerInvariant()).ToHashSet();
+            var missing = new HashSet<string>();
+
+            var matches = Regex.Matches(content, @"\[\[\[([\w\.\-]+)\]\]\]");
+            foreach (Match match in matches)
+            {
+                var key = match.Groups[1].Value;
+                if (!lowerKeys.Contains(key.ToLowerInvariant()))
+                {
+                    missing.Add(key);
+                }
+            }
+
+            return missing.ToList();
         }
 
         [HttpPost]
