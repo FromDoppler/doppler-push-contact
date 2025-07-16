@@ -42,6 +42,7 @@ namespace Doppler.PushContact.Controllers
             _logger = logger;
         }
 
+        [Obsolete("This endpoint is deprecated and will be replaced by 'messages/{messageId}/visitors/{visitorGuid}'.")]
         [HttpPost]
         [Route("message/{messageId}")]
         public async Task<IActionResult> MessageByVisitorGuid([FromRoute] Guid messageId, [FromBody] string visitorGuid)
@@ -73,7 +74,7 @@ namespace Doppler.PushContact.Controllers
 
         [HttpPost]
         [Route("messages/{messageId}/visitors/{visitorGuid}")]
-        public async Task<IActionResult> MessageByVisitorGuid2(
+        public async Task<IActionResult> EnqueueWebPushForVisitorGuid(
             [FromRoute] Guid messageId,
             [FromRoute] string visitorGuid,
             [FromBody] MessageReplacements messageReplacements
@@ -89,7 +90,7 @@ namespace Doppler.PushContact.Controllers
                 var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
                 if (message == null)
                 {
-                    return NotFound();
+                    return NotFound($"A Message with messageId: {messageId} doesn't exist.");
                 }
 
                 var missingFieldsInTitle = GetMissingReplacements(message.Title, messageReplacements.Values);
@@ -104,7 +105,18 @@ namespace Doppler.PushContact.Controllers
                     });
                 }
 
-                // TODO: add sending logic
+                var webPushDTO = new WebPushDTO()
+                {
+                    MessageId = messageId,
+                    Title = ReplacePlaceholders(message.Title, messageReplacements.Values),
+                    Body = ReplacePlaceholders(message.Body, messageReplacements.Values),
+                    OnClickLink = message.OnClickLinkPropName,
+                    ImageUrl = message.ImageUrl
+                };
+
+                var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
+
+                _webPushPublisherService.ProcessWebPushForVisitor(visitorGuid, webPushDTO, authenticationApiToken);
             }
             catch (Exception ex)
             {
@@ -139,6 +151,18 @@ namespace Doppler.PushContact.Controllers
             }
 
             return missing.ToList();
+        }
+
+        public static string ReplacePlaceholders(string template, Dictionary<string, string> values)
+        {
+            var lowerValues = values.ToDictionary(k => k.Key.ToLowerInvariant(), v => v.Value);
+
+            return Regex.Replace(template, @"\[\[\[([\w\.\-]+)\]\]\]", match =>
+            {
+                var key = match.Groups[1].Value;
+                var lowerKey = key.ToLowerInvariant();
+                return lowerValues.TryGetValue(lowerKey, out var value) ? value ?? string.Empty : match.Value;
+            });
         }
 
         [HttpPost]
