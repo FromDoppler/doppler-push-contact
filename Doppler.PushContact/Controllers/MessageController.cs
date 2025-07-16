@@ -93,8 +93,8 @@ namespace Doppler.PushContact.Controllers
                     return NotFound($"A Message with messageId: {messageId} doesn't exist.");
                 }
 
-                var missingFieldsInTitle = GetMissingReplacements(message.Title, messageReplacements.Values);
-                var missingFieldsInBody = GetMissingReplacements(message.Body, messageReplacements.Values);
+                var missingFieldsInTitle = GetMissingReplacements(message.Title, messageReplacements.FieldsToReplace);
+                var missingFieldsInBody = GetMissingReplacements(message.Body, messageReplacements.FieldsToReplace);
                 if (messageReplacements.ReplacementIsMandatory && (missingFieldsInTitle.Count > 0 || missingFieldsInBody.Count > 0))
                 {
                     return BadRequest(new
@@ -108,8 +108,8 @@ namespace Doppler.PushContact.Controllers
                 var webPushDTO = new WebPushDTO()
                 {
                     MessageId = messageId,
-                    Title = ReplaceFields(message.Title, messageReplacements.Values),
-                    Body = ReplaceFields(message.Body, messageReplacements.Values),
+                    Title = ReplaceFields(message.Title, messageReplacements.FieldsToReplace),
+                    Body = ReplaceFields(message.Body, messageReplacements.FieldsToReplace),
                     OnClickLink = message.OnClickLink,
                     ImageUrl = message.ImageUrl
                 };
