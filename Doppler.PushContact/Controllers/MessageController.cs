@@ -58,7 +58,7 @@ namespace Doppler.PushContact.Controllers
 
             var deviceTokens = await _pushContactService.GetAllDeviceTokensByVisitorGuidAsync(visitorGuid);
             var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
-            var sendMessageResult = await _messageSender.SendAsync(message.Title, message.Body, deviceTokens, message.OnClickLinkPropName, message.ImageUrl);
+            var sendMessageResult = await _messageSender.SendAsync(message.Title, message.Body, deviceTokens, message.OnClickLink, message.ImageUrl);
 
             await _pushContactService.AddHistoryEventsAsync(messageId, sendMessageResult);
 
@@ -110,7 +110,7 @@ namespace Doppler.PushContact.Controllers
                     MessageId = messageId,
                     Title = ReplaceFields(message.Title, messageReplacements.Values),
                     Body = ReplaceFields(message.Body, messageReplacements.Values),
-                    OnClickLink = message.OnClickLinkPropName,
+                    OnClickLink = message.OnClickLink,
                     ImageUrl = message.ImageUrl
                 };
 
