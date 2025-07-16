@@ -108,8 +108,8 @@ namespace Doppler.PushContact.Controllers
                 var webPushDTO = new WebPushDTO()
                 {
                     MessageId = messageId,
-                    Title = ReplacePlaceholders(message.Title, messageReplacements.Values),
-                    Body = ReplacePlaceholders(message.Body, messageReplacements.Values),
+                    Title = ReplaceFields(message.Title, messageReplacements.Values),
+                    Body = ReplaceFields(message.Body, messageReplacements.Values),
                     OnClickLink = message.OnClickLinkPropName,
                     ImageUrl = message.ImageUrl
                 };
@@ -137,7 +137,9 @@ namespace Doppler.PushContact.Controllers
 
         private List<string> GetMissingReplacements(string content, Dictionary<string, string> values)
         {
-            var lowerKeys = values.Keys.Select(k => k.ToLowerInvariant()).ToHashSet();
+            var lowerKeys = (values ?? new Dictionary<string, string>())
+                .Keys.Select(k => k.ToLowerInvariant()).ToHashSet();
+
             var missing = new HashSet<string>();
 
             var matches = Regex.Matches(content, @"\[\[\[([\w\.\-]+)\]\]\]");
@@ -153,8 +155,13 @@ namespace Doppler.PushContact.Controllers
             return missing.ToList();
         }
 
-        public static string ReplacePlaceholders(string template, Dictionary<string, string> values)
+        public static string ReplaceFields(string template, Dictionary<string, string> values)
         {
+            if (values == null)
+            {
+                return template;
+            }
+
             var lowerValues = values.ToDictionary(k => k.Key.ToLowerInvariant(), v => v.Value);
 
             return Regex.Replace(template, @"\[\[\[([\w\.\-]+)\]\]\]", match =>
