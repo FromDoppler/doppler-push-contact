@@ -92,6 +92,61 @@ namespace Doppler.PushContact.Services
             });
         }
 
+        public void ProcessWebPushForVisitor(string visitorGuid, WebPushDTO messageDTO, string authenticationApiToken = null)
+        {
+            _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogWarning(
+                        "WebPush processing was cancelled before starting. MessageId: {MessageId}, VisitorGuid: {VisitorGuid}",
+                        messageDTO.MessageId,
+                        visitorGuid
+                    );
+                    return;
+                }
+
+                try
+                {
+                    _logger.LogDebug(
+                        "Starting to process webpush for messageId: {MessageId}, visitorGuid: {VisitorGuid}",
+                        messageDTO.MessageId,
+                        visitorGuid
+                    );
+
+                    var deviceTokens = new List<string>();
+                    var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuid);
+                    foreach (var subscription in subscriptionsInfo)
+                    {
+                        if (subscription.Subscription != null &&
+                            subscription.Subscription.Keys != null &&
+                            !string.IsNullOrEmpty(subscription.Subscription.EndPoint) &&
+                            !string.IsNullOrEmpty(subscription.Subscription.Keys.Auth) &&
+                            !string.IsNullOrEmpty(subscription.Subscription.Keys.P256DH)
+                        )
+                        {
+                            await EnqueueWebPushAsync(messageDTO, subscription.Subscription, subscription.PushContactId, cancellationToken);
+                        }
+                        else if (!string.IsNullOrEmpty(subscription.DeviceToken))
+                        {
+                            deviceTokens.Add(subscription.DeviceToken);
+                        }
+                    }
+
+                    await _messageSender.SendFirebaseWebPushAsync(messageDTO, deviceTokens, authenticationApiToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "An unexpected error occurred processing webpush for messageId: {messageId} and visitorGuid: {VisitorGuid}.",
+                        messageDTO.MessageId,
+                        visitorGuid
+                    );
+                }
+            });
+        }
+
         public void ProcessWebPushInBatches(string domain, WebPushDTO messageDTO, string authenticationApiToken = null)
         {
             _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
