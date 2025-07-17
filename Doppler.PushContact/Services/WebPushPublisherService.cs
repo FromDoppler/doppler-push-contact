@@ -333,6 +333,26 @@ namespace Doppler.PushContact.Services
             });
         }
 
+        private List<string> GetMissingReplacements(string content, Dictionary<string, string> values)
+        {
+            var lowerKeys = (values ?? new Dictionary<string, string>())
+                .Keys.Select(k => k.ToLowerInvariant()).ToHashSet();
+
+            var missing = new HashSet<string>();
+
+            var matches = Regex.Matches(content, @"\[\[\[([\w\.\-]+)\]\]\]");
+            foreach (Match match in matches)
+            {
+                var key = match.Groups[1].Value;
+                if (!lowerKeys.Contains(key.ToLowerInvariant()))
+                {
+                    missing.Add(key);
+                }
+            }
+
+            return missing.ToList();
+        }
+
         private async Task ProcessWebPushForVisitorSafe(
             string visitorGuid,
             WebPushDTO messageDTO,
@@ -348,6 +368,18 @@ namespace Doppler.PushContact.Services
                     messageDTO.MessageId,
                     visitorGuid
                 );
+
+                var missingFieldsInTitle = GetMissingReplacements(messageDTO.Title, messageReplacements.FieldsToReplace);
+                var missingFieldsInBody = GetMissingReplacements(messageDTO.Body, messageReplacements.FieldsToReplace);
+                if (messageReplacements.ReplacementIsMandatory && (missingFieldsInTitle.Count > 0 || missingFieldsInBody.Count > 0))
+                {
+                    _logger.LogWarning(
+                        $"Missing replacements for MessageId: {messageDTO.MessageId} and VisitorGuid: {visitorGuid}. " +
+                        $"Missing values in title: [{string.Join(", ", missingFieldsInTitle.Select(x => $"\"{x}\""))}], " +
+                        $"missing values in body: [{string.Join(", ", missingFieldsInBody.Select(x => $"\"{x}\""))}]"
+                    );
+                    return;
+                }
 
                 messageDTO.Title = ReplaceFields(messageDTO.Title, messageReplacements.FieldsToReplace);
                 messageDTO.Body = ReplaceFields(messageDTO.Body, messageReplacements.FieldsToReplace);
