@@ -73,7 +73,7 @@ namespace Doppler.PushContact.Controllers
         }
 
         [HttpPost]
-        [Route("messages/{messageId}/visitors/{visitorGuid}")]
+        [Route("messages/{messageId}/visitors/{visitorGuid}/send")]
         public async Task<IActionResult> EnqueueWebPushForVisitorGuid(
             [FromRoute] Guid messageId,
             [FromRoute] string visitorGuid,
