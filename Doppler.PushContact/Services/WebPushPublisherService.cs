@@ -113,6 +113,23 @@ namespace Doppler.PushContact.Services
             });
         }
 
+        public void ProcessWebPushForVisitors(WebPushDTO messageDTO, List<VisitorWithMessageReplacements> visitorsWithReplacements, string authenticationApiToken = null)
+        {
+            _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogWarning("WebPush processing was cancelled before starting. MessageId: {MessageId}", messageDTO.MessageId);
+                    return;
+                }
+
+                foreach (var visitor in visitorsWithReplacements)
+                {
+                    await ProcessWebPushForVisitorSafe(visitor.VisitorGuid, messageDTO, visitor.Replacements, cancellationToken, authenticationApiToken);
+                }
+            });
+        }
+
         public void ProcessWebPushInBatches(string domain, WebPushDTO messageDTO, string authenticationApiToken = null)
         {
             _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>

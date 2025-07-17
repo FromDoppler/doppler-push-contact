@@ -122,11 +122,11 @@ namespace Doppler.PushContact.Controllers
             {
                 _logger.LogError(
                     ex,
-                    "An unexpected error occurred sending web push. MessageId: {MessageId} and visitorGuid: {VisitorGuid}",
+                    "An unexpected error occurred processing web push for MessageId: {MessageId} and visitorGuid: {VisitorGuid}",
                     messageId,
                     visitorGuid
                 );
-                return BadRequest("Unexpected error sending web push.");
+                return BadRequest("Unexpected error processing web push.");
             }
 
             return Ok(new MessageResult
@@ -153,6 +153,50 @@ namespace Doppler.PushContact.Controllers
             }
 
             return missing.ToList();
+        }
+
+        [HttpPost]
+        [Route("messages/{messageId}/visitors/send")]
+        public async Task<IActionResult> EnqueueWebPushForVisitors(
+            [FromRoute] Guid messageId,
+            [FromBody] List<VisitorWithMessageReplacements> visitorsWithReplacements
+        )
+        {
+            try
+            {
+                var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
+                if (message == null)
+                {
+                    return NotFound($"A Message with messageId: {messageId} doesn't exist.");
+                }
+
+                var webPushDTO = new WebPushDTO()
+                {
+                    MessageId = messageId,
+                    Title = message.Title,
+                    Body = message.Body,
+                    OnClickLink = message.OnClickLink,
+                    ImageUrl = message.ImageUrl
+                };
+
+                var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
+
+                _webPushPublisherService.ProcessWebPushForVisitors(webPushDTO, visitorsWithReplacements, authenticationApiToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred processing web push for MessageId: {MessageId}.",
+                    messageId
+                );
+                return BadRequest("Unexpected error processing web push.");
+            }
+
+            return Ok(new MessageResult
+            {
+                MessageId = messageId
+            });
         }
 
         [HttpPost]
