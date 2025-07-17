@@ -108,15 +108,15 @@ namespace Doppler.PushContact.Controllers
                 var webPushDTO = new WebPushDTO()
                 {
                     MessageId = messageId,
-                    Title = ReplaceFields(message.Title, messageReplacements.FieldsToReplace),
-                    Body = ReplaceFields(message.Body, messageReplacements.FieldsToReplace),
+                    Title = message.Title,
+                    Body = message.Body,
                     OnClickLink = message.OnClickLink,
                     ImageUrl = message.ImageUrl
                 };
 
                 var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
 
-                _webPushPublisherService.ProcessWebPushForVisitor(visitorGuid, webPushDTO, authenticationApiToken);
+                _webPushPublisherService.ProcessWebPushForVisitor(visitorGuid, webPushDTO, messageReplacements, authenticationApiToken);
             }
             catch (Exception ex)
             {
@@ -153,23 +153,6 @@ namespace Doppler.PushContact.Controllers
             }
 
             return missing.ToList();
-        }
-
-        public static string ReplaceFields(string template, Dictionary<string, string> values)
-        {
-            if (values == null)
-            {
-                return template;
-            }
-
-            var lowerValues = values.ToDictionary(k => k.Key.ToLowerInvariant(), v => v.Value);
-
-            return Regex.Replace(template, @"\[\[\[([\w\.\-]+)\]\]\]", match =>
-            {
-                var key = match.Groups[1].Value;
-                var lowerKey = key.ToLowerInvariant();
-                return lowerValues.TryGetValue(lowerKey, out var value) ? value ?? string.Empty : match.Value;
-            });
         }
 
         [HttpPost]

@@ -1,5 +1,6 @@
 using Doppler.PushContact.DTOs;
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Models;
 using Doppler.PushContact.QueuingService.MessageQueueBroker;
 using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services.Messages;
@@ -9,7 +10,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -92,7 +95,7 @@ namespace Doppler.PushContact.Services
             });
         }
 
-        public void ProcessWebPushForVisitor(string visitorGuid, WebPushDTO messageDTO, string authenticationApiToken = null)
+        public void ProcessWebPushForVisitor(string visitorGuid, WebPushDTO messageDTO, MessageReplacements messageReplacements, string authenticationApiToken = null)
         {
             _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
             {
@@ -106,44 +109,7 @@ namespace Doppler.PushContact.Services
                     return;
                 }
 
-                try
-                {
-                    _logger.LogDebug(
-                        "Starting to process webpush for messageId: {MessageId}, visitorGuid: {VisitorGuid}",
-                        messageDTO.MessageId,
-                        visitorGuid
-                    );
-
-                    var deviceTokens = new List<string>();
-                    var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuid);
-                    foreach (var subscription in subscriptionsInfo)
-                    {
-                        if (subscription.Subscription != null &&
-                            subscription.Subscription.Keys != null &&
-                            !string.IsNullOrEmpty(subscription.Subscription.EndPoint) &&
-                            !string.IsNullOrEmpty(subscription.Subscription.Keys.Auth) &&
-                            !string.IsNullOrEmpty(subscription.Subscription.Keys.P256DH)
-                        )
-                        {
-                            await EnqueueWebPushAsync(messageDTO, subscription.Subscription, subscription.PushContactId, cancellationToken);
-                        }
-                        else if (!string.IsNullOrEmpty(subscription.DeviceToken))
-                        {
-                            deviceTokens.Add(subscription.DeviceToken);
-                        }
-                    }
-
-                    await _messageSender.SendFirebaseWebPushAsync(messageDTO, deviceTokens, authenticationApiToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(
-                        ex,
-                        "An unexpected error occurred processing webpush for messageId: {messageId} and visitorGuid: {VisitorGuid}.",
-                        messageDTO.MessageId,
-                        visitorGuid
-                    );
-                }
+                await ProcessWebPushForVisitorSafe(visitorGuid, messageDTO, messageReplacements, cancellationToken, authenticationApiToken);
             });
         }
 
@@ -331,6 +297,74 @@ namespace Doppler.PushContact.Services
                 .Replace("[pushContactApiUrl]", _pushContactApiUrl)
                 .Replace("[encryptedContactId]", encryptedContactId)
                 .Replace("[encryptedMessageId]", encryptedMessageId);
+        }
+
+        private static string ReplaceFields(string content, Dictionary<string, string> values)
+        {
+            if (values == null)
+            {
+                return content;
+            }
+
+            var lowerValues = values.ToDictionary(k => k.Key.ToLowerInvariant(), v => v.Value);
+
+            return Regex.Replace(content, @"\[\[\[([\w\.\-]+)\]\]\]", match =>
+            {
+                var key = match.Groups[1].Value;
+                var lowerKey = key.ToLowerInvariant();
+                return lowerValues.TryGetValue(lowerKey, out var value) ? value ?? string.Empty : match.Value;
+            });
+        }
+
+        private async Task ProcessWebPushForVisitorSafe(
+            string visitorGuid,
+            WebPushDTO messageDTO,
+            MessageReplacements messageReplacements,
+            CancellationToken cancellationToken,
+            string authenticationApiToken = null
+        )
+        {
+            try
+            {
+                _logger.LogDebug(
+                    "Starting to process webpush for messageId: {MessageId}, visitorGuid: {VisitorGuid}",
+                    messageDTO.MessageId,
+                    visitorGuid
+                );
+
+                messageDTO.Title = ReplaceFields(messageDTO.Title, messageReplacements.FieldsToReplace);
+                messageDTO.Body = ReplaceFields(messageDTO.Body, messageReplacements.FieldsToReplace);
+
+                var deviceTokens = new List<string>();
+                var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuid);
+                foreach (var subscription in subscriptionsInfo)
+                {
+                    if (subscription.Subscription != null &&
+                        subscription.Subscription.Keys != null &&
+                        !string.IsNullOrEmpty(subscription.Subscription.EndPoint) &&
+                        !string.IsNullOrEmpty(subscription.Subscription.Keys.Auth) &&
+                        !string.IsNullOrEmpty(subscription.Subscription.Keys.P256DH)
+                    )
+                    {
+                        await EnqueueWebPushAsync(messageDTO, subscription.Subscription, subscription.PushContactId, cancellationToken);
+                    }
+                    else if (!string.IsNullOrEmpty(subscription.DeviceToken))
+                    {
+                        deviceTokens.Add(subscription.DeviceToken);
+                    }
+                }
+
+                await _messageSender.SendFirebaseWebPushAsync(messageDTO, deviceTokens, authenticationApiToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred processing webpush for messageId: {MessageId} and visitorGuid: {VisitorGuid}.",
+                    messageDTO.MessageId,
+                    visitorGuid
+                );
+            }
         }
     }
 }
