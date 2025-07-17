@@ -2,9 +2,9 @@ using System.Collections.Generic;
 
 namespace Doppler.PushContact.Models.Models
 {
-    public class MessageReplacements
+    public class FieldsReplacement
     {
-        public Dictionary<string, string> FieldsToReplace { get; set; }
         public bool ReplacementIsMandatory { get; set; }
+        public Dictionary<string, string> Fields { get; set; }
     }
 }

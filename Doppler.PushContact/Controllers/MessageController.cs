@@ -77,7 +77,7 @@ namespace Doppler.PushContact.Controllers
         public async Task<IActionResult> EnqueueWebPushForVisitorGuid(
             [FromRoute] Guid messageId,
             [FromRoute] string visitorGuid,
-            [FromBody] MessageReplacements messageReplacements
+            [FromBody] FieldsReplacement fieldsReplacement
         )
         {
             if (string.IsNullOrWhiteSpace(visitorGuid))
@@ -93,9 +93,9 @@ namespace Doppler.PushContact.Controllers
                     return NotFound($"A Message with messageId: {messageId} doesn't exist.");
                 }
 
-                var missingFieldsInTitle = GetMissingReplacements(message.Title, messageReplacements.FieldsToReplace);
-                var missingFieldsInBody = GetMissingReplacements(message.Body, messageReplacements.FieldsToReplace);
-                if (messageReplacements.ReplacementIsMandatory && (missingFieldsInTitle.Count > 0 || missingFieldsInBody.Count > 0))
+                var missingFieldsInTitle = GetMissingReplacements(message.Title, fieldsReplacement.Fields);
+                var missingFieldsInBody = GetMissingReplacements(message.Body, fieldsReplacement.Fields);
+                if (fieldsReplacement.ReplacementIsMandatory && (missingFieldsInTitle.Count > 0 || missingFieldsInBody.Count > 0))
                 {
                     return BadRequest(new
                     {
@@ -114,9 +114,21 @@ namespace Doppler.PushContact.Controllers
                     ImageUrl = message.ImageUrl
                 };
 
+                var visitorsWithReplacements = new FieldsReplacementList()
+                {
+                    ReplacementIsMandatory = fieldsReplacement.ReplacementIsMandatory,
+                    VisitorsFieldsList = new List<VisitorFields>()
+                    {
+                        new VisitorFields{
+                            VisitorGuid = visitorGuid,
+                            Fields = fieldsReplacement.Fields,
+                        },
+                    },
+                };
+
                 var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
 
-                _webPushPublisherService.ProcessWebPushForVisitor(visitorGuid, webPushDTO, messageReplacements, authenticationApiToken);
+                _webPushPublisherService.ProcessWebPushForVisitors(webPushDTO, visitorsWithReplacements, authenticationApiToken);
             }
             catch (Exception ex)
             {
@@ -159,7 +171,7 @@ namespace Doppler.PushContact.Controllers
         [Route("messages/{messageId}/visitors/send")]
         public async Task<IActionResult> EnqueueWebPushForVisitors(
             [FromRoute] Guid messageId,
-            [FromBody] List<VisitorWithMessageReplacements> visitorsWithReplacements
+            [FromBody] FieldsReplacementList visitorsWithReplacements
         )
         {
             try
@@ -168,6 +180,14 @@ namespace Doppler.PushContact.Controllers
                 if (message == null)
                 {
                     return NotFound($"A Message with messageId: {messageId} doesn't exist.");
+                }
+
+                if (visitorsWithReplacements == null || visitorsWithReplacements.VisitorsFieldsList == null || visitorsWithReplacements.VisitorsFieldsList.Count == 0)
+                {
+                    return BadRequest(new
+                    {
+                        error = "There are not visitor guids to be processed.",
+                    });
                 }
 
                 var webPushDTO = new WebPushDTO()
