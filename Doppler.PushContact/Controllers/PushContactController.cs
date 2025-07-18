@@ -193,6 +193,7 @@ namespace Doppler.PushContact.Controllers
             return Ok();
         }
 
+        [Obsolete("This endpoint is not being used. It was replaced by 'messages/domains/{domain}'.")]
         [HttpPost]
         [Route("push-contacts/{domain}/message")]
         public async Task<IActionResult> Message([FromRoute] string domain, [FromBody] Message message)

@@ -122,7 +122,7 @@ namespace Doppler.PushContact.Services.Messages
 
                 if (message.TryGetValue(MessageDocumentProps.OnClickLinkPropName, out BsonValue onClickLinkValue))
                 {
-                    messageDetails.OnClickLinkPropName = onClickLinkValue == BsonNull.Value ? null : onClickLinkValue.AsString;
+                    messageDetails.OnClickLink = onClickLinkValue == BsonNull.Value ? null : onClickLinkValue.AsString;
                 }
 
                 if (message.TryGetValue(MessageDocumentProps.ImageUrlPropName, out BsonValue imageUrlValue))
@@ -156,7 +156,7 @@ namespace Doppler.PushContact.Services.Messages
                     Domain = message.GetValue(MessageDocumentProps.DomainPropName).AsString,
                     Title = message.GetValue(MessageDocumentProps.TitlePropName).AsString,
                     Body = message.GetValue(MessageDocumentProps.BodyPropName).AsString,
-                    OnClickLinkPropName = message.GetValue(MessageDocumentProps.OnClickLinkPropName) == BsonNull.Value ? null : message.GetValue(MessageDocumentProps.OnClickLinkPropName).AsString,
+                    OnClickLink = message.GetValue(MessageDocumentProps.OnClickLinkPropName) == BsonNull.Value ? null : message.GetValue(MessageDocumentProps.OnClickLinkPropName).AsString,
                     Sent = message.GetValue(MessageDocumentProps.SentPropName).AsInt32,
                     Delivered = message.GetValue(MessageDocumentProps.DeliveredPropName).AsInt32,
                     NotDelivered = message.GetValue(MessageDocumentProps.NotDeliveredPropName).AsInt32,

@@ -9,5 +9,6 @@ namespace Doppler.PushContact.Repositories.Interfaces
     {
         Task<IEnumerable<SubscriptionInfoDTO>> GetAllSubscriptionInfoByDomainAsync(string domain);
         IAsyncEnumerable<SubscriptionInfoDTO> GetSubscriptionInfoByDomainAsStreamAsync(string domain, CancellationToken cancellationToken = default);
+        Task<IEnumerable<SubscriptionInfoDTO>> GetAllSubscriptionInfoByVisitorGuidAsync(string visitorGuid);
     }
 }

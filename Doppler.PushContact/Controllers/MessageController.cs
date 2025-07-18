@@ -1,6 +1,7 @@
 using Doppler.PushContact.DopplerSecurity;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Models;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Services.Messages;
 using Microsoft.AspNetCore.Authentication;
@@ -9,7 +10,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Doppler.PushContact.Controllers
@@ -39,6 +42,7 @@ namespace Doppler.PushContact.Controllers
             _logger = logger;
         }
 
+        [Obsolete("This endpoint is deprecated and will be replaced by 'messages/{messageId}/visitors/{visitorGuid}'.")]
         [HttpPost]
         [Route("message/{messageId}")]
         public async Task<IActionResult> MessageByVisitorGuid([FromRoute] Guid messageId, [FromBody] string visitorGuid)
@@ -54,7 +58,7 @@ namespace Doppler.PushContact.Controllers
 
             var deviceTokens = await _pushContactService.GetAllDeviceTokensByVisitorGuidAsync(visitorGuid);
             var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
-            var sendMessageResult = await _messageSender.SendAsync(message.Title, message.Body, deviceTokens, message.OnClickLinkPropName, message.ImageUrl);
+            var sendMessageResult = await _messageSender.SendAsync(message.Title, message.Body, deviceTokens, message.OnClickLink, message.ImageUrl);
 
             await _pushContactService.AddHistoryEventsAsync(messageId, sendMessageResult);
 
@@ -63,6 +67,154 @@ namespace Doppler.PushContact.Controllers
             await _messageRepository.IncrementMessageStats(messageId, sent, delivered, sent - delivered);
 
             return Ok(new MessageResult
+            {
+                MessageId = messageId
+            });
+        }
+
+        [HttpPost]
+        [Route("messages/{messageId}/visitors/{visitorGuid}/send")]
+        public async Task<IActionResult> ProcessWebPushForVisitorGuid(
+            [FromRoute] Guid messageId,
+            [FromRoute] string visitorGuid,
+            [FromBody] FieldsReplacement fieldsReplacement
+        )
+        {
+            try
+            {
+                var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
+                if (message == null)
+                {
+                    return NotFound($"A Message with messageId: {messageId} doesn't exist.");
+                }
+
+                var missingFieldsInTitle = GetMissingReplacements(message.Title, fieldsReplacement.Fields);
+                var missingFieldsInBody = GetMissingReplacements(message.Body, fieldsReplacement.Fields);
+                if (fieldsReplacement.ReplacementIsMandatory && (missingFieldsInTitle.Count > 0 || missingFieldsInBody.Count > 0))
+                {
+                    return BadRequest(new
+                    {
+                        error = "Missing replacements values in title or body.",
+                        missingFieldsInTitle,
+                        missingFieldsInBody,
+                    });
+                }
+
+                var webPushDTO = new WebPushDTO()
+                {
+                    MessageId = messageId,
+                    Title = message.Title,
+                    Body = message.Body,
+                    OnClickLink = message.OnClickLink,
+                    ImageUrl = message.ImageUrl
+                };
+
+                var visitorsWithReplacements = new FieldsReplacementList()
+                {
+                    ReplacementIsMandatory = fieldsReplacement.ReplacementIsMandatory,
+                    VisitorsFieldsList = new List<VisitorFields>()
+                    {
+                        new VisitorFields{
+                            VisitorGuid = visitorGuid,
+                            Fields = fieldsReplacement.Fields,
+                        },
+                    },
+                };
+
+                var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
+
+                _webPushPublisherService.ProcessWebPushForVisitors(webPushDTO, visitorsWithReplacements, authenticationApiToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred processing web push for MessageId: {MessageId} and visitorGuid: {VisitorGuid}",
+                    messageId,
+                    visitorGuid
+                );
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "Unexpected error processing web push." }
+                );
+            }
+
+            return Accepted(new MessageResult()
+            {
+                MessageId = messageId
+            });
+        }
+
+        private List<string> GetMissingReplacements(string content, Dictionary<string, string> values)
+        {
+            var lowerKeys = (values ?? new Dictionary<string, string>())
+                .Keys.Select(k => k.ToLowerInvariant()).ToHashSet();
+
+            var missing = new HashSet<string>();
+
+            var matches = Regex.Matches(content, @"\[\[\[([\w\.\-]+)\]\]\]");
+            foreach (Match match in matches)
+            {
+                var key = match.Groups[1].Value;
+                if (!lowerKeys.Contains(key.ToLowerInvariant()))
+                {
+                    missing.Add(key);
+                }
+            }
+
+            return missing.ToList();
+        }
+
+        [HttpPost]
+        [Route("messages/{messageId}/visitors/send")]
+        public async Task<IActionResult> ProcessWebPushForVisitors(
+            [FromRoute] Guid messageId,
+            [FromBody] FieldsReplacementList visitorsWithReplacements
+        )
+        {
+            try
+            {
+                var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
+                if (message == null)
+                {
+                    return NotFound($"A Message with messageId: {messageId} doesn't exist.");
+                }
+
+                if (visitorsWithReplacements == null || visitorsWithReplacements.VisitorsFieldsList == null || visitorsWithReplacements.VisitorsFieldsList.Count == 0)
+                {
+                    return BadRequest(new
+                    {
+                        error = "There are not visitor guids to be processed.",
+                    });
+                }
+
+                var webPushDTO = new WebPushDTO()
+                {
+                    MessageId = messageId,
+                    Title = message.Title,
+                    Body = message.Body,
+                    OnClickLink = message.OnClickLink,
+                    ImageUrl = message.ImageUrl
+                };
+
+                var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
+
+                _webPushPublisherService.ProcessWebPushForVisitors(webPushDTO, visitorsWithReplacements, authenticationApiToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred processing web push for MessageId: {MessageId}.",
+                    messageId
+                );
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "Unexpected error processing web push." }
+                );
+            }
+
+            return Accepted(new MessageResult()
             {
                 MessageId = messageId
             });

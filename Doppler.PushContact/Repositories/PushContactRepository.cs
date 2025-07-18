@@ -112,6 +112,39 @@ namespace Doppler.PushContact.Repositories
             }
         }
 
+        public async Task<IEnumerable<SubscriptionInfoDTO>> GetAllSubscriptionInfoByVisitorGuidAsync(string visitorGuid)
+        {
+            if (string.IsNullOrEmpty(visitorGuid))
+            {
+                throw new ArgumentException($"'{nameof(visitorGuid)}' cannot be null or empty.", nameof(visitorGuid));
+            }
+
+            var filterBuilder = Builders<BsonDocument>.Filter;
+
+            var filter = filterBuilder.Eq(PushContactDocumentProps.VisitorGuidPropName, visitorGuid)
+                & filterBuilder.Eq(PushContactDocumentProps.DeletedPropName, false);
+
+            var options = new FindOptions<BsonDocument>
+            {
+                Projection = Builders<BsonDocument>.Projection
+                .Include(PushContactDocumentProps.DeviceTokenPropName)
+                .Include(PushContactDocumentProps.Subscription_PropName)
+                .Include(PushContactDocumentProps.IdPropName)
+            };
+
+            try
+            {
+                var pushContacts = await (await PushContacts.FindAsync(filter, options)).ToListAsync();
+                return GetSubscriptionsInfoFromBsonDocuments(pushContacts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting {nameof(SubscriptionInfoDTO)}s by {nameof(visitorGuid)} {visitorGuid}");
+
+                throw;
+            }
+        }
+
         private SubscriptionInfoDTO GetSubscriptionInfoFromBson(BsonDocument doc)
         {
             var DEVTOKEN_PROP_NAME = PushContactDocumentProps.DeviceTokenPropName;
