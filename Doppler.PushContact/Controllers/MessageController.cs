@@ -80,11 +80,6 @@ namespace Doppler.PushContact.Controllers
             [FromBody] FieldsReplacement fieldsReplacement
         )
         {
-            if (string.IsNullOrWhiteSpace(visitorGuid))
-            {
-                return BadRequest("'visitorGuid' cannot be empty.");
-            }
-
             try
             {
                 var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
