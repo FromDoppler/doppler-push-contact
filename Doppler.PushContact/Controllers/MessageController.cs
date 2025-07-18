@@ -74,7 +74,7 @@ namespace Doppler.PushContact.Controllers
 
         [HttpPost]
         [Route("messages/{messageId}/visitors/{visitorGuid}/send")]
-        public async Task<IActionResult> EnqueueWebPushForVisitorGuid(
+        public async Task<IActionResult> ProcessWebPushForVisitorGuid(
             [FromRoute] Guid messageId,
             [FromRoute] string visitorGuid,
             [FromBody] FieldsReplacement fieldsReplacement
@@ -169,7 +169,7 @@ namespace Doppler.PushContact.Controllers
 
         [HttpPost]
         [Route("messages/{messageId}/visitors/send")]
-        public async Task<IActionResult> EnqueueWebPushForVisitors(
+        public async Task<IActionResult> ProcessWebPushForVisitors(
             [FromRoute] Guid messageId,
             [FromBody] FieldsReplacementList visitorsWithReplacements
         )
