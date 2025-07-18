@@ -138,7 +138,10 @@ namespace Doppler.PushContact.Controllers
                     messageId,
                     visitorGuid
                 );
-                return BadRequest("Unexpected error processing web push.");
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "Unexpected error processing web push." }
+                );
             }
 
             return Ok(new MessageResult
@@ -210,7 +213,10 @@ namespace Doppler.PushContact.Controllers
                     "An unexpected error occurred processing web push for MessageId: {MessageId}.",
                     messageId
                 );
-                return BadRequest("Unexpected error processing web push.");
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "Unexpected error processing web push." }
+                );
             }
 
             return Ok(new MessageResult
