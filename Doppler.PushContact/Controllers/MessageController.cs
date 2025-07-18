@@ -139,7 +139,7 @@ namespace Doppler.PushContact.Controllers
                 );
             }
 
-            return Ok(new MessageResult
+            return Accepted(new MessageResult()
             {
                 MessageId = messageId
             });
@@ -214,7 +214,7 @@ namespace Doppler.PushContact.Controllers
                 );
             }
 
-            return Ok(new MessageResult
+            return Accepted(new MessageResult()
             {
                 MessageId = messageId
             });
