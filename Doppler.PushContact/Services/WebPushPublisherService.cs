@@ -1,5 +1,6 @@
 using Doppler.PushContact.DTOs;
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Models;
 using Doppler.PushContact.QueuingService.MessageQueueBroker;
 using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services.Messages;
@@ -9,7 +10,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -87,6 +90,34 @@ namespace Doppler.PushContact.Services
                         "An unexpected error occurred processing webpush for domain: {domain} and messageId: {messageId}.",
                         domain,
                         messageDTO.MessageId
+                    );
+                }
+            });
+        }
+
+        public void ProcessWebPushForVisitors(WebPushDTO messageDTO, FieldsReplacementList visitorsWithReplacements, string authenticationApiToken = null)
+        {
+            _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogWarning("WebPush processing was cancelled before starting. MessageId: {MessageId}", messageDTO.MessageId);
+                    return;
+                }
+
+                if (visitorsWithReplacements.VisitorsFieldsList == null)
+                {
+                    return;
+                }
+
+                foreach (var visitorWithFields in visitorsWithReplacements.VisitorsFieldsList)
+                {
+                    await ProcessWebPushForVisitorSafe(
+                        messageDTO,
+                        visitorWithFields,
+                        visitorsWithReplacements.ReplacementIsMandatory,
+                        cancellationToken,
+                        authenticationApiToken
                     );
                 }
             });
@@ -276,6 +307,114 @@ namespace Doppler.PushContact.Services
                 .Replace("[pushContactApiUrl]", _pushContactApiUrl)
                 .Replace("[encryptedContactId]", encryptedContactId)
                 .Replace("[encryptedMessageId]", encryptedMessageId);
+        }
+
+        private static string ReplaceFields(string content, Dictionary<string, string> values)
+        {
+            if (values == null)
+            {
+                return content;
+            }
+
+            var lowerValues = values.ToDictionary(k => k.Key.ToLowerInvariant(), v => v.Value);
+
+            return Regex.Replace(content, @"\[\[\[([\w\.\-]+)\]\]\]", match =>
+            {
+                var key = match.Groups[1].Value;
+                var lowerKey = key.ToLowerInvariant();
+                return lowerValues.TryGetValue(lowerKey, out var value) ? value ?? string.Empty : match.Value;
+            });
+        }
+
+        private List<string> GetMissingReplacements(string content, Dictionary<string, string> values)
+        {
+            var lowerKeys = (values ?? new Dictionary<string, string>())
+                .Keys.Select(k => k.ToLowerInvariant()).ToHashSet();
+
+            var missing = new HashSet<string>();
+
+            var matches = Regex.Matches(content, @"\[\[\[([\w\.\-]+)\]\]\]");
+            foreach (Match match in matches)
+            {
+                var key = match.Groups[1].Value;
+                if (!lowerKeys.Contains(key.ToLowerInvariant()))
+                {
+                    missing.Add(key);
+                }
+            }
+
+            return missing.ToList();
+        }
+
+        internal virtual async Task ProcessWebPushForVisitorSafe(
+            WebPushDTO messageDTO,
+            VisitorFields visitorWithFields,
+            bool replacementIsMandatory,
+            CancellationToken cancellationToken,
+            string authenticationApiToken = null
+        )
+        {
+            try
+            {
+                _logger.LogDebug(
+                    "Starting to process webpush for messageId: {MessageId}, visitorGuid: {VisitorGuid}",
+                    messageDTO.MessageId,
+                    visitorWithFields.VisitorGuid
+                );
+
+                var missingFieldsInTitle = GetMissingReplacements(messageDTO.Title, visitorWithFields.Fields);
+                var missingFieldsInBody = GetMissingReplacements(messageDTO.Body, visitorWithFields.Fields);
+                if (replacementIsMandatory && (missingFieldsInTitle.Count > 0 || missingFieldsInBody.Count > 0))
+                {
+                    _logger.LogWarning(
+                        $"Missing replacements for MessageId: {messageDTO.MessageId} and VisitorGuid: {visitorWithFields.VisitorGuid}. " +
+                        $"Missing values in title: [{string.Join(", ", missingFieldsInTitle.Select(x => $"\"{x}\""))}], " +
+                        $"missing values in body: [{string.Join(", ", missingFieldsInBody.Select(x => $"\"{x}\""))}]"
+                    );
+                    return;
+                }
+
+                var messageWithReplacedFields = new WebPushDTO()
+                {
+                    MessageId = messageDTO.MessageId,
+                    Title = ReplaceFields(messageDTO.Title, visitorWithFields.Fields),
+                    Body = ReplaceFields(messageDTO.Body, visitorWithFields.Fields),
+                    ImageUrl = messageDTO.ImageUrl,
+                    OnClickLink = messageDTO.OnClickLink,
+                };
+
+                _logger.LogDebug($"Message with replaced fields: {JsonSerializer.Serialize(messageWithReplacedFields)}");
+
+                var deviceTokens = new List<string>();
+                var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByVisitorGuidAsync(visitorWithFields.VisitorGuid);
+                foreach (var subscription in subscriptionsInfo)
+                {
+                    if (subscription.Subscription != null &&
+                        subscription.Subscription.Keys != null &&
+                        !string.IsNullOrEmpty(subscription.Subscription.EndPoint) &&
+                        !string.IsNullOrEmpty(subscription.Subscription.Keys.Auth) &&
+                        !string.IsNullOrEmpty(subscription.Subscription.Keys.P256DH)
+                    )
+                    {
+                        await EnqueueWebPushAsync(messageWithReplacedFields, subscription.Subscription, subscription.PushContactId, cancellationToken);
+                    }
+                    else if (!string.IsNullOrEmpty(subscription.DeviceToken))
+                    {
+                        deviceTokens.Add(subscription.DeviceToken);
+                    }
+                }
+
+                await _messageSender.SendFirebaseWebPushAsync(messageWithReplacedFields, deviceTokens, authenticationApiToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred processing webpush for messageId: {MessageId} and visitorGuid: {VisitorGuid}.",
+                    messageDTO.MessageId,
+                    visitorWithFields.VisitorGuid
+                );
+            }
         }
     }
 }

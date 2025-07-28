@@ -3,10 +3,12 @@ using Doppler.PushContact.Controllers;
 using Doppler.PushContact.DTOs;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Models;
 using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Services.Messages;
 using Doppler.PushContact.Test.Controllers.Utils;
+using Loggly;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -14,6 +16,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -823,6 +827,687 @@ namespace Doppler.PushContact.Test.Controllers
             var messageId = responseObject?.MessageId;
 
             Assert.Equal(expectedMessageId, messageId);
+        }
+
+        [Theory]
+        [InlineData(TestApiUsersData.TOKEN_EMPTY)]
+        [InlineData(TestApiUsersData.TOKEN_BROKEN)]
+        public async Task ProcessWebPushForVisitorGuid_should_return_unauthorized_when_token_is_not_valid(string token)
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+            var visitorGuid = fixture.Create<string>();
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/{visitorGuid}/send")
+            {
+                Headers = { { "Authorization", $"Bearer {token}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20010908)]
+        public async Task ProcessWebPushForVisitorGuid_should_return_unauthorized_when_token_is_an_expired_superuser_token(string token)
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+            var visitorGuid = fixture.Create<string>();
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/{visitorGuid}/send")
+            {
+                Headers = { { "Authorization", $"Bearer {token}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitorGuid_should_return_unauthorized_when_authorization_header_is_not_defined()
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+            var visitorGuid = fixture.Create<string>();
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/{visitorGuid}/send");
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
+        public async Task ProcessWebPushForVisitorGuid_should_require_a_token_with_isSU_flag(string token)
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+            var visitorGuid = fixture.Create<string>();
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/{visitorGuid}/send")
+            {
+                Headers = { { "Authorization", $"Bearer {token}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitorGuid_should_return_NotFound_when_message_doesnot_exist()
+        {
+            var fixture = new Fixture();
+
+            // Arrange
+            var messageId = fixture.Create<Guid>();
+            var visitorGuid = fixture.Create<string>();
+
+            FieldsReplacement fieldsReplacement = new FieldsReplacement()
+            {
+                ReplacementIsMandatory = true,
+                Fields = null,
+            };
+
+            var pushContactService = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var pushContactRepository = new Mock<IPushContactRepository>();
+
+            messageRepositoryMock
+                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+                .ReturnsAsync((MessageDetails)null);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactService.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(pushContactRepository.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/{visitorGuid}/send")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(fieldsReplacement),
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData("Title with fields: [[[field1]]] and [[[field2]]]", "Body without fields.")]
+        [InlineData("Title without fields", "Body with fields: [[[field1]]] and [[[field2]]]")]
+        public async Task ProcessWebPushForVisitorGuid_should_return_BadRequest_when_fields_are_missing_n_replacement_is_mandatory(string title, string body)
+        {
+            var fixture = new Fixture();
+
+            // Arrange
+            var messageId = fixture.Create<Guid>();
+            var visitorGuid = fixture.Create<string>();
+
+            var message = fixture.Create<MessageDetails>();
+            message.MessageId = messageId;
+            message.Title = title;
+            message.Body = body;
+
+            FieldsReplacement fieldsReplacement = new FieldsReplacement
+            {
+                ReplacementIsMandatory = true,
+                Fields = new Dictionary<string, string>
+                {
+                    { "field1", "field1Value" },
+                    { "field3", "field3Value" }, // it should be field2
+                }
+            };
+
+            var pushContactService = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var pushContactRepository = new Mock<IPushContactRepository>();
+
+            messageRepositoryMock
+                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+                .ReturnsAsync(message);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactService.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(pushContactRepository.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/{visitorGuid}/send")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(fieldsReplacement),
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine(response.GetHeadersAsString());
+            _output.WriteLine(responseContent);
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+            using var jsonDoc = JsonDocument.Parse(responseContent);
+            var root = jsonDoc.RootElement;
+
+            var error = root.GetProperty("error").GetString();
+            var missingFieldsInTitle = root.GetProperty("missingFieldsInTitle").EnumerateArray().Select(x => x.GetString()).ToList();
+            var missingFieldsInBody = root.GetProperty("missingFieldsInBody").EnumerateArray().Select(x => x.GetString()).ToList();
+
+            var missingFields = missingFieldsInTitle.Concat(missingFieldsInBody);
+            Assert.Equal("Missing replacements values in title or body.", error);
+            Assert.Contains("field2", missingFields);
+        }
+
+        [Theory]
+        [InlineData("Title with fields: [[[field1]]] and [[[field2]]]", "Body without fields.")]
+        [InlineData("Title without fields", "Body with fields: [[[field1]]] and [[[field2]]]")]
+        public async Task ProcessWebPushForVisitorGuid_should_return_Accepted_when_fields_are_missing_but_replacement_is_not_mandatory(string title, string body)
+        {
+            var fixture = new Fixture();
+
+            // Arrange
+            var messageId = fixture.Create<Guid>();
+            var visitorGuid = fixture.Create<string>();
+
+            var message = fixture.Create<MessageDetails>();
+            message.MessageId = messageId;
+            message.Title = title;
+            message.Body = body;
+
+            FieldsReplacement fieldsReplacement = new FieldsReplacement
+            {
+                ReplacementIsMandatory = false,
+                Fields = new Dictionary<string, string>
+                {
+                    { "field1", "field1Value" },
+                    { "field3", "field3Value" }, // it should be field2
+                }
+            };
+
+            var pushContactService = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var pushContactRepository = new Mock<IPushContactRepository>();
+            var webPushPublisherServiceMock = new Mock<IWebPushPublisherService>();
+
+            messageRepositoryMock
+                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+                .ReturnsAsync(message);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactService.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(pushContactRepository.Object);
+                    services.AddSingleton(webPushPublisherServiceMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/{visitorGuid}/send")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(fieldsReplacement),
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine(response.GetHeadersAsString());
+            _output.WriteLine(responseContent);
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+            webPushPublisherServiceMock.Verify(
+                x => x.ProcessWebPushForVisitors(
+                    It.IsAny<WebPushDTO>(),
+                    It.IsAny<FieldsReplacementList>(),
+                    It.IsAny<string>()),
+                Times.Once
+            );
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitorGuid_should_return_InternalServerError_when_unexpected_error_happens()
+        {
+            var fixture = new Fixture();
+
+            // Arrange
+            var messageId = fixture.Create<Guid>();
+            var visitorGuid = fixture.Create<string>();
+
+            FieldsReplacement fieldsReplacement = new FieldsReplacement()
+            {
+                ReplacementIsMandatory = true,
+                Fields = null,
+            };
+
+            var testException = new Exception("my exception on testing");
+
+            var pushContactService = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var pushContactRepository = new Mock<IPushContactRepository>();
+            var loggerMock = new Mock<ILogger<MessageController>>();
+
+            messageRepositoryMock
+                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+                .Throws(testException);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactService.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(pushContactRepository.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/{visitorGuid}/send")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(fieldsReplacement),
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            // Assert
+            Assert.Equal(StatusCodes.Status500InternalServerError, (int)response.StatusCode);
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains($"An unexpected error occurred processing web push")),
+                    It.Is<Exception>(ex => ex == testException),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
+        }
+
+        [Theory]
+        [InlineData(TestApiUsersData.TOKEN_EMPTY)]
+        [InlineData(TestApiUsersData.TOKEN_BROKEN)]
+        public async Task ProcessWebPushForVisitors_should_return_unauthorized_when_token_is_not_valid(string token)
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/send")
+            {
+                Headers = { { "Authorization", $"Bearer {token}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20010908)]
+        public async Task ProcessWebPushForVisitors_should_return_unauthorized_when_token_is_an_expired_superuser_token(string token)
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/send")
+            {
+                Headers = { { "Authorization", $"Bearer {token}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitors_should_return_unauthorized_when_authorization_header_is_not_defined()
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/send");
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
+        public async Task ProcessWebPushForVisitors_should_require_a_token_with_isSU_flag(string token)
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/send")
+            {
+                Headers = { { "Authorization", $"Bearer {token}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitors_should_return_NotFound_when_message_doesnot_exist()
+        {
+            var fixture = new Fixture();
+
+            // Arrange
+            var messageId = fixture.Create<Guid>();
+
+            FieldsReplacementList fieldsReplacementList = new FieldsReplacementList()
+            {
+                ReplacementIsMandatory = true,
+            };
+
+            var pushContactService = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var pushContactRepository = new Mock<IPushContactRepository>();
+
+            messageRepositoryMock
+                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+                .ReturnsAsync((MessageDetails)null);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactService.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(pushContactRepository.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/send")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(fieldsReplacementList),
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitors_should_return_BadRequest_when_VisitorsFieldsList_is_null()
+        {
+            var fixture = new Fixture();
+
+            // Arrange
+            var messageId = fixture.Create<Guid>();
+            var message = fixture.Create<MessageDetails>();
+            message.MessageId = messageId;
+
+            FieldsReplacementList fieldsReplacementList = new FieldsReplacementList()
+            {
+                ReplacementIsMandatory = true,
+                VisitorsFieldsList = null,
+            };
+
+            var pushContactService = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var pushContactRepository = new Mock<IPushContactRepository>();
+
+            messageRepositoryMock
+                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+                .ReturnsAsync(message);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactService.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(pushContactRepository.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/send")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(fieldsReplacementList),
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitors_should_return_Accepted()
+        {
+            var fixture = new Fixture();
+
+            // Arrange
+            var messageId = fixture.Create<Guid>();
+            var visitorGuid = fixture.Create<string>();
+
+            var message = fixture.Create<MessageDetails>();
+            message.MessageId = messageId;
+
+            var visitorFields1 = new VisitorFields
+            {
+                VisitorGuid = Guid.NewGuid().ToString(),
+                Fields = new Dictionary<string, string> { { "field1", "value1" } }
+            };
+
+            var visitorsFieldsList = new List<VisitorFields> { visitorFields1 };
+
+            FieldsReplacementList fieldsReplacementList = new FieldsReplacementList
+            {
+                ReplacementIsMandatory = false,
+                VisitorsFieldsList = visitorsFieldsList,
+            };
+
+            var pushContactService = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var pushContactRepository = new Mock<IPushContactRepository>();
+            var webPushPublisherServiceMock = new Mock<IWebPushPublisherService>();
+
+            messageRepositoryMock
+                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+                .ReturnsAsync(message);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactService.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(pushContactRepository.Object);
+                    services.AddSingleton(webPushPublisherServiceMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/send")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(fieldsReplacementList),
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            _output.WriteLine(response.GetHeadersAsString());
+            _output.WriteLine(responseContent);
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+            webPushPublisherServiceMock.Verify(
+                x => x.ProcessWebPushForVisitors(
+                    It.IsAny<WebPushDTO>(),
+                    It.IsAny<FieldsReplacementList>(),
+                    It.IsAny<string>()),
+                Times.Once
+            );
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitors_should_return_InternalServerError_when_unexpected_error_happens()
+        {
+            var fixture = new Fixture();
+
+            // Arrange
+            var messageId = fixture.Create<Guid>();
+
+            var visitorFields1 = new VisitorFields
+            {
+                VisitorGuid = Guid.NewGuid().ToString(),
+                Fields = new Dictionary<string, string> { { "field1", "value1" } }
+            };
+
+            var visitorsFieldsList = new List<VisitorFields> { visitorFields1 };
+
+            FieldsReplacementList fieldsReplacementList = new FieldsReplacementList
+            {
+                ReplacementIsMandatory = false,
+                VisitorsFieldsList = visitorsFieldsList,
+            };
+
+            var testException = new Exception("my exception on testing");
+
+            var pushContactService = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var pushContactRepository = new Mock<IPushContactRepository>();
+            var loggerMock = new Mock<ILogger<MessageController>>();
+
+            messageRepositoryMock
+                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+                .Throws(testException);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactService.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(pushContactRepository.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"messages/{messageId}/visitors/send")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(fieldsReplacementList),
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            // Assert
+            Assert.Equal(StatusCodes.Status500InternalServerError, (int)response.StatusCode);
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains($"An unexpected error occurred processing web push")),
+                    It.Is<Exception>(ex => ex == testException),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
         }
     }
 }

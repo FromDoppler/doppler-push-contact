@@ -12,7 +12,7 @@ namespace Doppler.PushContact.Services.Messages
 
         public string Body { get; set; }
 
-        public string OnClickLinkPropName { get; set; }
+        public string OnClickLink { get; set; }
 
         public int Sent { get; set; }
 
