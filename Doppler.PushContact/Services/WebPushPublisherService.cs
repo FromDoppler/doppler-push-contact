@@ -346,7 +346,7 @@ namespace Doppler.PushContact.Services
             return missing.ToList();
         }
 
-        private async Task ProcessWebPushForVisitorSafe(
+        internal virtual async Task ProcessWebPushForVisitorSafe(
             WebPushDTO messageDTO,
             VisitorFields visitorWithFields,
             bool replacementIsMandatory,

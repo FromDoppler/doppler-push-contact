@@ -1,6 +1,7 @@
 using AutoFixture;
 using Doppler.PushContact.DTOs;
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Models;
 using Doppler.PushContact.QueuingService.MessageQueueBroker;
 using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services;
@@ -780,5 +781,180 @@ namespace Doppler.PushContact.Test.Services
                 Times.Once);
         }
 
+        [Fact]
+        public async Task ProcessWebPushForVisitors_should_log_warning_and_do_nothing_when_cancelled_before_starting()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var visitorGuid = fixture.Create<string>();
+            var webPushDTO = new WebPushDTO
+            {
+                Title = fixture.Create<string>(),
+                Body = fixture.Create<string>(),
+                MessageId = fixture.Create<Guid>()
+            };
+
+            var cancellationToken = new CancellationToken(canceled: true);
+
+            var backgroundQueueMock = new Mock<IBackgroundQueue>();
+            Func<CancellationToken, Task> capturedFunctionToBeSimulated = null;
+            backgroundQueueMock
+                .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
+                .Callback<Func<CancellationToken, Task>>(func => capturedFunctionToBeSimulated = func);
+
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
+
+            var sut = CreateSut(
+                pushContactRepository: pushContactRepositoryMock.Object,
+                backgroundQueue: backgroundQueueMock.Object,
+                messageSender: messageSenderMock.Object,
+                messageQueuePublisher: Mock.Of<IMessageQueuePublisher>(),
+                logger: loggerMock.Object
+            );
+
+            // Act
+            sut.ProcessWebPushForVisitors(webPushDTO, null, null);
+
+            // Assert
+            Assert.NotNull(capturedFunctionToBeSimulated);
+            await capturedFunctionToBeSimulated(cancellationToken);
+
+            // verifica que NO se llamaron metodos
+            messageSenderMock.Verify(m => m.SendFirebaseWebPushAsync(It.IsAny<WebPushDTO>(), It.IsAny<List<string>>(), It.IsAny<string>()), Times.Never);
+            pushContactRepositoryMock.Verify(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(It.IsAny<string>()), Times.Never);
+
+            // verifica que se logueo el warning
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, _) => v.ToString().Contains("WebPush processing was cancelled before starting")),
+                    null,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitors_should_log_error_when_repository_throws_an_exception()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var visitorGuid = fixture.Create<string>();
+            var webPushDTO = new WebPushDTO
+            {
+                Title = fixture.Create<string>(),
+                Body = fixture.Create<string>(),
+                MessageId = fixture.Create<Guid>()
+            };
+
+            var visitorsWithReplacements = new FieldsReplacementList()
+            {
+                ReplacementIsMandatory = false,
+                VisitorsFieldsList = new List<VisitorFields>()
+                    {
+                        new VisitorFields{
+                            VisitorGuid = visitorGuid,
+                            Fields = new Dictionary<string, string> { { "field1", "value1" } },
+                        },
+                    },
+            };
+
+            var expectedException = new Exception("Something went wrong");
+
+            var backgroundQueueMock = new Mock<IBackgroundQueue>();
+            Func<CancellationToken, Task> capturedFunc = null;
+            backgroundQueueMock
+                .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
+                .Callback<Func<CancellationToken, Task>>(func => capturedFunc = func);
+
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
+            pushContactRepositoryMock
+                .Setup(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuid))
+                .Throws(expectedException);
+
+            var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
+            var messageSenderMock = new Mock<IMessageSender>();
+
+            var sut = CreateSut(
+                pushContactRepository: pushContactRepositoryMock.Object,
+                backgroundQueue: backgroundQueueMock.Object,
+                messageSender: messageSenderMock.Object,
+                messageQueuePublisher: Mock.Of<IMessageQueuePublisher>(),
+                logger: loggerMock.Object,
+                webPushQueueSettings: Options.Create(new WebPushPublisherSettings())
+            );
+
+            // Act
+            sut.ProcessWebPushForVisitors(webPushDTO, visitorsWithReplacements, null);
+
+            // Assert
+            Assert.NotNull(capturedFunc);
+            await capturedFunc(CancellationToken.None);
+
+            // verifica que se logueo el error
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, _) => v.ToString().Contains("An unexpected error occurred processing webpush")),
+                    expectedException,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitors_should_return_immediately_without_processing_when_visitors_list_is_null()
+        {
+            // Arrange
+            // Arrange
+            var fixture = new Fixture();
+            var visitorGuid = fixture.Create<string>();
+            var webPushDTO = new WebPushDTO
+            {
+                Title = fixture.Create<string>(),
+                Body = fixture.Create<string>(),
+                MessageId = fixture.Create<Guid>()
+            };
+
+            var visitorsWithReplacements = new FieldsReplacementList()
+            {
+                ReplacementIsMandatory = false,
+                VisitorsFieldsList = null, // la lista de visitors (y fields) es null
+            };
+
+            var backgroundQueueMock = new Mock<IBackgroundQueue>();
+            Func<CancellationToken, Task> capturedFunctionToBeSimulated = null;
+            backgroundQueueMock
+                .Setup(q => q.QueueBackgroundQueueItem(It.IsAny<Func<CancellationToken, Task>>()))
+                .Callback<Func<CancellationToken, Task>>(func => capturedFunctionToBeSimulated = func);
+
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
+
+            var webPushPublisherServiceMock = new Mock<WebPushPublisherService>(
+                pushContactRepositoryMock.Object,
+                backgroundQueueMock.Object,
+                messageSenderMock.Object,
+                Mock.Of<ILogger<WebPushPublisherService>>(),
+                Mock.Of<IMessageQueuePublisher>(),
+                Options.Create(new WebPushPublisherSettings { ProcessPushBatchSize = 2 }) // batch size 2
+            )
+            { CallBase = true };
+
+            // Act
+            webPushPublisherServiceMock.Object.ProcessWebPushForVisitors(webPushDTO, visitorsWithReplacements, null);
+
+            // Assert
+            Assert.NotNull(capturedFunctionToBeSimulated);
+            await capturedFunctionToBeSimulated(CancellationToken.None);
+
+            // verifica que NO se llama al procesamiento de visitor
+            webPushPublisherServiceMock.Verify(x =>
+                x.ProcessWebPushForVisitorSafe(webPushDTO, It.IsAny<VisitorFields>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), null),
+                Times.Never);
+        }
     }
 }
