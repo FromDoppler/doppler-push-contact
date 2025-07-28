@@ -938,7 +938,7 @@ namespace Doppler.PushContact.Test.Services
                 pushContactRepositoryMock.Object,
                 backgroundQueueMock.Object,
                 messageSenderMock.Object,
-                Mock.Of<ILogger<WebPushPublisherService>>(),
+                loggerMock.Object,
                 Mock.Of<IMessageQueuePublisher>(),
                 Options.Create(new WebPushPublisherSettings { ProcessPushBatchSize = 2 }) // batch size 2
             )
@@ -955,6 +955,160 @@ namespace Doppler.PushContact.Test.Services
             webPushPublisherServiceMock.Verify(x =>
                 x.ProcessWebPushForVisitorSafe(webPushDTO, It.IsAny<VisitorFields>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), null),
                 Times.Never);
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitorSafe_should_return_without_processing_when_replacement_is_mandatory_n_fields_are_missing()
+        {
+            // Arrange
+            // Arrange
+            var fixture = new Fixture();
+            var visitorGuid = fixture.Create<string>();
+            var webPushDTO = new WebPushDTO
+            {
+                Title = fixture.Create<string>(),
+                Body = "body with fields: [[[fieldMissing]]], but it's missing to be replaced.",
+                MessageId = fixture.Create<Guid>()
+            };
+
+            var visitorFields1 = new VisitorFields
+            {
+                VisitorGuid = visitorGuid,
+                Fields = new Dictionary<string, string> { { "field1", "value1" } },
+            };
+
+            var visitorsWithReplacements = new FieldsReplacementList()
+            {
+                ReplacementIsMandatory = true,
+                VisitorsFieldsList = new List<VisitorFields>()
+                    {
+                        visitorFields1,
+                    },
+            };
+
+            var backgroundQueueMock = new Mock<IBackgroundQueue>();
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
+
+            var webPushPublisherServiceMock = new Mock<WebPushPublisherService>(
+                pushContactRepositoryMock.Object,
+                backgroundQueueMock.Object,
+                messageSenderMock.Object,
+                loggerMock.Object,
+                Mock.Of<IMessageQueuePublisher>(),
+                Options.Create(new WebPushPublisherSettings { ProcessPushBatchSize = 2 }) // batch size 2
+            )
+            { CallBase = true };
+
+            // Act
+            await webPushPublisherServiceMock.Object.ProcessWebPushForVisitorSafe(
+                webPushDTO,
+                visitorFields1,
+                visitorsWithReplacements.ReplacementIsMandatory,
+                CancellationToken.None
+            );
+
+            // Assert
+            // verifica que se logueo el warning
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, _) => v.ToString().Contains("Missing replacements for MessageId")),
+                    null,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+
+            // verifica que NO se intentan obtener las subscripciones/tokens para el visitor
+            pushContactRepositoryMock.Verify(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task ProcessWebPushForVisitorSafe_should_log_error_when_repository_throws_an_exception()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var visitorGuid = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+            var webPushDTO = new WebPushDTO
+            {
+                Title = fixture.Create<string>(),
+                Body = fixture.Create<string>(),
+                MessageId = messageId,
+            };
+
+            var visitorFields1 = new VisitorFields
+            {
+                VisitorGuid = visitorGuid,
+                Fields = new Dictionary<string, string> { { "field1", "value1" } },
+            };
+
+            var visitorsWithReplacements = new FieldsReplacementList()
+            {
+                ReplacementIsMandatory = false,
+                VisitorsFieldsList = new List<VisitorFields>()
+                    {
+                        visitorFields1,
+                    },
+            };
+
+            var subscriptions = new List<SubscriptionInfoDTO>
+            {
+                // 1 con Subscription valida (deben encolar el mensaje)
+                new() { Subscription = new SubscriptionDTO { EndPoint = "https://fcm.googleapis.com", Keys = new SubscriptionKeys { Auth = "a", P256DH = "b" } }, PushContactId = "1" },
+
+                // 1 con DeviceToken (debe entrar a SendFirebaseWebPushAsync)
+                new() { DeviceToken = "device1" },
+            };
+
+            var backgroundQueueMock = new Mock<IBackgroundQueue>();
+            var pushContactRepositoryMock = new Mock<IPushContactRepository>();
+            pushContactRepositoryMock
+                .Setup(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuid))
+                .ReturnsAsync(subscriptions);
+
+            var messageSenderMock = new Mock<IMessageSender>();
+            var messageQueuePublisherMock = new Mock<IMessageQueuePublisher>();
+            var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
+
+            var webPushPublisherServiceMock = new Mock<WebPushPublisherService>(
+                pushContactRepositoryMock.Object,
+                backgroundQueueMock.Object,
+                messageSenderMock.Object,
+                loggerMock.Object,
+                messageQueuePublisherMock.Object,
+                Options.Create(webPushQueueSettingsDefault)
+            )
+            { CallBase = true };
+
+            // Act
+            await webPushPublisherServiceMock.Object.ProcessWebPushForVisitorSafe(
+                webPushDTO,
+                visitorFields1,
+                visitorsWithReplacements.ReplacementIsMandatory,
+                CancellationToken.None
+            );
+
+            // Assert
+            // verify enqueueing message
+            messageQueuePublisherMock.Verify(
+                q => q.PublishAsync(
+                    It.Is<WebPushDTO>(dto => dto.MessageId == messageId),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()
+                ),
+                Times.Once
+            );
+
+            // verify calling to SendFirebaseWebPushAsync passing a list with a item
+            messageSenderMock.Verify(
+                s => s.SendFirebaseWebPushAsync(
+                    It.Is<WebPushDTO>(dto => dto.MessageId == messageId),
+                    It.Is<List<string>>(x => x.Count == 1),
+                    null),
+                Times.Once
+            );
         }
     }
 }
