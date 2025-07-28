@@ -112,10 +112,10 @@ namespace Doppler.PushContact.Test.Services
             Assert.False(result);
             loggerMock.Verify(
                 x => x.Log(
-                    LogLevel.Error,
+                    LogLevel.Warning,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Doppler contact registration failed")),
-                    It.IsAny<Exception>(),
+                    null,
                     It.IsAny<Func<It.IsAnyType, Exception, string>>()),
                 Times.Once);
         }
@@ -152,10 +152,10 @@ namespace Doppler.PushContact.Test.Services
 
             loggerMock.Verify(
                 x => x.Log(
-                    LogLevel.Error,
+                    LogLevel.Warning,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Doppler contact registration failed")),
-                    It.IsAny<Exception>(),
+                    null,
                     (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()
                 ),
                 Times.Once);

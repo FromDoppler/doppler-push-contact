@@ -53,10 +53,18 @@ namespace Doppler.PushContact.Services
 
                 var errorText = await GetErrorMessageFromResponseAsync(response);
 
-                _logger.LogError(
-                    "Doppler contact registration failed. Status: {StatusCode}, Response: {Body}, Domain: {Domain}, VisitorGuid: {VisitorGuid}, Email: {ContactEmail}",
+                // TODO: uncomment this logging when the Doppler response is fixed
+                //_logger.LogError(
+                //    "Doppler contact registration failed. Status: {StatusCode}, Response: {Body}, Domain: {Domain}, VisitorGuid: {VisitorGuid}, Email: {ContactEmail}",
+                //    response.StatusCode,
+                //    errorText,
+                //    domain,
+                //    visitorGuid,
+                //    email
+                //);
+                _logger.LogWarning(
+                    "Doppler contact registration failed. Status: {StatusCode}, Domain: {Domain}, VisitorGuid: {VisitorGuid}, Email: {ContactEmail}",
                     response.StatusCode,
-                    errorText,
                     domain,
                     visitorGuid,
                     email
