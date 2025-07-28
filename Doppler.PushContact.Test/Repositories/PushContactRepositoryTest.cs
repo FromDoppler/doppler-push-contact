@@ -312,6 +312,128 @@ namespace Doppler.PushContact.Test.Repositories
             Assert.Null(result.Subscription); // should be null because the subscription is not complete
         }
 
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        public async Task GetAllSubscriptionInfoByVisitorGuidAsync_should_throw_argument_exception_when_visitorGuid_is_null_or_empty
+            (string visitorGuid)
+        {
+            // Arrange
+            var sut = CreateSut();
+
+            // Act
+            // Assert
+            var result = await Assert.ThrowsAsync<ArgumentException>(() => sut.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuid));
+        }
+
+        [Fact]
+        public async Task GetAllSubscriptionInfoByVisitorGuidAsync_should_throw_exception_and_log_error_when_subscriptionsinfo_cannot_be_getter_from_storage()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var visitorGuid = fixture.Create<string>();
+
+            var pushContactsCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            pushContactsCollectionMock
+                .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
+                .ThrowsAsync(new Exception());
+
+            var mongoDatabaseMock = new Mock<IMongoDatabase>();
+            mongoDatabaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(pushMongoContextSettings.PushContactsCollectionName, null))
+                .Returns(pushContactsCollectionMock.Object);
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabaseMock.Object);
+
+            var loggerMock = new Mock<ILogger<PushContactRepository>>();
+
+            var sut = CreateSut(
+                mongoClientMock.Object,
+                Options.Create(pushMongoContextSettings),
+                logger: loggerMock.Object);
+
+            // Act
+            // Assert
+            await Assert.ThrowsAsync<Exception>(() => sut.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuid));
+
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString() == $"Error getting {nameof(SubscriptionInfoDTO)}s by {nameof(visitorGuid)} {visitorGuid}"),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task GetAllSubscriptionInfoByVisitorGuidAsync_should_return_subscriptionsinfo_filtered_by_visitorGuid()
+        {
+            // Arrange
+            List<BsonDocument> allPushContactDocuments = FakePushContactDocuments(10);
+
+            var random = new Random();
+            int randomPushContactIndex = random.Next(allPushContactDocuments.Count);
+            var visitorGuidFilter = allPushContactDocuments[randomPushContactIndex][PushContactDocumentProps.VisitorGuidPropName].AsString;
+
+            var fixture = new Fixture();
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var pushContactsCursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+            pushContactsCursorMock
+                .Setup(_ => _.Current)
+                .Returns(allPushContactDocuments.Where(x => x[PushContactDocumentProps.VisitorGuidPropName].AsString == visitorGuidFilter));
+
+            pushContactsCursorMock
+                .SetupSequence(_ => _.MoveNext(It.IsAny<CancellationToken>()))
+                .Returns(true)
+                .Returns(false);
+
+            pushContactsCursorMock
+                .SetupSequence(_ => _.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .Returns(Task.FromResult(true))
+                .Returns(Task.FromResult(false));
+
+            var pushContactsCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            pushContactsCollectionMock
+                .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
+                .ReturnsAsync(pushContactsCursorMock.Object);
+
+            var mongoDatabase = new Mock<IMongoDatabase>();
+            mongoDatabase
+                .Setup(x => x.GetCollection<BsonDocument>(pushMongoContextSettings.PushContactsCollectionName, null))
+                .Returns(pushContactsCollectionMock.Object);
+
+            var mongoClient = new Mock<IMongoClient>();
+            mongoClient
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabase.Object);
+
+            var sut = CreateSut(
+                mongoClient.Object,
+                Options.Create(pushMongoContextSettings));
+
+            // Act
+            var result = await sut.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuidFilter);
+
+            // Assert
+            Assert.All(result, res => allPushContactDocuments
+                    .Single(p => p[PushContactDocumentProps.VisitorGuidPropName].AsString == visitorGuidFilter &&
+                        p[PushContactDocumentProps.DeviceTokenPropName].AsString == res.DeviceToken &&
+                        p[PushContactDocumentProps.Subscription_PropName][PushContactDocumentProps.Subscription_EndPoint_PropName] == res.Subscription.EndPoint &&
+                        p[PushContactDocumentProps.Subscription_PropName][PushContactDocumentProps.Subscription_P256DH_PropName] == res.Subscription.Keys.P256DH &&
+                        p[PushContactDocumentProps.Subscription_PropName][PushContactDocumentProps.Subscription_Auth_PropName] == res.Subscription.Keys.Auth
+                    )
+                );
+        }
+
         private static BsonDocument FakeSubscriptionDocument()
         {
             var fixture = new Fixture();
