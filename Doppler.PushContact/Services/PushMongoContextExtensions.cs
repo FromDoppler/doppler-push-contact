@@ -51,6 +51,14 @@ namespace Doppler.PushContact.Services
                     new CreateIndexOptions { Unique = false });
                     pushContacts.Indexes.CreateOne(domainAndDeletedIndex);
 
+                    var deletedAndDomainAndVisitorGuidIndex = new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys
+                        .Ascending(PushContactDocumentProps.DeletedPropName)
+                        .Ascending(PushContactDocumentProps.DomainPropName)
+                        .Ascending(PushContactDocumentProps.VisitorGuidPropName),
+                    new CreateIndexOptions { Unique = false });
+                    pushContacts.Indexes.CreateOne(deletedAndDomainAndVisitorGuidIndex);
+
                     // domains indexes
                     var domains = database.GetCollection<BsonDocument>(pushMongoContextSettings.DomainsCollectionName);
 
