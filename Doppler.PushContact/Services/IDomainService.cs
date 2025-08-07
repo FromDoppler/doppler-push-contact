@@ -1,12 +1,12 @@
-using Doppler.PushContact.Models;
+using Doppler.PushContact.Models.DTOs;
 using System.Threading.Tasks;
 
 namespace Doppler.PushContact.Services
 {
     public interface IDomainService
     {
-        Task UpsertAsync(Domain domain);
+        Task UpsertAsync(DomainDTO domain);
 
-        Task<Domain> GetByNameAsync(string name);
+        Task<DomainDTO> GetByNameAsync(string name);
     }
 }

@@ -1,5 +1,6 @@
 using Doppler.PushContact.DopplerSecurity;
 using Doppler.PushContact.Models;
+using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -26,8 +27,14 @@ namespace Doppler.PushContact.Controllers
         [Route("domains/{name}")]
         public async Task<IActionResult> Upsert([FromRoute] string name, [FromBody] Domain domain)
         {
-            domain.Name = name;
-            await _domainService.UpsertAsync(domain);
+            var domainDTO = new DomainDTO()
+            {
+                Name = name,
+                IsPushFeatureEnabled = domain.IsPushFeatureEnabled,
+                UsesExternalPushDomain = domain.UsesExternalPushDomain,
+                ExternalPushDomain = domain.ExternalPushDomain,
+            };
+            await _domainService.UpsertAsync(domainDTO);
 
             return Ok();
         }
@@ -71,7 +78,13 @@ namespace Doppler.PushContact.Controllers
                     return NotFound();
                 }
 
-                return domain;
+                return new Domain()
+                {
+                    Name = domain.Name,
+                    IsPushFeatureEnabled = domain.IsPushFeatureEnabled,
+                    UsesExternalPushDomain = domain.UsesExternalPushDomain,
+                    ExternalPushDomain = domain.ExternalPushDomain,
+                };
             }
             catch (Exception ex)
             {

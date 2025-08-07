@@ -1,4 +1,5 @@
 using Doppler.PushContact.Models;
+using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services;
 using Microsoft.Extensions.Logging;
@@ -26,7 +27,7 @@ namespace Doppler.PushContact.Repositories
             _logger = logger;
         }
 
-        public async Task UpsertAsync(Domain domain)
+        public async Task UpsertAsync(DomainDTO domain)
         {
             if (domain == null)
             {
@@ -58,7 +59,7 @@ namespace Doppler.PushContact.Repositories
             }
         }
 
-        public async Task<Domain> GetByNameAsync(string name)
+        public async Task<DomainDTO> GetByNameAsync(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -76,7 +77,7 @@ namespace Doppler.PushContact.Repositories
                     return null;
                 }
 
-                return new Domain
+                return new DomainDTO
                 {
                     Name = domainDocument.GetValue(DomainDocumentProps.DomainNamePropName).AsString,
                     IsPushFeatureEnabled = domainDocument.GetValue(DomainDocumentProps.IsPushFeatureEnabledPropName).AsBoolean,
