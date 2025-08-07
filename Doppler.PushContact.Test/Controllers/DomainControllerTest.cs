@@ -1,5 +1,6 @@
 using AutoFixture;
 using Doppler.PushContact.Models;
+using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Test.Controllers.Utils;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -131,7 +132,7 @@ namespace Doppler.PushContact.Test.Controllers
             var domainServiceMock = new Mock<IDomainService>();
 
             domainServiceMock
-                .Setup(x => x.UpsertAsync(It.IsAny<Domain>()))
+                .Setup(x => x.UpsertAsync(It.IsAny<DomainDTO>()))
                 .Returns(Task.CompletedTask);
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -169,7 +170,7 @@ namespace Doppler.PushContact.Test.Controllers
             var domainServiceMock = new Mock<IDomainService>();
 
             domainServiceMock
-                .Setup(x => x.UpsertAsync(It.IsAny<Domain>()))
+                .Setup(x => x.UpsertAsync(It.IsAny<DomainDTO>()))
                 .ThrowsAsync(new Exception());
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -201,7 +202,7 @@ namespace Doppler.PushContact.Test.Controllers
             // Arrange
             var fixture = new Fixture();
 
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(It.IsAny<string>()))
@@ -235,7 +236,7 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            Domain domain = null;
+            DomainDTO domain = null;
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
@@ -269,7 +270,7 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
             domain.IsPushFeatureEnabled = isPushFeatureEnabledValue;
 
             var domainServiceMock = new Mock<IDomainService>();
@@ -388,7 +389,7 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            Domain domain = null;
+            DomainDTO domain = null;
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
@@ -423,7 +424,7 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
             domain.Name = name;
 
             var domainServiceMock = new Mock<IDomainService>();
@@ -508,7 +509,7 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
             domain.Name = name;
 
             var domainServiceMock = new Mock<IDomainService>();
@@ -541,7 +542,7 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            Domain domain = null;
+            DomainDTO domain = null;
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
@@ -573,7 +574,7 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
             domain.Name = name;
 
             var domainServiceMock = new Mock<IDomainService>();

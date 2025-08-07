@@ -1,5 +1,6 @@
 using AutoFixture;
 using Doppler.PushContact.Models;
+using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Repositories;
 using Doppler.PushContact.Services;
 using Microsoft.Extensions.Logging;
@@ -52,7 +53,7 @@ namespace Doppler.PushContact.Test.Repositories
         public async Task UpsertAsync_should_throw_argument_null_exception_when_domain_is_null()
         {
             // Arrange
-            Domain domain = null;
+            DomainDTO domain = null;
 
             var sut = CreateSut();
 
@@ -67,7 +68,7 @@ namespace Doppler.PushContact.Test.Repositories
             // Arrange
             var fixture = new Fixture();
 
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
 
             var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
 
@@ -113,7 +114,7 @@ namespace Doppler.PushContact.Test.Repositories
             // Arrange
             var fixture = new Fixture();
 
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
 
             var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
 
