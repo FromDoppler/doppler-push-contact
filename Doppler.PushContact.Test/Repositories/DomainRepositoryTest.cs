@@ -260,5 +260,54 @@ namespace Doppler.PushContact.Test.Repositories
             Assert.Equal(domainExpected.UsesExternalPushDomain, result.UsesExternalPushDomain);
             Assert.Equal(domainExpected.ExternalPushDomain, result.ExternalPushDomain);
         }
+
+        [Fact]
+        public async Task GetByNameAsync_should_log_and_throw_when_exception_occurs()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domainName = fixture.Create<string>();
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var loggerMock = new Mock<ILogger<DomainRepository>>();
+
+            var mongoCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            mongoCollectionMock
+                .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
+                .ThrowsAsync(new Exception("DB error"));
+
+            var mongoDatabaseMock = new Mock<IMongoDatabase>();
+            mongoDatabaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(pushMongoContextSettings.DomainsCollectionName, null))
+                .Returns(mongoCollectionMock.Object);
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabaseMock.Object);
+
+            var sut = CreateSut(
+                mongoClientMock.Object,
+                Options.Create(pushMongoContextSettings),
+                loggerMock.Object);
+
+            // Act
+            var exception = await Assert.ThrowsAsync<Exception>(() =>
+                sut.GetByNameAsync(domainName));
+
+            // Assert
+            Assert.Equal("DB error", exception.Message);
+
+            loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((state, t) =>
+                        state.ToString().Contains($"Error getting Domain with name equals to {domainName}")),
+                    It.Is<Exception>(ex => ex.Message == "DB error"),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
+        }
     }
 }
