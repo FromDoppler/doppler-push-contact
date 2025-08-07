@@ -1,5 +1,6 @@
 using AutoFixture;
 using Doppler.PushContact.Models;
+using Doppler.PushContact.Repositories;
 using Doppler.PushContact.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,19 +14,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Doppler.PushContact.Test.Services
+namespace Doppler.PushContact.Test.Repositories
 {
-    public class DomainServiceTest
+    public class DomainRepositoryTest
     {
-        private static DomainService CreateSut(
+        private static DomainRepository CreateSut(
             IMongoClient mongoClient = null,
             IOptions<PushMongoContextSettings> pushMongoContextSettings = null,
-            ILogger<DomainService> logger = null)
+            ILogger<DomainRepository> logger = null)
         {
-            return new DomainService(
+            return new DomainRepository(
                 mongoClient ?? Mock.Of<IMongoClient>(),
                 pushMongoContextSettings ?? Mock.Of<IOptions<PushMongoContextSettings>>(),
-                logger ?? Mock.Of<ILogger<DomainService>>());
+                logger ?? Mock.Of<ILogger<DomainRepository>>());
         }
 
         private static List<BsonDocument> FakeDomainsDocuments(int count)
@@ -85,7 +86,7 @@ namespace Doppler.PushContact.Test.Services
                 .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
                 .Returns(mongoDatabaseMock.Object);
 
-            var loggerMock = new Mock<ILogger<DomainService>>();
+            var loggerMock = new Mock<ILogger<DomainRepository>>();
 
             var sut = CreateSut(
                 mongoClientMock.Object,
