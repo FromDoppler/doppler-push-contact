@@ -1,7 +1,6 @@
 using Doppler.PushContact.DopplerSecurity;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Services;
-using Doppler.PushContact.Services.Messages;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -15,14 +14,10 @@ namespace Doppler.PushContact.Controllers
     public class DomainController : ControllerBase
     {
         private readonly IDomainService _domainService;
-        private readonly IMessageRepository _messageRepository;
-        private readonly IMessageSender _messageSender;
 
-        public DomainController(IDomainService domainService, IMessageRepository messageRepository, IMessageSender messageSender)
+        public DomainController(IDomainService domainService)
         {
             _domainService = domainService;
-            _messageRepository = messageRepository;
-            _messageSender = messageSender;
         }
 
         // TODO: analyze separating into two methods (PUT/POST) because using PUT, and not all fields may be provided,
