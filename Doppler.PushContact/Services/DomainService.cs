@@ -8,14 +8,17 @@ namespace Doppler.PushContact.Services
     public class DomainService : IDomainService
     {
         private readonly IDomainRepository _domainRepository;
+        private readonly IPushContactRepository _pushContactRepository;
         private readonly ILogger<DomainService> _logger;
 
         public DomainService(
             IDomainRepository domainRepository,
+            IPushContactRepository pushContactRepository,
             ILogger<DomainService> logger)
         {
 
             _domainRepository = domainRepository;
+            _pushContactRepository = pushContactRepository;
             _logger = logger;
         }
 
@@ -28,6 +31,12 @@ namespace Doppler.PushContact.Services
         {
             var domain = await _domainRepository.GetByNameAsync(name);
             return domain;
+        }
+
+        public async Task<ContactsStatsDTO> GetDomainContactStatsAsync(string name)
+        {
+            var stats = await _pushContactRepository.GetContactsStatsAsync(name);
+            return stats;
         }
     }
 }
