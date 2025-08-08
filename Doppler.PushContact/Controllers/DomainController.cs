@@ -1,7 +1,7 @@
 using Doppler.PushContact.DopplerSecurity;
 using Doppler.PushContact.Models;
+using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Services;
-using Doppler.PushContact.Services.Messages;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -15,14 +15,10 @@ namespace Doppler.PushContact.Controllers
     public class DomainController : ControllerBase
     {
         private readonly IDomainService _domainService;
-        private readonly IMessageRepository _messageRepository;
-        private readonly IMessageSender _messageSender;
 
-        public DomainController(IDomainService domainService, IMessageRepository messageRepository, IMessageSender messageSender)
+        public DomainController(IDomainService domainService)
         {
             _domainService = domainService;
-            _messageRepository = messageRepository;
-            _messageSender = messageSender;
         }
 
         // TODO: analyze separating into two methods (PUT/POST) because using PUT, and not all fields may be provided,
@@ -31,8 +27,14 @@ namespace Doppler.PushContact.Controllers
         [Route("domains/{name}")]
         public async Task<IActionResult> Upsert([FromRoute] string name, [FromBody] Domain domain)
         {
-            domain.Name = name;
-            await _domainService.UpsertAsync(domain);
+            var domainDTO = new DomainDTO()
+            {
+                Name = name,
+                IsPushFeatureEnabled = domain.IsPushFeatureEnabled,
+                UsesExternalPushDomain = domain.UsesExternalPushDomain,
+                ExternalPushDomain = domain.ExternalPushDomain,
+            };
+            await _domainService.UpsertAsync(domainDTO);
 
             return Ok();
         }
@@ -76,7 +78,13 @@ namespace Doppler.PushContact.Controllers
                     return NotFound();
                 }
 
-                return domain;
+                return new Domain()
+                {
+                    Name = domain.Name,
+                    IsPushFeatureEnabled = domain.IsPushFeatureEnabled,
+                    UsesExternalPushDomain = domain.UsesExternalPushDomain,
+                    ExternalPushDomain = domain.ExternalPushDomain,
+                };
             }
             catch (Exception ex)
             {

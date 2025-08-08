@@ -1,7 +1,7 @@
 using AutoFixture;
 using Doppler.PushContact.Models;
+using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Services;
-using Doppler.PushContact.Services.Messages;
 using Doppler.PushContact.Test.Controllers.Utils;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -132,19 +132,14 @@ namespace Doppler.PushContact.Test.Controllers
             var domainServiceMock = new Mock<IDomainService>();
 
             domainServiceMock
-                .Setup(x => x.UpsertAsync(It.IsAny<Domain>()))
+                .Setup(x => x.UpsertAsync(It.IsAny<DomainDTO>()))
                 .Returns(Task.CompletedTask);
-
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -175,7 +170,7 @@ namespace Doppler.PushContact.Test.Controllers
             var domainServiceMock = new Mock<IDomainService>();
 
             domainServiceMock
-                .Setup(x => x.UpsertAsync(It.IsAny<Domain>()))
+                .Setup(x => x.UpsertAsync(It.IsAny<DomainDTO>()))
                 .ThrowsAsync(new Exception());
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -207,22 +202,17 @@ namespace Doppler.PushContact.Test.Controllers
             // Arrange
             var fixture = new Fixture();
 
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(It.IsAny<string>()))
                 .ReturnsAsync(domain);
-
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -246,22 +236,17 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            Domain domain = null;
+            DomainDTO domain = null;
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
                 .ReturnsAsync(domain);
-
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -285,23 +270,18 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
             domain.IsPushFeatureEnabled = isPushFeatureEnabledValue;
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
                 .ReturnsAsync(domain);
 
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
-
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -331,16 +311,11 @@ namespace Doppler.PushContact.Test.Controllers
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
                 .ThrowsAsync(new Exception());
 
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
-
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -414,22 +389,17 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            Domain domain = null;
+            DomainDTO domain = null;
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
                 .ReturnsAsync(domain);
-
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -454,23 +424,18 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
             domain.Name = name;
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
                 .ReturnsAsync(domain);
 
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
-
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -512,16 +477,11 @@ namespace Doppler.PushContact.Test.Controllers
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
                 .ThrowsAsync(new Exception());
 
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
-
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -549,23 +509,18 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
             domain.Name = name;
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(It.IsAny<string>()))
                 .ReturnsAsync(domain);
 
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
-
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -587,22 +542,17 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            Domain domain = null;
+            DomainDTO domain = null;
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
                 .ReturnsAsync(domain);
-
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -624,23 +574,18 @@ namespace Doppler.PushContact.Test.Controllers
             var fixture = new Fixture();
 
             var name = fixture.Create<string>();
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
             domain.Name = name;
 
             var domainServiceMock = new Mock<IDomainService>();
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
                 .ReturnsAsync(domain);
 
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
-
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -678,16 +623,11 @@ namespace Doppler.PushContact.Test.Controllers
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
                 .ThrowsAsync(new Exception());
 
-            var messageRepositoryMock = new Mock<IMessageRepository>();
-            var messageSenderMock = new Mock<IMessageSender>();
-
             var client = _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(domainServiceMock.Object);
-                    services.AddSingleton(messageRepositoryMock.Object);
-                    services.AddSingleton(messageSenderMock.Object);
                 });
 
             }).CreateClient(new WebApplicationFactoryClientOptions());

@@ -1,5 +1,7 @@
 using AutoFixture;
 using Doppler.PushContact.Models;
+using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Repositories;
 using Doppler.PushContact.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,19 +15,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Doppler.PushContact.Test.Services
+namespace Doppler.PushContact.Test.Repositories
 {
-    public class DomainServiceTest
+    public class DomainRepositoryTest
     {
-        private static DomainService CreateSut(
+        private static DomainRepository CreateSut(
             IMongoClient mongoClient = null,
             IOptions<PushMongoContextSettings> pushMongoContextSettings = null,
-            ILogger<DomainService> logger = null)
+            ILogger<DomainRepository> logger = null)
         {
-            return new DomainService(
+            return new DomainRepository(
                 mongoClient ?? Mock.Of<IMongoClient>(),
                 pushMongoContextSettings ?? Mock.Of<IOptions<PushMongoContextSettings>>(),
-                logger ?? Mock.Of<ILogger<DomainService>>());
+                logger ?? Mock.Of<ILogger<DomainRepository>>());
         }
 
         private static List<BsonDocument> FakeDomainsDocuments(int count)
@@ -51,7 +53,7 @@ namespace Doppler.PushContact.Test.Services
         public async Task UpsertAsync_should_throw_argument_null_exception_when_domain_is_null()
         {
             // Arrange
-            Domain domain = null;
+            DomainDTO domain = null;
 
             var sut = CreateSut();
 
@@ -66,7 +68,7 @@ namespace Doppler.PushContact.Test.Services
             // Arrange
             var fixture = new Fixture();
 
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
 
             var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
 
@@ -85,7 +87,7 @@ namespace Doppler.PushContact.Test.Services
                 .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
                 .Returns(mongoDatabaseMock.Object);
 
-            var loggerMock = new Mock<ILogger<DomainService>>();
+            var loggerMock = new Mock<ILogger<DomainRepository>>();
 
             var sut = CreateSut(
                 mongoClientMock.Object,
@@ -112,7 +114,7 @@ namespace Doppler.PushContact.Test.Services
             // Arrange
             var fixture = new Fixture();
 
-            var domain = fixture.Create<Domain>();
+            var domain = fixture.Create<DomainDTO>();
 
             var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
 
@@ -257,6 +259,55 @@ namespace Doppler.PushContact.Test.Services
             Assert.Equal(domainExpected.IsPushFeatureEnabled, result.IsPushFeatureEnabled);
             Assert.Equal(domainExpected.UsesExternalPushDomain, result.UsesExternalPushDomain);
             Assert.Equal(domainExpected.ExternalPushDomain, result.ExternalPushDomain);
+        }
+
+        [Fact]
+        public async Task GetByNameAsync_should_log_and_throw_when_exception_occurs()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domainName = fixture.Create<string>();
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var loggerMock = new Mock<ILogger<DomainRepository>>();
+
+            var mongoCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            mongoCollectionMock
+                .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
+                .ThrowsAsync(new Exception("DB error"));
+
+            var mongoDatabaseMock = new Mock<IMongoDatabase>();
+            mongoDatabaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(pushMongoContextSettings.DomainsCollectionName, null))
+                .Returns(mongoCollectionMock.Object);
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabaseMock.Object);
+
+            var sut = CreateSut(
+                mongoClientMock.Object,
+                Options.Create(pushMongoContextSettings),
+                loggerMock.Object);
+
+            // Act
+            var exception = await Assert.ThrowsAsync<Exception>(() =>
+                sut.GetByNameAsync(domainName));
+
+            // Assert
+            Assert.Equal("DB error", exception.Message);
+
+            loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((state, t) =>
+                        state.ToString().Contains($"Error getting Domain with name equals to {domainName}")),
+                    It.Is<Exception>(ex => ex.Message == "DB error"),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
         }
     }
 }

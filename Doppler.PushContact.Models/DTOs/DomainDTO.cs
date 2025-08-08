@@ -1,6 +1,6 @@
-namespace Doppler.PushContact.Models
+namespace Doppler.PushContact.Models.DTOs
 {
-    public class Domain
+    public class DomainDTO
     {
         public string Name { get; set; }
         public bool IsPushFeatureEnabled { get; set; }
