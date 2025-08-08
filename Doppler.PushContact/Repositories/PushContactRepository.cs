@@ -239,20 +239,23 @@ namespace Doppler.PushContact.Repositories
 
                 var stats = new ContactsStatsDTO();
 
-                await result.ForEachAsync(doc =>
+                while (await result.MoveNextAsync())
                 {
-                    var deleted = doc["_id"].AsBoolean;
-                    var count = doc["count"].AsInt32;
+                    foreach (var doc in result.Current)
+                    {
+                        var deleted = doc["_id"].AsBoolean;
+                        var count = doc["count"].AsInt32;
 
-                    if (deleted)
-                    {
-                        stats.Deleted = count;
+                        if (deleted)
+                        {
+                            stats.Deleted = count;
+                        }
+                        else
+                        {
+                            stats.Active = count;
+                        }
                     }
-                    else
-                    {
-                        stats.Active = count;
-                    }
-                });
+                }
 
                 stats.Total = stats.Deleted + stats.Active;
                 stats.DomainName = domainName;
