@@ -202,6 +202,70 @@ namespace Doppler.PushContact.Repositories
             };
         }
 
+        public async Task<ContactsStatsDTO> GetContactsStatsAsync(string domainName)
+        {
+            if (string.IsNullOrEmpty(domainName))
+            {
+                throw new ArgumentException($"'{nameof(domainName)}' cannot be null or empty.", nameof(domainName));
+            }
+
+            var filterBuilder = Builders<BsonDocument>.Filter;
+            var filter = filterBuilder.Eq(PushContactDocumentProps.DomainPropName, domainName);
+
+            var groupStage = new BsonDocument
+            {
+                { "$group", new BsonDocument
+                    {
+                        { "_id", "$" + PushContactDocumentProps.DeletedPropName },
+                        { "count", new BsonDocument { { "$sum", 1 } } }
+                    }
+                }
+            };
+
+            var matchStage = new BsonDocument
+            {
+                { "$match", new BsonDocument
+                    {
+                        { PushContactDocumentProps.DomainPropName, domainName }
+                    }
+                }
+            };
+
+            var pipeline = new[] { matchStage, groupStage };
+
+            try
+            {
+                var result = await PushContacts.AggregateAsync<BsonDocument>(pipeline);
+
+                var stats = new ContactsStatsDTO();
+
+                await result.ForEachAsync(doc =>
+                {
+                    var deleted = doc["_id"].AsBoolean;
+                    var count = doc["count"].AsInt32;
+
+                    if (deleted)
+                    {
+                        stats.Deleted = count;
+                    }
+                    else
+                    {
+                        stats.Active = count;
+                    }
+                });
+
+                stats.Total = stats.Deleted + stats.Active;
+                stats.DomainName = domainName;
+
+                return stats;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting contact stats for domain '{domainName}'");
+                throw;
+            }
+        }
+
         private List<SubscriptionInfoDTO> GetSubscriptionsInfoFromBsonDocuments(List<BsonDocument> pushContacts)
         {
             return pushContacts.Select(GetSubscriptionInfoFromBson).ToList();
