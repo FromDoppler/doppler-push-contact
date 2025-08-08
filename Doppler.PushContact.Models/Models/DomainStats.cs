@@ -10,6 +10,6 @@ namespace Doppler.PushContact.Models.Models
     public class DomainStats
     {
         public string Name { get; set; }
-        public ContactsStats ContactStats { get; set; }
+        public ContactsStats ContactsStats { get; set; }
     }
 }

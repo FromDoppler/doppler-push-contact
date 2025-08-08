@@ -107,7 +107,7 @@ namespace Doppler.PushContact.Controllers
                 var domainStats = new DomainStats()
                 {
                     Name = contactStats.DomainName,
-                    ContactStats = new ContactsStats()
+                    ContactsStats = new ContactsStats()
                     {
                         Active = contactStats.Active,
                         Deleted = contactStats.Deleted,

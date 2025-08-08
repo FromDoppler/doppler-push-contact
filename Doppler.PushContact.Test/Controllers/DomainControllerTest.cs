@@ -740,9 +740,9 @@ namespace Doppler.PushContact.Test.Controllers
 
             Assert.NotNull(domainStats);
             Assert.Equal(name, domainStats.Name);
-            Assert.Equal(5, domainStats.ContactStats.Active);
-            Assert.Equal(2, domainStats.ContactStats.Deleted);
-            Assert.Equal(7, domainStats.ContactStats.Total);
+            Assert.Equal(5, domainStats.ContactsStats.Active);
+            Assert.Equal(2, domainStats.ContactsStats.Deleted);
+            Assert.Equal(7, domainStats.ContactsStats.Total);
         }
 
         [Fact]
