@@ -1,6 +1,7 @@
 using AutoFixture;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Models;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Test.Controllers.Utils;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -633,6 +634,140 @@ namespace Doppler.PushContact.Test.Controllers
             }).CreateClient(new WebApplicationFactoryClientOptions());
 
             var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{name}/push-configuration");
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.Contains("unexpected error", content, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Theory]
+        [InlineData(TestApiUsersData.TOKEN_EMPTY)]
+        [InlineData(TestApiUsersData.TOKEN_BROKEN)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20010908)]
+        public async Task GetDomainContactsStats_should_return_unauthorized_when_token_is_not_valid(string token)
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var fixture = new Fixture();
+            var name = fixture.Create<string>();
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{name}/stats")
+            {
+                Headers = { { "Authorization", $"Bearer {token}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
+        public async Task GetDomainContactsStats_should_return_forbidden_when_token_is_valid_but_a_wrong_isSU_flag(string token)
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var fixture = new Fixture();
+            var name = fixture.Create<string>();
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{name}/stats")
+            {
+                Headers = { { "Authorization", $"Bearer {token}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task GetDomainContactsStats_should_return_OK_with_expected_stats()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var name = fixture.Create<string>();
+
+            var contactsStats = fixture.Build<ContactsStatsDTO>()
+                .With(x => x.DomainName, name)
+                .With(x => x.Active, 5)
+                .With(x => x.Deleted, 2)
+                .With(x => x.Total, 7)
+                .Create();
+
+            var domainServiceMock = new Mock<IDomainService>();
+            domainServiceMock.Setup(x => x.GetDomainContactStatsAsync(name))
+                .ReturnsAsync(contactsStats);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(domainServiceMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{name}/stats")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var domainStats = JsonSerializer.Deserialize<DomainStats>(
+                await response.Content.ReadAsStringAsync(),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+            );
+
+            Assert.NotNull(domainStats);
+            Assert.Equal(name, domainStats.Name);
+            Assert.Equal(5, domainStats.ContactStats.Active);
+            Assert.Equal(2, domainStats.ContactStats.Deleted);
+            Assert.Equal(7, domainStats.ContactStats.Total);
+        }
+
+        [Fact]
+        public async Task GetDomainContactsStats_should_return_internal_server_error_when_service_throws_exception()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var name = fixture.Create<string>();
+
+            var domainServiceMock = new Mock<IDomainService>();
+            domainServiceMock.Setup(x => x.GetDomainContactStatsAsync(name))
+                .ThrowsAsync(new Exception());
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(domainServiceMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{name}/stats")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
 
             // Act
             var response = await client.SendAsync(request);
