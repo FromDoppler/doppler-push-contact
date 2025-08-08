@@ -434,6 +434,161 @@ namespace Doppler.PushContact.Test.Repositories
                 );
         }
 
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        public async Task GetContactsStatsAsync_should_throw_argument_exception_when_domain_is_null_or_empty(string domainName)
+        {
+            // Arrange
+            var sut = CreateSut();
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<ArgumentException>(() => sut.GetContactsStatsAsync(domainName));
+            Assert.Equal("domainName", ex.ParamName);
+        }
+
+        [Fact]
+        public async Task GetContactsStatsAsync_should_return_stats_ok_when_contacts_exist_for_domain()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+
+            var expectedDocs = new[]
+            {
+                new BsonDocument { { "_id", false }, { "count", 5 } },
+                new BsonDocument { { "_id", true }, { "count", 2 } }
+            };
+
+            var cursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+            cursorMock.SetupSequence(x => x.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)   // first call: return results
+                .ReturnsAsync(false); // second call: finish iteration
+            cursorMock.SetupGet(x => x.Current).Returns(expectedDocs);
+
+            var pushContactsCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            pushContactsCollectionMock
+                .Setup(x => x.AggregateAsync<BsonDocument>(
+                    It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
+                    It.IsAny<AggregateOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(cursorMock.Object);
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var mongoDatabaseMock = new Mock<IMongoDatabase>();
+            mongoDatabaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(pushMongoContextSettings.PushContactsCollectionName, null))
+                .Returns(pushContactsCollectionMock.Object);
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabaseMock.Object);
+
+            var sut = CreateSut(mongoClientMock.Object, Options.Create(pushMongoContextSettings));
+
+            // Act
+            var result = await sut.GetContactsStatsAsync(domain);
+
+            // Assert
+            Assert.Equal(domain, result.DomainName);
+            Assert.Equal(5, result.Active);
+            Assert.Equal(2, result.Deleted);
+            Assert.Equal(7, result.Total);
+        }
+
+        [Fact]
+        public async Task GetContactsStatsAsync_should_return_zero_counts_when_no_contacts_found()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+
+            var emptyDocs = new List<BsonDocument>();
+
+            var cursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+            cursorMock.SetupSequence(x => x.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)   // first call: return results
+                .ReturnsAsync(false); // second call: finish iteration
+            cursorMock.SetupGet(x => x.Current).Returns(emptyDocs);
+
+            var pushContactsCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            pushContactsCollectionMock
+                .Setup(x => x.AggregateAsync<BsonDocument>(
+                    It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
+                    It.IsAny<AggregateOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(cursorMock.Object);
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var mongoDatabaseMock = new Mock<IMongoDatabase>();
+            mongoDatabaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(pushMongoContextSettings.PushContactsCollectionName, null))
+                .Returns(pushContactsCollectionMock.Object);
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabaseMock.Object);
+
+            var sut = CreateSut(mongoClientMock.Object, Options.Create(pushMongoContextSettings));
+
+            // Act
+            var result = await sut.GetContactsStatsAsync(domain);
+
+            // Assert
+            Assert.Equal(domain, result.DomainName);
+            Assert.Equal(0, result.Active);
+            Assert.Equal(0, result.Deleted);
+            Assert.Equal(0, result.Total);
+        }
+
+        [Fact]
+        public async Task GetContactsStatsAsync_should_log_error_and_throw_when_exception_occurs()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+
+            var pushContactsCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            pushContactsCollectionMock
+                .Setup(x => x.AggregateAsync<BsonDocument>(
+                    It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
+                    It.IsAny<AggregateOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("Aggregation failed"));
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var mongoDatabaseMock = new Mock<IMongoDatabase>();
+            mongoDatabaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(pushMongoContextSettings.PushContactsCollectionName, null))
+                .Returns(pushContactsCollectionMock.Object);
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabaseMock.Object);
+
+            var loggerMock = new Mock<ILogger<PushContactRepository>>();
+
+            var sut = CreateSut(mongoClientMock.Object, Options.Create(pushMongoContextSettings), loggerMock.Object);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<Exception>(() => sut.GetContactsStatsAsync(domain));
+
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains($"Error getting contact stats for domain '{domain}'")),
+                    It.IsAny<Exception>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
+        }
+
         private static BsonDocument FakeSubscriptionDocument()
         {
             var fixture = new Fixture();

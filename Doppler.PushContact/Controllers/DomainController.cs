@@ -1,6 +1,7 @@
 using Doppler.PushContact.DopplerSecurity;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Models;
 using Doppler.PushContact.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -91,6 +92,36 @@ namespace Doppler.PushContact.Controllers
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,
                     new { error = "An unexpected error occurred obtaining domain information." }
+                );
+            }
+        }
+
+        [HttpGet]
+        [Route("domains/{name}/stats")]
+        public async Task<ActionResult<DomainStats>> GetDomainContactsStats([FromRoute] string name)
+        {
+            try
+            {
+                var contactStats = await _domainService.GetDomainContactStatsAsync(name);
+
+                var domainStats = new DomainStats()
+                {
+                    Name = contactStats.DomainName,
+                    ContactsStats = new ContactsStats()
+                    {
+                        Active = contactStats.Active,
+                        Deleted = contactStats.Deleted,
+                        Total = contactStats.Total,
+                    }
+                };
+
+                return Ok(domainStats);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "An unexpected error occurred obtaining domain stats." }
                 );
             }
         }
