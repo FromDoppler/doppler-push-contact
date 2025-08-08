@@ -16,7 +16,6 @@ namespace Doppler.PushContact.Services
             IPushContactRepository pushContactRepository,
             ILogger<DomainService> logger)
         {
-
             _domainRepository = domainRepository;
             _pushContactRepository = pushContactRepository;
             _logger = logger;
