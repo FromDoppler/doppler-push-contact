@@ -650,7 +650,7 @@ namespace Doppler.PushContact.Test.Controllers
         [InlineData(TestApiUsersData.TOKEN_EMPTY)]
         [InlineData(TestApiUsersData.TOKEN_BROKEN)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20010908)]
-        public async Task GetDomainContactsStats_should_return_unauthorized_when_token_is_not_valid(string token)
+        public async Task GetDomainStats_should_return_unauthorized_when_token_is_not_valid(string token)
         {
             // Arrange
             var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
@@ -674,7 +674,7 @@ namespace Doppler.PushContact.Test.Controllers
         [Theory]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
-        public async Task GetDomainContactsStats_should_return_forbidden_when_token_is_valid_but_a_wrong_isSU_flag(string token)
+        public async Task GetDomainStats_should_return_forbidden_when_token_is_valid_but_a_wrong_isSU_flag(string token)
         {
             // Arrange
             var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
@@ -696,7 +696,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task GetDomainContactsStats_should_return_OK_with_expected_stats()
+        public async Task GetDomainStats_should_return_OK_with_expected_stats()
         {
             // Arrange
             var fixture = new Fixture();
@@ -746,7 +746,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task GetDomainContactsStats_should_return_internal_server_error_when_service_throws_exception()
+        public async Task GetDomainStats_should_return_internal_server_error_when_service_throws_exception()
         {
             // Arrange
             var fixture = new Fixture();

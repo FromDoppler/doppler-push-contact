@@ -98,7 +98,7 @@ namespace Doppler.PushContact.Controllers
 
         [HttpGet]
         [Route("domains/{name}/stats")]
-        public async Task<ActionResult<DomainStats>> GetDomainContactsStats([FromRoute] string name)
+        public async Task<ActionResult<DomainStats>> GetDomainStats([FromRoute] string name)
         {
             try
             {
