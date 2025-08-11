@@ -102,7 +102,14 @@ namespace Doppler.PushContact.Controllers
         {
             try
             {
-                var contactStats = await _domainService.GetDomainContactStatsAsync(name);
+                var domain = await _domainService.GetByNameAsync(name);
+
+                if (domain == null)
+                {
+                    return NotFound();
+                }
+
+                var contactStats = await _domainService.GetDomainContactStatsAsync(domain.Name);
 
                 var domainStats = new DomainStats()
                 {
