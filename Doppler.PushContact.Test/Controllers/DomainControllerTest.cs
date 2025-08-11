@@ -650,7 +650,7 @@ namespace Doppler.PushContact.Test.Controllers
         [InlineData(TestApiUsersData.TOKEN_EMPTY)]
         [InlineData(TestApiUsersData.TOKEN_BROKEN)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20010908)]
-        public async Task GetDomainContactsStats_should_return_unauthorized_when_token_is_not_valid(string token)
+        public async Task GetDomainStats_should_return_unauthorized_when_token_is_not_valid(string token)
         {
             // Arrange
             var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
@@ -674,7 +674,7 @@ namespace Doppler.PushContact.Test.Controllers
         [Theory]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
-        public async Task GetDomainContactsStats_should_return_forbidden_when_token_is_valid_but_a_wrong_isSU_flag(string token)
+        public async Task GetDomainStats_should_return_forbidden_when_token_is_valid_but_a_wrong_isSU_flag(string token)
         {
             // Arrange
             var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
@@ -696,11 +696,15 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task GetDomainContactsStats_should_return_OK_with_expected_stats()
+        public async Task GetDomainStats_should_return_OK_with_expected_stats()
         {
             // Arrange
             var fixture = new Fixture();
             var name = fixture.Create<string>();
+
+            var domain = fixture.Build<DomainDTO>()
+                .With(x => x.Name, name)
+                .Create();
 
             var contactsStats = fixture.Build<ContactsStatsDTO>()
                 .With(x => x.DomainName, name)
@@ -710,6 +714,10 @@ namespace Doppler.PushContact.Test.Controllers
                 .Create();
 
             var domainServiceMock = new Mock<IDomainService>();
+
+            domainServiceMock.Setup(x => x.GetByNameAsync(name))
+                .ReturnsAsync(domain);
+
             domainServiceMock.Setup(x => x.GetDomainContactStatsAsync(name))
                 .ReturnsAsync(contactsStats);
 
@@ -746,13 +754,21 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task GetDomainContactsStats_should_return_internal_server_error_when_service_throws_exception()
+        public async Task GetDomainStats_should_return_internal_server_error_when_service_throws_exception()
         {
             // Arrange
             var fixture = new Fixture();
             var name = fixture.Create<string>();
 
+            var domain = fixture.Build<DomainDTO>()
+                .With(x => x.Name, name)
+                .Create();
+
             var domainServiceMock = new Mock<IDomainService>();
+
+            domainServiceMock.Setup(x => x.GetByNameAsync(name))
+                .ReturnsAsync(domain);
+
             domainServiceMock.Setup(x => x.GetDomainContactStatsAsync(name))
                 .ThrowsAsync(new Exception());
 
@@ -778,6 +794,40 @@ namespace Doppler.PushContact.Test.Controllers
 
             var content = await response.Content.ReadAsStringAsync();
             Assert.Contains("unexpected error", content, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public async Task GetDomainStats_should_return_notfound_when_domain_doesnt_exists()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var name = fixture.Create<string>();
+
+            DomainDTO domain = null;
+
+            var domainServiceMock = new Mock<IDomainService>();
+            domainServiceMock.Setup(x => x.GetByNameAsync(name))
+                .ReturnsAsync(domain);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(domainServiceMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{name}/stats")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
     }
 }

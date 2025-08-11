@@ -98,11 +98,18 @@ namespace Doppler.PushContact.Controllers
 
         [HttpGet]
         [Route("domains/{name}/stats")]
-        public async Task<ActionResult<DomainStats>> GetDomainContactsStats([FromRoute] string name)
+        public async Task<ActionResult<DomainStats>> GetDomainStats([FromRoute] string name)
         {
             try
             {
-                var contactStats = await _domainService.GetDomainContactStatsAsync(name);
+                var domain = await _domainService.GetByNameAsync(name);
+
+                if (domain == null)
+                {
+                    return NotFound();
+                }
+
+                var contactStats = await _domainService.GetDomainContactStatsAsync(domain.Name);
 
                 var domainStats = new DomainStats()
                 {
