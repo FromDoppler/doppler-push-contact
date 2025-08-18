@@ -1991,7 +1991,7 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
         }
 
         [Fact]
-        public async Task GetVisitorInfoSafeAsync_should_log_error_when_mongo_exception_is_thrown()
+        public async Task GetVisitorInfoSafeAsync_should_return_null_and_log_error_when_mongo_exception_is_thrown()
         {
             // Arrange
             var fixture = new Fixture();
@@ -2025,9 +2025,11 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
                 settings,
                 logger: loggerMock.Object);
 
-            // Act & Assert
-            await Assert.ThrowsAsync<MongoException>(() => sut.GetVisitorInfoSafeAsync(deviceToken));
+            // Act
+            var visitorInfo = await sut.GetVisitorInfoSafeAsync(deviceToken);
 
+            // Assert
+            Assert.Null(visitorInfo);
             loggerMock.Verify(
                 x => x.Log(
                     It.Is<LogLevel>(l => l == LogLevel.Error),
@@ -2039,7 +2041,7 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
         }
 
         [Fact]
-        public async Task GetVisitorInfoSafeAsync_should_log_error_when_general_exception_is_thrown()
+        public async Task GetVisitorInfoSafeAsync_should_return_null_and_log_error_when_general_exception_is_thrown()
         {
             // Arrange
             var fixture = new Fixture();
@@ -2073,9 +2075,11 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
                 settings,
                 logger: loggerMock.Object);
 
-            // Act & Assert
-            await Assert.ThrowsAsync<Exception>(() => sut.GetVisitorInfoSafeAsync(deviceToken));
+            // Act
+            var visitorInfo = await sut.GetVisitorInfoSafeAsync(deviceToken);
 
+            // Assert
+            Assert.Null(visitorInfo);
             loggerMock.Verify(
                 x => x.Log(
                     It.Is<LogLevel>(l => l == LogLevel.Error),
