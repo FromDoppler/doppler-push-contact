@@ -589,6 +589,220 @@ namespace Doppler.PushContact.Test.Repositories
                 Times.Once);
         }
 
+        [Fact]
+        public async Task GetVisitorInfoSafeAsync_should_return_null_when_push_contact_does_not_exist()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var deviceToken = fixture.Create<string>();
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            var databaseMock = new Mock<IMongoDatabase>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var asyncCursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+
+            var settings = Options.Create(new PushMongoContextSettings
+            {
+                DatabaseName = "TestDatabase",
+                PushContactsCollectionName = "TestCollection"
+            });
+
+            // Configure the cursor to return no elements
+            asyncCursorMock
+                .SetupSequence(x => x.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+
+            asyncCursorMock
+                .SetupGet(x => x.Current)
+                .Returns(new List<BsonDocument>());
+
+            collectionMock
+                .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
+                .ReturnsAsync(asyncCursorMock.Object);
+
+            databaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.PushContactsCollectionName, null))
+                .Returns(collectionMock.Object);
+
+            mongoClientMock
+                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
+                .Returns(databaseMock.Object);
+
+            var sut = CreateSut(
+                mongoClientMock.Object,
+                settings);
+
+            // Act
+            var result = await sut.GetVisitorInfoSafeAsync(deviceToken);
+
+            // Assert
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public async Task GetVisitorInfoSafeAsync_should_return_VisitorInfo_when_push_contact_exists()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var deviceToken = fixture.Create<string>();
+
+            var domain = fixture.Create<string>();
+            var visitorGuid = fixture.Create<string>();
+            var email = fixture.Create<string>();
+
+            var document = new BsonDocument
+            {
+                { PushContactDocumentProps.DomainPropName, domain },
+                { PushContactDocumentProps.VisitorGuidPropName, visitorGuid },
+                { PushContactDocumentProps.EmailPropName, email },
+            };
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            var databaseMock = new Mock<IMongoDatabase>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var asyncCursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+
+            var settings = Options.Create(new PushMongoContextSettings
+            {
+                DatabaseName = "TestDatabase",
+                PushContactsCollectionName = "TestCollection"
+            });
+
+            // Configure the cursor to return the expected document
+            asyncCursorMock
+                .SetupSequence(x => x.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+
+            asyncCursorMock
+                .SetupGet(x => x.Current)
+                .Returns(new List<BsonDocument> { document });
+
+            collectionMock
+                .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
+                .ReturnsAsync(asyncCursorMock.Object);
+
+            databaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.PushContactsCollectionName, null))
+                .Returns(collectionMock.Object);
+
+            mongoClientMock
+                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
+                .Returns(databaseMock.Object);
+
+            var sut = CreateSut(
+                mongoClientMock.Object,
+                settings);
+
+            // Act
+            var visitorInfo = await sut.GetVisitorInfoSafeAsync(deviceToken);
+
+            // Assert
+            Assert.Equal(domain, visitorInfo.Domain);
+            Assert.Equal(visitorGuid, visitorInfo.VisitorGuid);
+            Assert.Equal(email, visitorInfo.Email);
+        }
+
+        [Fact]
+        public async Task GetVisitorInfoSafeAsync_should_return_null_and_log_error_when_mongo_exception_is_thrown()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var deviceToken = fixture.Create<string>();
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            var databaseMock = new Mock<IMongoDatabase>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var loggerMock = new Mock<ILogger<PushContactRepository>>();
+
+            var settings = Options.Create(new PushMongoContextSettings
+            {
+                DatabaseName = "TestDatabase",
+                PushContactsCollectionName = "TestCollection"
+            });
+
+            collectionMock
+                .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
+                .Throws(new MongoException("Test exception"));
+
+            databaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.PushContactsCollectionName, null))
+                .Returns(collectionMock.Object);
+
+            mongoClientMock
+                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
+                .Returns(databaseMock.Object);
+
+            var sut = CreateSut(
+                mongoClientMock.Object,
+                settings,
+                logger: loggerMock.Object);
+
+            // Act
+            var visitorInfo = await sut.GetVisitorInfoSafeAsync(deviceToken);
+
+            // Assert
+            Assert.Null(visitorInfo);
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("MongoException getting Visitor Info by")),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task GetVisitorInfoSafeAsync_should_return_null_and_log_error_when_general_exception_is_thrown()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var deviceToken = fixture.Create<string>();
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            var databaseMock = new Mock<IMongoDatabase>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var loggerMock = new Mock<ILogger<PushContactRepository>>();
+
+            var settings = Options.Create(new PushMongoContextSettings
+            {
+                DatabaseName = "TestDatabase",
+                PushContactsCollectionName = "TestCollection"
+            });
+
+            collectionMock
+                .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
+                .Throws(new Exception("Test exception"));
+
+            databaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.PushContactsCollectionName, null))
+                .Returns(collectionMock.Object);
+
+            mongoClientMock
+                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
+                .Returns(databaseMock.Object);
+
+            var sut = CreateSut(
+                mongoClientMock.Object,
+                settings,
+                logger: loggerMock.Object);
+
+            // Act
+            var visitorInfo = await sut.GetVisitorInfoSafeAsync(deviceToken);
+
+            // Assert
+            Assert.Null(visitorInfo);
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Unexpected error getting Visitor Info by")),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
+        }
+
         private static BsonDocument FakeSubscriptionDocument()
         {
             var fixture = new Fixture();
