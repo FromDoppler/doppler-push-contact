@@ -1,8 +1,8 @@
 using Doppler.PushContact.ApiModels;
-using Doppler.PushContact.DTOs;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
+using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services.Messages;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -20,17 +20,20 @@ namespace Doppler.PushContact.Services
         private readonly IMongoClient _mongoClient;
         private readonly IOptions<PushMongoContextSettings> _pushMongoContextSettings;
         private readonly IDeviceTokenValidator _deviceTokenValidator;
+        private readonly IPushContactRepository _pushContactRepository;
         private readonly ILogger<PushContactService> _logger;
 
         public PushContactService(
             IMongoClient mongoClient,
             IOptions<PushMongoContextSettings> pushMongoContextSettings,
             IDeviceTokenValidator deviceTokenValidator,
+            IPushContactRepository pushContactRepository,
             ILogger<PushContactService> logger)
         {
             _mongoClient = mongoClient;
             _pushMongoContextSettings = pushMongoContextSettings;
             _deviceTokenValidator = deviceTokenValidator;
+            _pushContactRepository = pushContactRepository;
             _logger = logger;
         }
 
@@ -706,43 +709,7 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
 
         public async Task<VisitorInfoDTO> GetVisitorInfoSafeAsync(string deviceToken)
         {
-            var filterBuilder = Builders<BsonDocument>.Filter;
-
-            var filter = filterBuilder.Eq(PushContactDocumentProps.DeviceTokenPropName, deviceToken)
-                & filterBuilder.Eq(PushContactDocumentProps.DeletedPropName, false);
-
-            try
-            {
-                var pushContact = await PushContacts.Find(filter).FirstOrDefaultAsync();
-
-                if (pushContact != null)
-                {
-                    return new VisitorInfoDTO
-                    {
-                        Domain = SafeGetString(pushContact, PushContactDocumentProps.DomainPropName),
-                        VisitorGuid = SafeGetString(pushContact, PushContactDocumentProps.VisitorGuidPropName),
-                        Email = SafeGetString(pushContact, PushContactDocumentProps.EmailPropName),
-                    };
-                }
-
-                return null;
-            }
-            catch (MongoException ex)
-            {
-                _logger.LogError(ex, $"MongoException getting Visitor Info by {nameof(deviceToken)} {deviceToken}");
-                return null;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Unexpected error getting Visitor Info by {nameof(deviceToken)} {deviceToken}");
-                return null;
-            }
-        }
-
-        private string SafeGetString(BsonDocument doc, string propName)
-        {
-            var value = doc.GetValue(propName, BsonNull.Value);
-            return value.IsBsonNull ? null : value.AsString;
+            return await _pushContactRepository.GetVisitorInfoSafeAsync(deviceToken);
         }
 
         private IMongoCollection<BsonDocument> PushContacts

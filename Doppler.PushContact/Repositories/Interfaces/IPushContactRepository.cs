@@ -12,5 +12,6 @@ namespace Doppler.PushContact.Repositories.Interfaces
         IAsyncEnumerable<SubscriptionInfoDTO> GetSubscriptionInfoByDomainAsStreamAsync(string domain, CancellationToken cancellationToken = default);
         Task<IEnumerable<SubscriptionInfoDTO>> GetAllSubscriptionInfoByVisitorGuidAsync(string visitorGuid);
         Task<ContactsStatsDTO> GetContactsStatsAsync(string domainName);
+        Task<VisitorInfoDTO> GetVisitorInfoSafeAsync(string deviceToken);
     }
 }
