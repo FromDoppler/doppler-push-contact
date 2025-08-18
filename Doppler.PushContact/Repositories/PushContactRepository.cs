@@ -274,6 +274,47 @@ namespace Doppler.PushContact.Repositories
             return pushContacts.Select(GetSubscriptionInfoFromBson).ToList();
         }
 
+        public async Task<VisitorInfoDTO> GetVisitorInfoSafeAsync(string deviceToken)
+        {
+            var filterBuilder = Builders<BsonDocument>.Filter;
+
+            var filter = filterBuilder.Eq(PushContactDocumentProps.DeviceTokenPropName, deviceToken)
+                & filterBuilder.Eq(PushContactDocumentProps.DeletedPropName, false);
+
+            try
+            {
+                var pushContact = await PushContacts.Find(filter).FirstOrDefaultAsync();
+
+                if (pushContact != null)
+                {
+                    return new VisitorInfoDTO
+                    {
+                        Domain = SafeGetString(pushContact, PushContactDocumentProps.DomainPropName),
+                        VisitorGuid = SafeGetString(pushContact, PushContactDocumentProps.VisitorGuidPropName),
+                        Email = SafeGetString(pushContact, PushContactDocumentProps.EmailPropName),
+                    };
+                }
+
+                return null;
+            }
+            catch (MongoException ex)
+            {
+                _logger.LogError(ex, $"MongoException getting Visitor Info by {nameof(deviceToken)} {deviceToken}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Unexpected error getting Visitor Info by {nameof(deviceToken)} {deviceToken}");
+                return null;
+            }
+        }
+
+        private string SafeGetString(BsonDocument doc, string propName)
+        {
+            var value = doc.GetValue(propName, BsonNull.Value);
+            return value.IsBsonNull ? null : value.AsString;
+        }
+
         private IMongoCollection<BsonDocument> PushContacts
         {
             get
