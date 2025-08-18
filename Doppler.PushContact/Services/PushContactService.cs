@@ -719,9 +719,9 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
                 {
                     return new VisitorInfoDTO
                     {
-                        Domain = pushContact.GetValue(PushContactDocumentProps.DomainPropName, null)?.AsString,
-                        VisitorGuid = pushContact.GetValue(PushContactDocumentProps.VisitorGuidPropName, null)?.AsString,
-                        Email = pushContact.GetValue(PushContactDocumentProps.EmailPropName, null)?.AsString
+                        Domain = SafeGetString(pushContact, PushContactDocumentProps.DomainPropName),
+                        VisitorGuid = SafeGetString(pushContact, PushContactDocumentProps.VisitorGuidPropName),
+                        Email = SafeGetString(pushContact, PushContactDocumentProps.EmailPropName),
                     };
                 }
 
@@ -730,13 +730,19 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
             catch (MongoException ex)
             {
                 _logger.LogError(ex, $"MongoException getting Visitor Info by {nameof(deviceToken)} {deviceToken}");
-                throw;
+                return null;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error getting Visitor Info by {nameof(deviceToken)} {deviceToken}");
-                throw;
+                return null;
             }
+        }
+
+        private string SafeGetString(BsonDocument doc, string propName)
+        {
+            var value = doc.GetValue(propName, BsonNull.Value);
+            return value.IsBsonNull ? null : value.AsString;
         }
 
         private IMongoCollection<BsonDocument> PushContacts
