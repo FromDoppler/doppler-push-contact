@@ -1146,7 +1146,7 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
             var sut = CreateSut();
             // Act
             // Assert
-            var result = await Assert.ThrowsAsync<ArgumentNullException>(() => sut.AddHistoryEventsAsync(messageId, null));
+            var result = await Assert.ThrowsAsync<ArgumentNullException>(() => sut.AddHistoryEventsAndMarkDeletedContactsAsync(messageId, null));
         }
 
         [Theory]
