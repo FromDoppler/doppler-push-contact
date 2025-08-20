@@ -137,13 +137,13 @@ namespace Doppler.PushContact.Services.Messages
                 authenticationApiToken
             );
 
+            await _pushContactService.AddHistoryEventsAndMarkDeletedContactsAsync(webPushDTO.MessageId, sendMessageResult);
+
             await RegisterStatisticsAsync(webPushDTO.MessageId, sendMessageResult);
         }
 
         private async Task RegisterStatisticsAsync(Guid messageId, SendMessageResult sendMessageResult)
         {
-            await _pushContactService.AddHistoryEventsAsync(messageId, sendMessageResult);
-
             var sent = sendMessageResult.SendMessageTargetResult.Count();
             var delivered = sendMessageResult.SendMessageTargetResult.Count(x => x.IsSuccess);
             var notDelivered = sent - delivered;
