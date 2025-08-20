@@ -5,6 +5,7 @@ namespace Doppler.PushContact.Services
 {
     public interface IWebPushPublisherService
     {
+        // It is not being used, was replaced by ProcessWebPushInBatches
         void ProcessWebPush(string domain, WebPushDTO webPushDTO, string authenticationApiToken = null);
         void ProcessWebPushInBatches(string domain, WebPushDTO messageDTO, string authenticationApiToken = null);
         void ProcessWebPushForVisitors(WebPushDTO messageDTO, FieldsReplacementList visitorsWithReplacements, string authenticationApiToken = null);
