@@ -2,6 +2,7 @@ using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Services.Messages.ExternalContracts;
 using Flurl;
 using Flurl.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
@@ -16,18 +17,21 @@ namespace Doppler.PushContact.Services.Messages
         private readonly IPushApiTokenGetter _pushApiTokenGetter;
         private readonly IMessageRepository _messageRepository;
         private readonly IPushContactService _pushContactService;
+        private readonly ILogger<MessageSender> _logger;
 
         public MessageSender(
             IOptions<MessageSenderSettings> messageSenderSettings,
             IPushApiTokenGetter pushApiTokenGetter,
             IMessageRepository messageRepository,
-            IPushContactService pushContactService
+            IPushContactService pushContactService,
+            ILogger<MessageSender> logger
         )
         {
             _messageSenderSettings = messageSenderSettings.Value;
             _pushApiTokenGetter = pushApiTokenGetter;
             _messageRepository = messageRepository;
             _pushContactService = pushContactService;
+            _logger = logger;
         }
 
         public async Task<SendMessageResult> SendAsync(string title, string body, IEnumerable<string> targetDeviceTokens, string onClickLink = null, string imageUrl = null, string pushApiToken = null)
@@ -128,18 +132,37 @@ namespace Doppler.PushContact.Services.Messages
                 return;
             }
 
-            var sendMessageResult = await SendAsync(
-                webPushDTO.Title,
-                webPushDTO.Body,
-                deviceTokens,
-                webPushDTO.OnClickLink,
-                webPushDTO.ImageUrl,
-                authenticationApiToken
-            );
+            try
+            {
+                var sendMessageResult = await SendAsync(
+                    webPushDTO.Title,
+                    webPushDTO.Body,
+                    deviceTokens,
+                    webPushDTO.OnClickLink,
+                    webPushDTO.ImageUrl,
+                    authenticationApiToken
+                );
 
-            await _pushContactService.AddHistoryEventsAndMarkDeletedContactsAsync(webPushDTO.MessageId, sendMessageResult);
+                await _pushContactService.AddHistoryEventsAndMarkDeletedContactsAsync(webPushDTO.MessageId, sendMessageResult);
 
-            await RegisterStatisticsAsync(webPushDTO.MessageId, sendMessageResult);
+                await RegisterStatisticsAsync(webPushDTO.MessageId, sendMessageResult);
+            }
+            catch (ArgumentException argEx)
+            {
+                _logger.LogError(
+                    "An error occurred sending webpush using Firebase for messageId: {messageId}. Error: {ErrorMessage}.",
+                    webPushDTO.MessageId,
+                    argEx.Message
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred sending webpush using Firebase for messageId: {messageId}.",
+                    webPushDTO.MessageId
+                );
+            }
         }
 
         private async Task RegisterStatisticsAsync(Guid messageId, SendMessageResult sendMessageResult)

@@ -5,7 +5,10 @@ using Doppler.PushContact.Services.Messages;
 using Doppler.PushContact.Services.Messages.ExternalContracts;
 using Flurl.Http;
 using Flurl.Http.Testing;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using Moq;
 using System;
 using System.Collections.Generic;
@@ -30,14 +33,16 @@ namespace Doppler.PushContact.Test.Services.Messages
             IPushApiTokenGetter pushApiTokenGetter = null,
             IOptions<MessageSenderSettings> messageSenderSettings = null,
             IMessageRepository messageRepository = null,
-            IPushContactService pushContactService = null
+            IPushContactService pushContactService = null,
+            ILogger<MessageSender> logger = null
         )
         {
             return new MessageSender(
                 messageSenderSettings ?? Options.Create(messageSenderSettingsDefault),
                 pushApiTokenGetter ?? Mock.Of<IPushApiTokenGetter>(),
                 messageRepository ?? Mock.Of<IMessageRepository>(),
-                pushContactService ?? Mock.Of<IPushContactService>()
+                pushContactService ?? Mock.Of<IPushContactService>(),
+                logger ?? Mock.Of<ILogger<MessageSender>>()
             );
         }
 
@@ -416,7 +421,7 @@ namespace Doppler.PushContact.Test.Services.Messages
         [Theory]
         [InlineData(null)]
         [InlineData("")]
-        public async Task SendFirebaseWebPushAsync_should_throw_argument_exception_when_title_is_null_or_empty(string title)
+        public async Task SendFirebaseWebPushAsync_should_catch_argumentexception_and_logging_error_when_title_is_null_or_empty(string title)
         {
             // Arrange
             var fixture = new Fixture();
@@ -429,22 +434,32 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var deviceTokens = new List<string> { fixture.Create<string>() };
 
+            var loggerMock = new Mock<ILogger<MessageSender>>();
+
             using var httpTest = new HttpTest();
-            var sut = CreateSut();
+            var sut = CreateSut(
+                logger: loggerMock.Object
+            );
 
             // Act
-            var exception = await Assert.ThrowsAsync<ArgumentException>(() => sut.SendFirebaseWebPushAsync(webPushDTO, deviceTokens, null));
+            await sut.SendFirebaseWebPushAsync(webPushDTO, deviceTokens, null);
 
             // Assert
             httpTest.ShouldNotHaveMadeACall();
-            Assert.Contains($"'title' cannot be null or empty.", exception.Message);
-            Assert.Equal("title", exception.ParamName);
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("An error occurred sending webpush using Firebase for messageId:")),
+                    It.IsAny<ArgumentException>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
         }
 
         [Theory]
         [InlineData(null)]
         [InlineData("")]
-        public async Task SendFirebaseWebPushAsync_should_throw_argument_exception_when_body_is_null_or_empty(string body)
+        public async Task SendFirebaseWebPushAsync_should_catch_argumentexception_and_logging_error_when_body_is_null_or_empty(string body)
         {
             // Arrange
             var fixture = new Fixture();
@@ -457,16 +472,26 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var deviceTokens = new List<string> { fixture.Create<string>() };
 
+            var loggerMock = new Mock<ILogger<MessageSender>>();
+
             using var httpTest = new HttpTest();
-            var sut = CreateSut();
+            var sut = CreateSut(
+                logger: loggerMock.Object
+            );
 
             // Act
-            var exception = await Assert.ThrowsAsync<ArgumentException>(() => sut.SendFirebaseWebPushAsync(webPushDTO, deviceTokens, null));
+            await sut.SendFirebaseWebPushAsync(webPushDTO, deviceTokens, null);
 
             // Assert
             httpTest.ShouldNotHaveMadeACall();
-            Assert.Contains($"'body' cannot be null or empty.", exception.Message);
-            Assert.Equal("body", exception.ParamName);
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("An error occurred sending webpush using Firebase for messageId:")),
+                    It.IsAny<ArgumentException>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
         }
 
         [Fact]
@@ -506,6 +531,50 @@ namespace Doppler.PushContact.Test.Services.Messages
                 .Times(1);
             mockPushContactService.Verify(x => x.AddHistoryEventsAndMarkDeletedContactsAsync(webPushDTO.MessageId, It.IsAny<SendMessageResult>()), Times.Once);
             mockMessageRepository.Verify(x => x.UpdateDeliveriesAsync(webPushDTO.MessageId, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task SendFirebaseWebPushAsync_should_catch_exception_and_logging_error_when_unexpected_error_ocurr()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var webPushDTO = new WebPushDTO()
+            {
+                Title = fixture.Create<string>(),
+                Body = fixture.Create<string>(),
+                MessageId = fixture.Create<Guid>(),
+            };
+
+            var deviceTokens = new List<string> { fixture.Create<string>() };
+
+            var loggerMock = new Mock<ILogger<MessageSender>>();
+
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            pushContactServiceMock
+                .Setup(x => x.AddHistoryEventsAndMarkDeletedContactsAsync(webPushDTO.MessageId, It.IsAny<SendMessageResult>()))
+                .ThrowsAsync(new Exception());
+
+            var sendMessageResponse = fixture.Create<SendMessageResponse>();
+            using var httpTest = new HttpTest();
+            httpTest.RespondWithJson(sendMessageResponse, 200);
+
+            var sut = CreateSut(
+                pushContactService: pushContactServiceMock.Object,
+                logger: loggerMock.Object
+            );
+
+            // Act
+            await sut.SendFirebaseWebPushAsync(webPushDTO, deviceTokens, null);
+
+            // Assert
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("An unexpected error occurred sending webpush using Firebase for messageId:")),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
         }
     }
 }
