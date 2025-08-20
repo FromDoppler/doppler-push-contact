@@ -56,6 +56,7 @@ namespace Doppler.PushContact.Services
             _webPushPublisherSettings = webPushQueueSettings;
         }
 
+        // It is not being used, was replaced by ProcessWebPushInBatches
         public void ProcessWebPush(string domain, WebPushDTO messageDTO, string authenticationApiToken = null)
         {
             _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
@@ -254,6 +255,7 @@ namespace Doppler.PushContact.Services
                 PushContactId = pushContactId,
                 ClickedEventEndpoint = clickedEventEndpoint,
                 ReceivedEventEndpoint = receivedEventEndpoint,
+                Domain = messageDTO.Domain,
             };
 
             string queueName = GetQueueName(subscription.EndPoint);
@@ -381,6 +383,7 @@ namespace Doppler.PushContact.Services
                     Body = ReplaceFields(messageDTO.Body, visitorWithFields.Fields),
                     ImageUrl = messageDTO.ImageUrl,
                     OnClickLink = messageDTO.OnClickLink,
+                    Domain = messageDTO.Domain,
                 };
 
                 _logger.LogDebug($"Message with replaced fields: {JsonSerializer.Serialize(messageWithReplacedFields)}");

@@ -58,7 +58,10 @@ namespace Doppler.PushContact.Services
         {
             try
             {
-                if (!await IsSameDomainForContactAndMessage(contactId, messageId))
+                var contactDomain = await _pushContactService.GetPushContactDomainAsync(contactId);
+                var messageDomain = await _messageRepository.GetMessageDomainAsync(messageId);
+
+                if (contactDomain == null || messageDomain == null || contactDomain.ToLower() != messageDomain.ToLower())
                 {
                     return false;
                 }
@@ -74,6 +77,7 @@ namespace Doppler.PushContact.Services
                     MessageId = messageId,
                     PushContactId = contactId,
                     Type = (int)type,
+                    Domain = contactDomain,
                 };
                 await _webPushEventRepository.InsertAsync(webPushEvent, cancellationToken);
             }
@@ -90,16 +94,6 @@ namespace Doppler.PushContact.Services
             }
 
             return true;
-        }
-
-        private async Task<bool> IsSameDomainForContactAndMessage(string contactId, Guid messageId)
-        {
-            var contactDomain = await _pushContactService.GetPushContactDomainAsync(contactId);
-            var messageDomain = await _messageRepository.GetMessageDomainAsync(messageId);
-
-            return contactDomain != null &&
-                messageDomain != null &&
-                contactDomain == messageDomain;
         }
     }
 }

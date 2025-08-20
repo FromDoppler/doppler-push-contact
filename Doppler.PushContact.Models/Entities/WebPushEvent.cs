@@ -23,5 +23,8 @@ namespace Doppler.PushContact.Models.Entities
 
         [BsonElement(WebPushEventDocumentProps.SubType_PropName)]
         public int SubType { get; set; }
+
+        [BsonElement(WebPushEventDocumentProps.Domain_PropName)]
+        public string Domain { get; set; }
     }
 }

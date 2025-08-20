@@ -13,5 +13,6 @@ namespace Doppler.PushContact.Models.DTOs
         public string ImageUrl { get; set; }
 
         public Guid MessageId { get; set; }
+        public string Domain { get; set; }
     }
 }

@@ -50,6 +50,7 @@ namespace Doppler.PushContact.WebPushSender.Senders
                 Date = DateTime.UtcNow,
                 MessageId = message.MessageId,
                 PushContactId = message.PushContactId,
+                Domain = message.Domain,
             };
 
             if (processingResult.FailedProcessing)
