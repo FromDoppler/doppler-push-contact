@@ -174,7 +174,16 @@ namespace Doppler.PushContact.Controllers
             try
             {
                 var count = await _webPushEventService.GetWebPushEventConsumed(domain, from, to);
-                return Ok(count);
+
+                var response = new PushSendsConsumedResponse
+                {
+                    Domain = domain,
+                    From = from,
+                    To = to,
+                    Consumed = count
+                };
+
+                return Ok(response);
             }
             catch (Exception)
             {
