@@ -15,5 +15,6 @@ namespace Doppler.PushContact.Services
             WebPushEventType type,
             CancellationToken cancellationToken
         );
+        Task<int> GetWebPushEventConsumed(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo);
     }
 }

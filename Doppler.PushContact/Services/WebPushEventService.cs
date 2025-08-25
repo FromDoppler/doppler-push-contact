@@ -95,5 +95,10 @@ namespace Doppler.PushContact.Services
 
             return true;
         }
+
+        public async Task<int> GetWebPushEventConsumed(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo)
+        {
+            return await _webPushEventRepository.GetWebPushEventConsumed(domain, dateFrom, dateTo);
+        }
     }
 }
