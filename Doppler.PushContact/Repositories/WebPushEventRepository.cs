@@ -135,8 +135,8 @@ namespace Doppler.PushContact.Repositories
             {
                 var filter = Builders<BsonDocument>.Filter.And(
                     Builders<BsonDocument>.Filter.Eq(WebPushEventDocumentProps.Domain_PropName, domain),
-                    Builders<BsonDocument>.Filter.Gte(WebPushEventDocumentProps.Date_PropName, new BsonDateTime(dateFrom.ToUnixTimeMilliseconds())),
-                    Builders<BsonDocument>.Filter.Lte(WebPushEventDocumentProps.Date_PropName, new BsonDateTime(dateTo.ToUnixTimeMilliseconds()))
+                    Builders<BsonDocument>.Filter.Gte(WebPushEventDocumentProps.Date_PropName, new BsonDateTime(dateFrom.UtcDateTime)),
+                    Builders<BsonDocument>.Filter.Lte(WebPushEventDocumentProps.Date_PropName, new BsonDateTime(dateTo.UtcDateTime))
                 );
 
                 // define conditions for "consumed" (it is "Delivered", or "DeliveryFailed" with sub_type "InvalidSubcription")
@@ -179,8 +179,10 @@ namespace Doppler.PushContact.Repositories
             {
                 _logger.LogError(
                     ex,
-                    "Error summarizing 'WebPushEvents' with domain: {domain}.",
-                    domain
+                    "Error summarizing 'WebPushEvents' for domain: {domain}, from: {DateFrom}, to: {DateTo}.",
+                    domain,
+                    dateFrom.UtcDateTime,
+                    dateTo.UtcDateTime
                 );
                 throw;
             }

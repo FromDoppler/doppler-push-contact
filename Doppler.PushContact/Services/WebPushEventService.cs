@@ -98,7 +98,11 @@ namespace Doppler.PushContact.Services
 
         public async Task<int> GetWebPushEventConsumed(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo)
         {
-            return await _webPushEventRepository.GetWebPushEventConsumed(domain, dateFrom, dateTo);
+            // TODO: it's due to the differences between Doppler and Firebase implementations. It should be unified.
+            var consumedFromWebPushEvents = await _webPushEventRepository.GetWebPushEventConsumed(domain, dateFrom, dateTo);
+            var consumedFromMessages = await _messageRepository.GetMessageSends(domain, dateFrom, dateTo);
+
+            return consumedFromWebPushEvents + consumedFromMessages;
         }
     }
 }
