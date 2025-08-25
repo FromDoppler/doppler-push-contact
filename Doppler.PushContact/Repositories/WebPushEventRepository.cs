@@ -129,6 +129,63 @@ namespace Doppler.PushContact.Repositories
             }
         }
 
+        public async Task<int> GetWebPushEventConsumed(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo)
+        {
+            try
+            {
+                var filter = Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq(WebPushEventDocumentProps.Domain_PropName, domain),
+                    Builders<BsonDocument>.Filter.Gte(WebPushEventDocumentProps.Date_PropName, new BsonDateTime(dateFrom.ToUnixTimeMilliseconds())),
+                    Builders<BsonDocument>.Filter.Lte(WebPushEventDocumentProps.Date_PropName, new BsonDateTime(dateTo.ToUnixTimeMilliseconds()))
+                );
+
+                // define conditions for "consumed" (it is "Delivered", or "DeliveryFailed" with sub_type "InvalidSubcription")
+                var consumedCondition = new BsonDocument("$or", new BsonArray
+                {
+                    new BsonDocument("$eq", new BsonArray {
+                        "$" + WebPushEventDocumentProps.Type_PropName, (int)WebPushEventType.Delivered
+                    }),
+
+                    new BsonDocument("$and", new BsonArray
+                    {
+                        new BsonDocument("$eq", new BsonArray {
+                            "$" + WebPushEventDocumentProps.Type_PropName, (int)WebPushEventType.DeliveryFailed
+                        }),
+                        new BsonDocument("$eq", new BsonArray {
+                            "$" + WebPushEventDocumentProps.SubType_PropName, (int)WebPushEventSubType.InvalidSubcription
+                        })
+                    })
+                });
+
+                var pipeline = WebPushEvents.Aggregate()
+                    .Match(filter)
+                    .Group(new BsonDocument
+                    {
+                    { "_id", BsonNull.Value },
+                    { "Consumed", new BsonDocument("$sum", new BsonDocument("$cond", new BsonArray
+                        {
+                            consumedCondition,
+                            1,
+                            0
+                        })
+                    )}
+                    });
+
+                var result = await pipeline.FirstOrDefaultAsync();
+
+                return result == null ? 0 : result["Consumed"].AsInt32;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error summarizing 'WebPushEvents' with domain: {domain}.",
+                    domain
+                );
+                throw;
+            }
+        }
+
         private IMongoCollection<BsonDocument> WebPushEvents
         {
             get
