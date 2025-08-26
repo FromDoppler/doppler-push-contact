@@ -335,5 +335,171 @@ namespace Doppler.PushContact.Test.Services.Messages
                     It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
                 Times.Once);
         }
+
+        [Fact]
+        public async Task GetMessageSends_ShouldReturnZero_WhenResultIsNull()
+        {
+            // Arrange
+            var domain = "test.com";
+            var from = DateTimeOffset.UtcNow.AddDays(-1);
+            var to = DateTimeOffset.UtcNow;
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var databaseMock = new Mock<IMongoDatabase>();
+            var mongoClientMock = new Mock<IMongoClient>();
+
+            var settings = Options.Create(new PushMongoContextSettings
+            {
+                DatabaseName = "TestDatabase",
+                MessagesCollectionName = "TestCollection"
+            });
+
+            var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
+            mockCursor.Setup(_ => _.Current).Returns(new List<BsonDocument>());
+            mockCursor
+                .SetupSequence(_ => _.MoveNext(It.IsAny<CancellationToken>()))
+                .Returns(true)
+                .Returns(false);
+            mockCursor
+                .SetupSequence(_ => _.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+
+            collectionMock.Setup(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(mockCursor.Object);
+
+            databaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
+                .Returns(collectionMock.Object);
+
+            mongoClientMock
+                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
+                .Returns(databaseMock.Object);
+
+            var sut = CreateSut(mongoClientMock.Object, settings, loggerMock.Object);
+
+            // Act
+            var result = await sut.GetMessageSends(domain, from, to);
+
+            // Assert
+            Assert.Equal(0, result);
+        }
+
+        [Fact]
+        public async Task GetMessageSends_ShouldReturnConsumedValue_WhenResultExists()
+        {
+            // Arrange
+            var domain = "test.com";
+            var from = DateTimeOffset.UtcNow.AddDays(-1);
+            var to = DateTimeOffset.UtcNow;
+
+            var expectedConsumed = 42;
+
+            var documents = new List<BsonDocument>
+            {
+                new BsonDocument { { "Consumed", expectedConsumed } },
+            };
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var databaseMock = new Mock<IMongoDatabase>();
+            var mongoClientMock = new Mock<IMongoClient>();
+
+            var settings = Options.Create(new PushMongoContextSettings
+            {
+                DatabaseName = "TestDatabase",
+                MessagesCollectionName = "TestCollection"
+            });
+
+            var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
+            mockCursor.Setup(_ => _.Current).Returns(documents);
+            mockCursor
+                .SetupSequence(_ => _.MoveNext(It.IsAny<CancellationToken>()))
+                .Returns(true)
+                .Returns(false);
+            mockCursor
+                .SetupSequence(_ => _.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+
+            collectionMock.Setup(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(mockCursor.Object);
+
+            databaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
+                .Returns(collectionMock.Object);
+
+            mongoClientMock
+                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
+                .Returns(databaseMock.Object);
+
+            var sut = CreateSut(mongoClientMock.Object, settings, loggerMock.Object);
+
+            // Act
+            var result = await sut.GetMessageSends(domain, from, to);
+
+            // Assert
+            Assert.Equal(expectedConsumed, result);
+        }
+
+        [Fact]
+        public async Task GetWebPushEventConsumed_ShouldThrowException_WhenAggregateFails()
+        {
+            // Arrange
+            var domain = "test.com";
+            var from = DateTimeOffset.UtcNow.AddDays(-1);
+            var to = DateTimeOffset.UtcNow;
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var databaseMock = new Mock<IMongoDatabase>();
+            var mongoClientMock = new Mock<IMongoClient>();
+
+            var settings = Options.Create(new PushMongoContextSettings
+            {
+                DatabaseName = "TestDatabase",
+                MessagesCollectionName = "TestCollection"
+            });
+
+            var expectedException = new Exception("Aggregate failed");
+
+            collectionMock.Setup(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                It.IsAny<CancellationToken>()))
+                .ThrowsAsync(expectedException);
+
+            databaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
+                .Returns(collectionMock.Object);
+
+            mongoClientMock
+                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
+                .Returns(databaseMock.Object);
+
+            var sut = CreateSut(mongoClientMock.Object, settings, loggerMock.Object);
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<Exception>(() =>
+                sut.GetMessageSends(domain, from, to));
+
+            Assert.Equal("Aggregate failed", ex.Message);
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((o, t) => o.ToString().Contains("Error summarizing 'Messages' sends for domain:")),
+                    It.IsAny<Exception>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once
+            );
+        }
     }
 }
