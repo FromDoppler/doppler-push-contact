@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 
 namespace Doppler.PushContact.Controllers
@@ -16,10 +17,12 @@ namespace Doppler.PushContact.Controllers
     public class DomainController : ControllerBase
     {
         private readonly IDomainService _domainService;
+        private readonly IWebPushEventService _webPushEventService;
 
-        public DomainController(IDomainService domainService)
+        public DomainController(IDomainService domainService, IWebPushEventService webPushEventService)
         {
             _domainService = domainService;
+            _webPushEventService = webPushEventService;
         }
 
         // TODO: analyze separating into two methods (PUT/POST) because using PUT, and not all fields may be provided,
@@ -159,6 +162,34 @@ namespace Doppler.PushContact.Controllers
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,
                     new { error = "An unexpected error occurred obtaining domain push configuration." }
+                );
+            }
+        }
+
+        [HttpGet]
+        [Route("domains/{domain}/push-sends-consumed-count")]
+        [ResponseCache(Location = ResponseCacheLocation.Any, Duration = 60)]
+        public async Task<IActionResult> GetConsumedSends([FromRoute] string domain, [FromQuery][Required] DateTimeOffset from, [FromQuery][Required] DateTimeOffset to)
+        {
+            try
+            {
+                var count = await _webPushEventService.GetWebPushEventConsumed(domain, from, to);
+
+                var response = new PushSendsConsumedResponse
+                {
+                    Domain = domain,
+                    From = from,
+                    To = to,
+                    Consumed = count
+                };
+
+                return Ok(response);
+            }
+            catch (Exception)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "Unexpected error summarizing consumed web push. Try again." }
                 );
             }
         }

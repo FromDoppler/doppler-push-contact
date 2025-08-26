@@ -12,5 +12,6 @@ namespace Doppler.PushContact.Repositories.Interfaces
         Task<WebPushEventSummarizationDTO> GetWebPushEventSummarization(Guid messageId);
         Task<bool> InsertAsync(WebPushEvent webPushEvent, CancellationToken cancellationToken);
         Task<bool> IsWebPushEventRegistered(string pushContactId, Guid messageId, WebPushEventType type);
+        Task<int> GetWebPushEventConsumed(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo);
     }
 }

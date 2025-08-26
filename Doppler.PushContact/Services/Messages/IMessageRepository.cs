@@ -18,5 +18,6 @@ namespace Doppler.PushContact.Services.Messages
 
         Task IncrementMessageStats(Guid messageId, int sent, int delivered, int notDelivered);
         Task<string> GetMessageDomainAsync(Guid messageId);
+        Task<int> GetMessageSends(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo);
     }
 }

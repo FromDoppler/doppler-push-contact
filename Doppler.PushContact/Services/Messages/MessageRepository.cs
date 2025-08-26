@@ -251,6 +251,41 @@ namespace Doppler.PushContact.Services.Messages
             }
         }
 
+        public async Task<int> GetMessageSends(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo)
+        {
+            try
+            {
+                var filter = Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq(MessageDocumentProps.DomainPropName, domain),
+                    Builders<BsonDocument>.Filter.Gte(MessageDocumentProps.InsertedDatePropName, dateFrom.UtcDateTime),
+                    Builders<BsonDocument>.Filter.Lte(MessageDocumentProps.InsertedDatePropName, dateTo.UtcDateTime)
+                );
+
+                var pipeline = Messages.Aggregate()
+                    .Match(filter)
+                    .Group(new BsonDocument
+                    {
+                        { "_id", BsonNull.Value },
+                        { "Consumed", new BsonDocument("$sum", "$sent") }
+                    });
+
+                var result = await pipeline.FirstOrDefaultAsync();
+
+                return result == null ? 0 : result["Consumed"].AsInt32;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error summarizing 'Messages' sends for domain: {domain}, from: {DateFrom}, to: {DateTo}.",
+                    domain,
+                    dateFrom.UtcDateTime,
+                    dateTo.UtcDateTime
+                );
+                throw;
+            }
+        }
+
         private IMongoCollection<BsonDocument> Messages
         {
             get

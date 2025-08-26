@@ -52,9 +52,18 @@ namespace Doppler.PushContact.WebPushSender.Repositories.Setup
                     .Ascending(WebPushEventDocumentProps.Type_PropName)
             );
 
+            var indexModel_Domain_Date_Type_SubType = new CreateIndexModel<BsonDocument>(
+                indexKeysDefinitionBuilder
+                    .Ascending(WebPushEventDocumentProps.Domain_PropName)
+                    .Ascending(WebPushEventDocumentProps.Date_PropName)
+                    .Ascending(WebPushEventDocumentProps.Type_PropName)
+                    .Ascending(WebPushEventDocumentProps.SubType_PropName)
+            );
+
             webPushEventCollection.Indexes.CreateMany([
                 indexModelPushContactId,
                 indexModelMessageIdAndType,
+                indexModel_Domain_Date_Type_SubType,
             ]);
         }
     }

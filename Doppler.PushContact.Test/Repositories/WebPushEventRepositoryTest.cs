@@ -271,5 +271,108 @@ namespace Doppler.PushContact.Test.Repositories
                     It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
                 Times.Once);
         }
+
+        [Fact]
+        public async Task GetWebPushEventConsumed_ShouldReturnZero_WhenResultIsNull()
+        {
+            // Arrange
+            var domain = "test.com";
+            var from = DateTimeOffset.UtcNow.AddDays(-1);
+            var to = DateTimeOffset.UtcNow;
+
+            var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
+            mockCursor.Setup(_ => _.Current).Returns(new List<BsonDocument>());
+            mockCursor
+                .SetupSequence(_ => _.MoveNext(It.IsAny<CancellationToken>()))
+                .Returns(true)
+                .Returns(false);
+            mockCursor
+                .SetupSequence(_ => _.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+
+            _mockCollection.Setup(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(mockCursor.Object);
+
+            // Act
+            var result = await _repository.GetWebPushEventConsumed(domain, from, to);
+
+            // Assert
+            Assert.Equal(0, result);
+        }
+
+        [Fact]
+        public async Task GetWebPushEventConsumed_ShouldReturnConsumedValue_WhenResultExists()
+        {
+            // Arrange
+            var domain = "test.com";
+            var from = DateTimeOffset.UtcNow.AddDays(-1);
+            var to = DateTimeOffset.UtcNow;
+
+            var expectedConsumed = 42;
+
+            var documents = new List<BsonDocument>
+            {
+                new BsonDocument { { "Consumed", expectedConsumed } },
+            };
+
+            var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
+            mockCursor.Setup(_ => _.Current).Returns(documents);
+            mockCursor
+                .SetupSequence(_ => _.MoveNext(It.IsAny<CancellationToken>()))
+                .Returns(true)
+                .Returns(false);
+            mockCursor
+                .SetupSequence(_ => _.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+
+            _mockCollection.Setup(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(mockCursor.Object);
+
+            // Act
+            var result = await _repository.GetWebPushEventConsumed(domain, from, to);
+
+            // Assert
+            Assert.Equal(expectedConsumed, result);
+        }
+
+        [Fact]
+        public async Task GetWebPushEventConsumed_ShouldThrowException_WhenAggregateFails()
+        {
+            // Arrange
+            var domain = "test.com";
+            var from = DateTimeOffset.UtcNow.AddDays(-1);
+            var to = DateTimeOffset.UtcNow;
+
+            var expectedException = new Exception("Aggregate failed");
+
+            _mockCollection.Setup(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                It.IsAny<CancellationToken>()))
+                .ThrowsAsync(expectedException);
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<Exception>(() =>
+                _repository.GetWebPushEventConsumed(domain, from, to));
+
+            Assert.Equal("Aggregate failed", ex.Message);
+            _mockLogger.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((o, t) => o.ToString().Contains("Error summarizing 'WebPushEvents' for domain:")),
+                    It.IsAny<Exception>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once
+            );
+        }
     }
 }
