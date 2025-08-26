@@ -35,42 +35,57 @@ namespace Doppler.PushContact.Services
                     var pushContacts = database.GetCollection<BsonDocument>(pushMongoContextSettings.PushContactsCollectionName);
 
                     var deviceTokenAsUniqueIndex = new CreateIndexModel<BsonDocument>(
-                    Builders<BsonDocument>.IndexKeys.Ascending(PushContactDocumentProps.DeviceTokenPropName),
-                    new CreateIndexOptions { Unique = true });
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending(PushContactDocumentProps.DeviceTokenPropName),
+                        new CreateIndexOptions { Unique = true }
+                    );
                     pushContacts.Indexes.CreateOne(deviceTokenAsUniqueIndex);
 
                     var domainAndDeletedIndex = new CreateIndexModel<BsonDocument>(
-                    Builders<BsonDocument>.IndexKeys
-                        .Ascending(PushContactDocumentProps.DomainPropName)
-                        .Ascending(PushContactDocumentProps.DeletedPropName),
-                    new CreateIndexOptions { Unique = false });
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending(PushContactDocumentProps.DomainPropName)
+                            .Ascending(PushContactDocumentProps.DeletedPropName),
+                        new CreateIndexOptions { Unique = false }
+                    );
                     pushContacts.Indexes.CreateOne(domainAndDeletedIndex);
 
                     var deletedAndDomainAndVisitorGuidIndex = new CreateIndexModel<BsonDocument>(
-                    Builders<BsonDocument>.IndexKeys
-                        .Ascending(PushContactDocumentProps.DeletedPropName)
-                        .Ascending(PushContactDocumentProps.DomainPropName)
-                        .Ascending(PushContactDocumentProps.VisitorGuidPropName),
-                    new CreateIndexOptions { Unique = false });
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending(PushContactDocumentProps.DeletedPropName)
+                            .Ascending(PushContactDocumentProps.DomainPropName)
+                            .Ascending(PushContactDocumentProps.VisitorGuidPropName),
+                        new CreateIndexOptions { Unique = false }
+                    );
                     pushContacts.Indexes.CreateOne(deletedAndDomainAndVisitorGuidIndex);
 
                     // domains indexes
                     var domains = database.GetCollection<BsonDocument>(pushMongoContextSettings.DomainsCollectionName);
 
                     var domainNameAsUniqueIndex = new CreateIndexModel<BsonDocument>(
-                    Builders<BsonDocument>.IndexKeys.Ascending(DomainDocumentProps.DomainNamePropName),
-                    new CreateIndexOptions { Unique = true });
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending(DomainDocumentProps.DomainNamePropName),
+                        new CreateIndexOptions { Unique = true }
+                    );
                     domains.Indexes.CreateOne(domainNameAsUniqueIndex);
 
                     // messages indexes
                     var messages = database.GetCollection<BsonDocument>(pushMongoContextSettings.MessagesCollectionName);
 
                     var messageIdAsUniqueIndex = new CreateIndexModel<BsonDocument>(
-                    Builders<BsonDocument>.IndexKeys
-                    .Ascending(MessageDocumentProps.DomainPropName)
-                    .Ascending(MessageDocumentProps.MessageIdPropName),
-                    new CreateIndexOptions { Unique = true });
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending(MessageDocumentProps.DomainPropName)
+                            .Ascending(MessageDocumentProps.MessageIdPropName),
+                        new CreateIndexOptions { Unique = true }
+                    );
                     messages.Indexes.CreateOne(messageIdAsUniqueIndex);
+
+                    var domainAndInsertedDateIndex = new CreateIndexModel<BsonDocument>(
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending(MessageDocumentProps.DomainPropName)
+                            .Ascending(MessageDocumentProps.InsertedDatePropName),
+                        new CreateIndexOptions { Unique = false }
+                    );
+                    messages.Indexes.CreateOne(domainAndInsertedDateIndex);
 
                     return mongoClient;
                 });
