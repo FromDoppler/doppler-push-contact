@@ -18,13 +18,29 @@ namespace Doppler.PushContact.Test.Services.Messages
     public class MessageRepositoryTest
     {
         private static MessageRepository CreateSut(
-        IMongoClient mongoClient = null,
-        IOptions<PushMongoContextSettings> pushMongoContextSettings = null,
-        ILogger<MessageRepository> logger = null)
+            IMongoCollection<BsonDocument> mongoColletion = null,
+            ILogger<MessageRepository> logger = null
+        )
         {
+            var settings = Options.Create(new PushMongoContextSettings
+            {
+                DatabaseName = "TestDatabase",
+                MessagesCollectionName = "TestCollection"
+            });
+
+            var databaseMock = new Mock<IMongoDatabase>();
+            databaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
+                .Returns(mongoColletion);
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock
+                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
+                .Returns(databaseMock.Object);
+
             return new MessageRepository(
-                mongoClient ?? Mock.Of<IMongoClient>(),
-                pushMongoContextSettings ?? Mock.Of<IOptions<PushMongoContextSettings>>(),
+                mongoClientMock.Object,
+                settings,
                 logger ?? Mock.Of<ILogger<MessageRepository>>());
         }
 
@@ -35,16 +51,8 @@ namespace Doppler.PushContact.Test.Services.Messages
             var fixture = new Fixture();
             var messageId = fixture.Create<Guid>();
 
-            var mongoClientMock = new Mock<IMongoClient>();
-            var databaseMock = new Mock<IMongoDatabase>();
             var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
             var asyncCursorMock = new Mock<IAsyncCursor<BsonDocument>>();
-
-            var settings = Options.Create(new PushMongoContextSettings
-            {
-                DatabaseName = "TestDatabase",
-                MessagesCollectionName = "TestCollection"
-            });
 
             // Configure the cursor to return no elements
             asyncCursorMock
@@ -59,17 +67,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                 .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
                 .ReturnsAsync(asyncCursorMock.Object);
 
-            databaseMock
-                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
-                .Returns(collectionMock.Object);
-
-            mongoClientMock
-                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
-                .Returns(databaseMock.Object);
-
-            var sut = CreateSut(
-                mongoClientMock.Object,
-                settings);
+            var sut = CreateSut(collectionMock.Object);
 
             // Act
             var result = await sut.GetMessageDomainAsync(messageId);
@@ -91,16 +89,8 @@ namespace Doppler.PushContact.Test.Services.Messages
                 { MessageDocumentProps.DomainPropName, expectedDomain }
             };
 
-            var mongoClientMock = new Mock<IMongoClient>();
-            var databaseMock = new Mock<IMongoDatabase>();
             var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
             var asyncCursorMock = new Mock<IAsyncCursor<BsonDocument>>();
-
-            var settings = Options.Create(new PushMongoContextSettings
-            {
-                DatabaseName = "TestDatabase",
-                MessagesCollectionName = "TestCollection"
-            });
 
             // Configure the cursor to return the expected document
             asyncCursorMock
@@ -116,17 +106,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                 .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
                 .ReturnsAsync(asyncCursorMock.Object);
 
-            databaseMock
-                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
-                .Returns(collectionMock.Object);
-
-            mongoClientMock
-                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
-                .Returns(databaseMock.Object);
-
-            var sut = CreateSut(
-                mongoClientMock.Object,
-                settings);
+            var sut = CreateSut(collectionMock.Object);
 
             // Act
             var result = await sut.GetMessageDomainAsync(messageId);
@@ -142,33 +122,14 @@ namespace Doppler.PushContact.Test.Services.Messages
             var fixture = new Fixture();
             var messageId = fixture.Create<Guid>();
 
-            var mongoClientMock = new Mock<IMongoClient>();
-            var databaseMock = new Mock<IMongoDatabase>();
             var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
             var loggerMock = new Mock<ILogger<MessageRepository>>();
-
-            var settings = Options.Create(new PushMongoContextSettings
-            {
-                DatabaseName = "TestDatabase",
-                MessagesCollectionName = "TestCollection"
-            });
 
             collectionMock
                 .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
                 .Throws(new MongoException("Test exception"));
 
-            databaseMock
-                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
-                .Returns(collectionMock.Object);
-
-            mongoClientMock
-                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
-                .Returns(databaseMock.Object);
-
-            var sut = CreateSut(
-                mongoClientMock.Object,
-                settings,
-                logger: loggerMock.Object);
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
 
             // Act & Assert
             await Assert.ThrowsAsync<MongoException>(() => sut.GetMessageDomainAsync(messageId));
@@ -190,33 +151,14 @@ namespace Doppler.PushContact.Test.Services.Messages
             var fixture = new Fixture();
             var messageId = fixture.Create<Guid>();
 
-            var mongoClientMock = new Mock<IMongoClient>();
-            var databaseMock = new Mock<IMongoDatabase>();
             var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
             var loggerMock = new Mock<ILogger<MessageRepository>>();
-
-            var settings = Options.Create(new PushMongoContextSettings
-            {
-                DatabaseName = "TestDatabase",
-                MessagesCollectionName = "TestCollection"
-            });
 
             collectionMock
                 .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
                 .Throws(new Exception("Test exception"));
 
-            databaseMock
-                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
-                .Returns(collectionMock.Object);
-
-            mongoClientMock
-                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
-                .Returns(databaseMock.Object);
-
-            var sut = CreateSut(
-                mongoClientMock.Object,
-                settings,
-                logger: loggerMock.Object);
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
 
             // Act & Assert
             await Assert.ThrowsAsync<Exception>(() => sut.GetMessageDomainAsync(messageId));
@@ -243,24 +185,8 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var loggerMock = new Mock<ILogger<MessageRepository>>();
             var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
-            var databaseMock = new Mock<IMongoDatabase>();
-            var mongoClientMock = new Mock<IMongoClient>();
 
-            var settings = Options.Create(new PushMongoContextSettings
-            {
-                DatabaseName = "TestDatabase",
-                MessagesCollectionName = "TestCollection"
-            });
-
-            databaseMock
-                .Setup(d => d.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
-                .Returns(collectionMock.Object);
-
-            mongoClientMock
-                .Setup(c => c.GetDatabase(settings.Value.DatabaseName, null))
-                .Returns(databaseMock.Object);
-
-            var sut = CreateSut(mongoClientMock.Object, settings, loggerMock.Object);
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
 
             // Act
             await sut.UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered);
@@ -294,14 +220,6 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var loggerMock = new Mock<ILogger<MessageRepository>>();
             var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
-            var databaseMock = new Mock<IMongoDatabase>();
-            var mongoClientMock = new Mock<IMongoClient>();
-
-            var settings = Options.Create(new PushMongoContextSettings
-            {
-                DatabaseName = "TestDatabase",
-                MessagesCollectionName = "TestCollection"
-            });
 
             collectionMock
                 .Setup(x => x.UpdateOneAsync(
@@ -311,15 +229,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new Exception("some error"));
 
-            databaseMock
-                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
-                .Returns(collectionMock.Object);
-
-            mongoClientMock
-                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
-                .Returns(databaseMock.Object);
-
-            var sut = CreateSut(mongoClientMock.Object, settings, loggerMock.Object);
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
 
             // Act
             await sut.UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered);
@@ -346,14 +256,6 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var loggerMock = new Mock<ILogger<MessageRepository>>();
             var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
-            var databaseMock = new Mock<IMongoDatabase>();
-            var mongoClientMock = new Mock<IMongoClient>();
-
-            var settings = Options.Create(new PushMongoContextSettings
-            {
-                DatabaseName = "TestDatabase",
-                MessagesCollectionName = "TestCollection"
-            });
 
             var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
             mockCursor.Setup(_ => _.Current).Returns(new List<BsonDocument>());
@@ -372,15 +274,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                 It.IsAny<CancellationToken>()))
                 .ReturnsAsync(mockCursor.Object);
 
-            databaseMock
-                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
-                .Returns(collectionMock.Object);
-
-            mongoClientMock
-                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
-                .Returns(databaseMock.Object);
-
-            var sut = CreateSut(mongoClientMock.Object, settings, loggerMock.Object);
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
 
             // Act
             var result = await sut.GetMessageSends(domain, from, to);
@@ -406,14 +300,6 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var loggerMock = new Mock<ILogger<MessageRepository>>();
             var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
-            var databaseMock = new Mock<IMongoDatabase>();
-            var mongoClientMock = new Mock<IMongoClient>();
-
-            var settings = Options.Create(new PushMongoContextSettings
-            {
-                DatabaseName = "TestDatabase",
-                MessagesCollectionName = "TestCollection"
-            });
 
             var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
             mockCursor.Setup(_ => _.Current).Returns(documents);
@@ -432,15 +318,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                 It.IsAny<CancellationToken>()))
                 .ReturnsAsync(mockCursor.Object);
 
-            databaseMock
-                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
-                .Returns(collectionMock.Object);
-
-            mongoClientMock
-                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
-                .Returns(databaseMock.Object);
-
-            var sut = CreateSut(mongoClientMock.Object, settings, loggerMock.Object);
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
 
             // Act
             var result = await sut.GetMessageSends(domain, from, to);
@@ -459,14 +337,6 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var loggerMock = new Mock<ILogger<MessageRepository>>();
             var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
-            var databaseMock = new Mock<IMongoDatabase>();
-            var mongoClientMock = new Mock<IMongoClient>();
-
-            var settings = Options.Create(new PushMongoContextSettings
-            {
-                DatabaseName = "TestDatabase",
-                MessagesCollectionName = "TestCollection"
-            });
 
             var expectedException = new Exception("Aggregate failed");
 
@@ -476,15 +346,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                 It.IsAny<CancellationToken>()))
                 .ThrowsAsync(expectedException);
 
-            databaseMock
-                .Setup(x => x.GetCollection<BsonDocument>(settings.Value.MessagesCollectionName, null))
-                .Returns(collectionMock.Object);
-
-            mongoClientMock
-                .Setup(x => x.GetDatabase(settings.Value.DatabaseName, null))
-                .Returns(databaseMock.Object);
-
-            var sut = CreateSut(mongoClientMock.Object, settings, loggerMock.Object);
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<Exception>(() =>
