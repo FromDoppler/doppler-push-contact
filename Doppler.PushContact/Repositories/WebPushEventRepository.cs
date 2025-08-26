@@ -161,14 +161,14 @@ namespace Doppler.PushContact.Repositories
                     .Match(filter)
                     .Group(new BsonDocument
                     {
-                    { "_id", BsonNull.Value },
-                    { "Consumed", new BsonDocument("$sum", new BsonDocument("$cond", new BsonArray
-                        {
-                            consumedCondition,
-                            1,
-                            0
-                        })
-                    )}
+                        { "_id", BsonNull.Value },
+                        { "Consumed", new BsonDocument("$sum", new BsonDocument("$cond", new BsonArray
+                            {
+                                consumedCondition,
+                                1,
+                                0
+                            })
+                        )}
                     });
 
                 var result = await pipeline.FirstOrDefaultAsync();
