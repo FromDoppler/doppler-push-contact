@@ -334,6 +334,7 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
             }
         }
 
+        // TODO: If we decide not to register more history events, rename this method properly: MarkDeletedContactsAsync.
         public async Task AddHistoryEventsAndMarkDeletedContactsAsync(Guid messageId, SendMessageResult sendMessageResult)
         {
             //TO DO: implement abstraction
@@ -367,7 +368,8 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
 
             if (pushContactHistoryEvents != null && pushContactHistoryEvents.Any())
             {
-                await AddHistoryEventsAsync(pushContactHistoryEvents);
+                // TODO: registering in historyevents isn't scalable. If it's necessary consider an alternative. Otherwise, delete it.
+                //await AddHistoryEventsAsync(pushContactHistoryEvents);
             }
         }
 

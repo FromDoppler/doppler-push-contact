@@ -3458,7 +3458,7 @@ namespace Doppler.PushContact.Test.Controllers
             Assert.Equal(messageDetailsWithStats.NotDelivered + webPushEventsSummarization.NotDelivered, result.NotDelivered);
         }
 
-        [Fact]
+        [Fact(Skip = "It doesn't apply anymore. Now the message should always have the summarized stats")]
         public async Task GetMessageDetails_should_return_ok_summarizing_webpushevents_and_historyevents_when_message_has_not_stats()
         {
             // Arrange

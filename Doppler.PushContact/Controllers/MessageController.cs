@@ -42,7 +42,7 @@ namespace Doppler.PushContact.Controllers
             _logger = logger;
         }
 
-        [Obsolete("This endpoint is deprecated and will be replaced by 'messages/{messageId}/visitors/{visitorGuid}'.")]
+        [Obsolete("This endpoint is deprecated and will be replaced by 'messages/{messageId}/visitors/{visitorGuid}/send'.")]
         [HttpPost]
         [Route("message/{messageId}")]
         public async Task<IActionResult> MessageByVisitorGuid([FromRoute] Guid messageId, [FromBody] string visitorGuid)

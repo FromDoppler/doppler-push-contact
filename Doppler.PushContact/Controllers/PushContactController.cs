@@ -241,7 +241,7 @@ namespace Doppler.PushContact.Controllers
             });
         }
 
-        // TODO: move this endpoint to the MessageController
+        [Obsolete("This endpoint is replaced by 'messages/{messageId}/visitors/{visitorGuid}/send'.")]
         [HttpPost]
         [Route("push-contacts/{domain}/{visitorGuid}/message")]
         public async Task<IActionResult> MessageByVisitorGuid([FromRoute] string domain, [FromRoute] string visitorGuid, [FromBody] Message message)
@@ -271,30 +271,37 @@ namespace Doppler.PushContact.Controllers
             // obtain web push events summarization
             var webPushEventsSummarization = await _webPushEventService.GetWebPushEventSummarizationAsync(messageId);
 
+            var messageDetailsResponse = new MessageDetailsResponse()
+            {
+                Domain = domain,
+                MessageId = messageId,
+                Sent = webPushEventsSummarization.SentQuantity,
+                Delivered = webPushEventsSummarization.Delivered,
+                NotDelivered = webPushEventsSummarization.NotDelivered,
+            };
+
             // obtain summarized result directly from message
             var messagedetails = await _messageRepository.GetMessageDetailsAsync(domain, messageId);
             if (messagedetails != null && messagedetails.Sent > 0)
             {
-                return Ok(new MessageDetailsResponse
-                {
-                    Domain = messagedetails.Domain,
-                    MessageId = messageId,
-                    Sent = messagedetails.Sent + webPushEventsSummarization.SentQuantity,
-                    Delivered = messagedetails.Delivered + webPushEventsSummarization.Delivered,
-                    NotDelivered = messagedetails.NotDelivered + webPushEventsSummarization.NotDelivered,
-                });
+                messageDetailsResponse.Sent += messagedetails.Sent;
+                messageDetailsResponse.Delivered += messagedetails.Delivered;
+                messageDetailsResponse.NotDelivered += messagedetails.NotDelivered;
             }
 
-            // summarize result from history_events
-            var messageResult = await _pushContactService.GetDeliveredMessageSummarizationAsync(domain, messageId, from, to);
-            return Ok(new MessageDetailsResponse
-            {
-                Domain = messageResult.Domain,
-                MessageId = messageId,
-                Sent = messageResult.SentQuantity + webPushEventsSummarization.SentQuantity,
-                Delivered = messageResult.Delivered + webPushEventsSummarization.Delivered,
-                NotDelivered = messageResult.NotDelivered + webPushEventsSummarization.NotDelivered,
-            });
+            return Ok(messageDetailsResponse);
+
+            // TODO: this should be removed, because the summarization should be obtained always from Message.
+            //// summarize result from history_events
+            //var messageResult = await _pushContactService.GetDeliveredMessageSummarizationAsync(domain, messageId, from, to);
+            //return Ok(new MessageDetailsResponse
+            //{
+            //    Domain = messageResult.Domain,
+            //    MessageId = messageId,
+            //    Sent = messageResult.SentQuantity + webPushEventsSummarization.SentQuantity,
+            //    Delivered = messageResult.Delivered + webPushEventsSummarization.Delivered,
+            //    NotDelivered = messageResult.NotDelivered + webPushEventsSummarization.NotDelivered,
+            //});
         }
 
         [HttpGet]
