@@ -73,11 +73,18 @@ namespace Doppler.PushContact.Services
 
                     var messageIdAsUniqueIndex = new CreateIndexModel<BsonDocument>(
                         Builders<BsonDocument>.IndexKeys
-                            .Ascending(MessageDocumentProps.DomainPropName)
                             .Ascending(MessageDocumentProps.MessageIdPropName),
                         new CreateIndexOptions { Unique = true }
                     );
                     messages.Indexes.CreateOne(messageIdAsUniqueIndex);
+
+                    var messageIdAndDomainAsUniqueIndex = new CreateIndexModel<BsonDocument>(
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending(MessageDocumentProps.DomainPropName)
+                            .Ascending(MessageDocumentProps.MessageIdPropName),
+                        new CreateIndexOptions { Unique = true }
+                    );
+                    messages.Indexes.CreateOne(messageIdAndDomainAsUniqueIndex);
 
                     var domainAndInsertedDateIndex = new CreateIndexModel<BsonDocument>(
                         Builders<BsonDocument>.IndexKeys
