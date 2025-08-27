@@ -241,7 +241,7 @@ namespace Doppler.PushContact.Controllers
             });
         }
 
-        // TODO: move this endpoint to the MessageController
+        [Obsolete("This endpoint is replaced by 'messages/{messageId}/visitors/{visitorGuid}/send'.")]
         [HttpPost]
         [Route("push-contacts/{domain}/{visitorGuid}/message")]
         public async Task<IActionResult> MessageByVisitorGuid([FromRoute] string domain, [FromRoute] string visitorGuid, [FromBody] Message message)
