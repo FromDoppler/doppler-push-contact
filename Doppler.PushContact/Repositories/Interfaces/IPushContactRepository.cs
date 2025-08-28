@@ -10,7 +10,7 @@ namespace Doppler.PushContact.Repositories.Interfaces
     {
         Task<IEnumerable<SubscriptionInfoDTO>> GetAllSubscriptionInfoByDomainAsync(string domain);
         IAsyncEnumerable<SubscriptionInfoDTO> GetSubscriptionInfoByDomainAsStreamAsync(string domain, CancellationToken cancellationToken = default);
-        Task<IEnumerable<SubscriptionInfoDTO>> GetAllSubscriptionInfoByVisitorGuidAsync(string visitorGuid);
+        Task<IEnumerable<SubscriptionInfoDTO>> GetAllSubscriptionInfoByVisitorGuidAsync(string domain, string visitorGuid);
         Task<ContactsStatsDTO> GetContactsStatsAsync(string domainName);
         Task<VisitorInfoDTO> GetVisitorInfoSafeAsync(string deviceToken);
     }

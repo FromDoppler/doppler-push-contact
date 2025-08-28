@@ -319,11 +319,14 @@ namespace Doppler.PushContact.Test.Repositories
             (string visitorGuid)
         {
             // Arrange
+            Fixture fixture = new Fixture();
+            var domain = fixture.Create<string>();
+
             var sut = CreateSut();
 
             // Act
             // Assert
-            var result = await Assert.ThrowsAsync<ArgumentException>(() => sut.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuid));
+            var result = await Assert.ThrowsAsync<ArgumentException>(() => sut.GetAllSubscriptionInfoByVisitorGuidAsync(domain, visitorGuid));
         }
 
         [Fact]
@@ -335,6 +338,7 @@ namespace Doppler.PushContact.Test.Repositories
             var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
 
             var visitorGuid = fixture.Create<string>();
+            var domain = fixture.Create<string>();
 
             var pushContactsCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
             pushContactsCollectionMock
@@ -360,7 +364,7 @@ namespace Doppler.PushContact.Test.Repositories
 
             // Act
             // Assert
-            await Assert.ThrowsAsync<Exception>(() => sut.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuid));
+            await Assert.ThrowsAsync<Exception>(() => sut.GetAllSubscriptionInfoByVisitorGuidAsync(domain, visitorGuid));
 
             loggerMock.Verify(
                 x => x.Log(
@@ -382,7 +386,8 @@ namespace Doppler.PushContact.Test.Repositories
             int randomPushContactIndex = random.Next(allPushContactDocuments.Count);
             var visitorGuidFilter = allPushContactDocuments[randomPushContactIndex][PushContactDocumentProps.VisitorGuidPropName].AsString;
 
-            var fixture = new Fixture();
+            Fixture fixture = new Fixture();
+            var domain = fixture.Create<string>();
 
             var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
 
@@ -421,7 +426,7 @@ namespace Doppler.PushContact.Test.Repositories
                 Options.Create(pushMongoContextSettings));
 
             // Act
-            var result = await sut.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuidFilter);
+            var result = await sut.GetAllSubscriptionInfoByVisitorGuidAsync(domain, visitorGuidFilter);
 
             // Assert
             Assert.All(result, res => allPushContactDocuments
