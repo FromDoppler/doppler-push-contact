@@ -823,7 +823,7 @@ namespace Doppler.PushContact.Test.Services
 
             // verifica que NO se llamaron metodos
             messageSenderMock.Verify(m => m.SendFirebaseWebPushAsync(It.IsAny<WebPushDTO>(), It.IsAny<List<string>>(), It.IsAny<string>()), Times.Never);
-            pushContactRepositoryMock.Verify(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(It.IsAny<string>()), Times.Never);
+            pushContactRepositoryMock.Verify(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
 
             // verifica que se logueo el warning
             loggerMock.Verify(
@@ -842,11 +842,13 @@ namespace Doppler.PushContact.Test.Services
             // Arrange
             var fixture = new Fixture();
             var visitorGuid = fixture.Create<string>();
+            var domain = fixture.Create<string>();
             var webPushDTO = new WebPushDTO
             {
                 Title = fixture.Create<string>(),
                 Body = fixture.Create<string>(),
-                MessageId = fixture.Create<Guid>()
+                MessageId = fixture.Create<Guid>(),
+                Domain = domain,
             };
 
             var visitorsWithReplacements = new FieldsReplacementList()
@@ -871,7 +873,7 @@ namespace Doppler.PushContact.Test.Services
 
             var pushContactRepositoryMock = new Mock<IPushContactRepository>();
             pushContactRepositoryMock
-                .Setup(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuid))
+                .Setup(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(domain, visitorGuid))
                 .Throws(expectedException);
 
             var loggerMock = new Mock<ILogger<WebPushPublisherService>>();
@@ -1021,7 +1023,7 @@ namespace Doppler.PushContact.Test.Services
                 Times.Once);
 
             // verifica que NO se intentan obtener las subscripciones/tokens para el visitor
-            pushContactRepositoryMock.Verify(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(It.IsAny<string>()), Times.Never);
+            pushContactRepositoryMock.Verify(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
@@ -1031,11 +1033,14 @@ namespace Doppler.PushContact.Test.Services
             var fixture = new Fixture();
             var visitorGuid = fixture.Create<string>();
             var messageId = fixture.Create<Guid>();
+            var domain = fixture.Create<string>();
+
             var webPushDTO = new WebPushDTO
             {
                 Title = fixture.Create<string>(),
                 Body = fixture.Create<string>(),
                 MessageId = messageId,
+                Domain = domain,
             };
 
             var visitorFields1 = new VisitorFields
@@ -1065,7 +1070,7 @@ namespace Doppler.PushContact.Test.Services
             var backgroundQueueMock = new Mock<IBackgroundQueue>();
             var pushContactRepositoryMock = new Mock<IPushContactRepository>();
             pushContactRepositoryMock
-                .Setup(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(visitorGuid))
+                .Setup(r => r.GetAllSubscriptionInfoByVisitorGuidAsync(domain, visitorGuid))
                 .ReturnsAsync(subscriptions);
 
             var messageSenderMock = new Mock<IMessageSender>();

@@ -112,7 +112,7 @@ namespace Doppler.PushContact.Repositories
             }
         }
 
-        public async Task<IEnumerable<SubscriptionInfoDTO>> GetAllSubscriptionInfoByVisitorGuidAsync(string visitorGuid)
+        public async Task<IEnumerable<SubscriptionInfoDTO>> GetAllSubscriptionInfoByVisitorGuidAsync(string domain, string visitorGuid)
         {
             if (string.IsNullOrEmpty(visitorGuid))
             {
@@ -122,7 +122,8 @@ namespace Doppler.PushContact.Repositories
             var filterBuilder = Builders<BsonDocument>.Filter;
 
             var filter = filterBuilder.Eq(PushContactDocumentProps.VisitorGuidPropName, visitorGuid)
-                & filterBuilder.Eq(PushContactDocumentProps.DeletedPropName, false);
+                & filterBuilder.Eq(PushContactDocumentProps.DeletedPropName, false)
+                & filterBuilder.Eq(PushContactDocumentProps.DomainPropName, domain);
 
             var options = new FindOptions<BsonDocument>
             {

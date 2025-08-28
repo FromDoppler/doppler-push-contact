@@ -389,7 +389,8 @@ namespace Doppler.PushContact.Services
                 _logger.LogDebug($"Message with replaced fields: {JsonSerializer.Serialize(messageWithReplacedFields)}");
 
                 var deviceTokens = new List<string>();
-                var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByVisitorGuidAsync(visitorWithFields.VisitorGuid);
+                // TODO:
+                var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByVisitorGuidAsync(messageDTO.Domain, visitorWithFields.VisitorGuid);
                 foreach (var subscription in subscriptionsInfo)
                 {
                     if (subscription.Subscription != null &&
