@@ -1,3 +1,4 @@
+using Doppler.PushContact.ApiModels;
 using Doppler.PushContact.DTOs;
 using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
@@ -307,6 +308,54 @@ namespace Doppler.PushContact.Repositories
             {
                 _logger.LogError(ex, $"Unexpected error getting Visitor Info by {nameof(deviceToken)} {deviceToken}");
                 return null;
+            }
+        }
+
+        public async Task<ApiPage<string>> GetAllVisitorGuidByDomain(string domain, int page, int per_page)
+        {
+            try
+            {
+                var filter = Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq(PushContactDocumentProps.DomainPropName, domain),
+                    Builders<BsonDocument>.Filter.Eq(PushContactDocumentProps.DeletedPropName, false),
+                    Builders<BsonDocument>.Filter.Ne(PushContactDocumentProps.VisitorGuidPropName, (string)null),
+                    Builders<BsonDocument>.Filter.Exists(PushContactDocumentProps.VisitorGuidPropName)
+                );
+
+                var pipeline = PushContacts.Aggregate()
+                    .Match(filter)
+                    .Group(new BsonDocument // group to obtain distinct visitor_guid
+                    {
+                        { "_id", "$" + PushContactDocumentProps.VisitorGuidPropName }
+                    })
+                    .Skip(page)
+                    .Limit(per_page)
+                    .Project(new BsonDocument
+                    {
+                        { PushContactDocumentProps.VisitorGuidPropName, "$_id" },
+                        { "_id", 0 }
+                    });
+
+                var result = await pipeline.ToListAsync();
+
+                var visitorGuids = result
+                    .Select(x => SafeGetString(x, PushContactDocumentProps.VisitorGuidPropName))
+                    .ToList();
+
+                var newPage = page + visitorGuids.Count;
+
+                return new ApiPage<string>(visitorGuids, newPage, per_page);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error getting distinct visitor_guids for domain: {domain}, page: {page}, per_page: {per_page}.",
+                    domain,
+                    page,
+                    per_page
+                );
+                throw;
             }
         }
 
