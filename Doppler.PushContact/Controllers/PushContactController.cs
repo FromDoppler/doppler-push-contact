@@ -319,9 +319,9 @@ namespace Doppler.PushContact.Controllers
                     return BadRequest($"'{nameof(page)}' cannot be lesser than 0.");
                 }
 
-                if (per_page <= 0 || per_page > 100)
+                if (per_page <= 0 || per_page > 1000)
                 {
-                    return BadRequest($"'{nameof(per_page)}' has to be greater than 0 and lesser than 100.");
+                    return BadRequest($"'{nameof(per_page)}' has to be greater than 0 and lesser than 1000.");
                 }
 
                 var visitorGuidsList = await _pushContactService.GetAllVisitorGuidByDomain(domain, page, per_page);
