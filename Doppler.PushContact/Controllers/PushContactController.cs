@@ -308,23 +308,33 @@ namespace Doppler.PushContact.Controllers
         [Route("push-contacts/{domain}/visitor-guids")]
         public async Task<ActionResult<ApiPage<string>>> GetAllVisitorGuidByDomain([FromRoute] string domain, [FromQuery] int page, [FromQuery] int per_page)
         {
-            if (string.IsNullOrEmpty(domain) || string.IsNullOrWhiteSpace(domain))
+            try
             {
-                return BadRequest($"'{nameof(domain)}' cannot be null, empty or whitespace.");
+                if (string.IsNullOrEmpty(domain) || string.IsNullOrWhiteSpace(domain))
+                {
+                    return BadRequest($"'{nameof(domain)}' cannot be null, empty or whitespace.");
+                }
+                if (page < 0)
+                {
+                    return BadRequest($"'{nameof(page)}' cannot be lesser than 0.");
+                }
+
+                if (per_page <= 0 || per_page > 100)
+                {
+                    return BadRequest($"'{nameof(per_page)}' has to be greater than 0 and lesser than 100.");
+                }
+
+                var visitorGuidsList = await _pushContactService.GetAllVisitorGuidByDomain(domain, page, per_page);
+
+                return Ok(visitorGuidsList);
             }
-            if (page < 0)
+            catch (Exception)
             {
-                return BadRequest($"'{nameof(page)}' cannot be lesser than 0.");
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "Unexpected error obtaining visitor-guids." }
+                );
             }
-
-            if (per_page <= 0 || per_page > 100)
-            {
-                return BadRequest($"'{nameof(per_page)}' has to be greater than 0 and lesser than 100.");
-            }
-
-            var visitorGuidsList = await _pushContactService.GetAllVisitorGuidByDomain(domain, page, per_page);
-
-            return Ok(visitorGuidsList);
         }
 
         [AllowAnonymous]

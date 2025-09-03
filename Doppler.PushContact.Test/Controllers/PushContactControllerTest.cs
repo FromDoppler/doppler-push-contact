@@ -3068,7 +3068,7 @@ namespace Doppler.PushContact.Test.Controllers
 
         [Theory]
         [InlineData(" ")]
-        public async Task GetAllVisitorGuidByDomain_should_throw_bad_request_when_domain_is_whitespace(string domain)
+        public async Task GetAllVisitorGuidByDomain_should_return_bad_request_when_domain_is_whitespace(string domain)
         {
             // Arrange
             var pushContactServiceMock = new Mock<IPushContactService>();
@@ -3102,7 +3102,7 @@ namespace Doppler.PushContact.Test.Controllers
 
         [Theory]
         [InlineData("example.com", -1, 1)]
-        public async Task GetAllVisitorGuidByDomain_should_throw_exception_when_page_are_lesser_than_zero(string domain, int _page, int _per_page)
+        public async Task GetAllVisitorGuidByDomain_should_return_badrequest_when_page_are_lesser_than_zero(string domain, int _page, int _per_page)
         {
             // Arrange
             var pushContactServiceMock = new Mock<IPushContactService>();
@@ -3136,7 +3136,7 @@ namespace Doppler.PushContact.Test.Controllers
         [Theory]
         [InlineData("example.com", 0, 0)]
         [InlineData("example.com", 0, -1)]
-        public async Task GetAllVisitorGuidByDomain_should_throw_exception_when_per_page_are_zero_or_lesser(string domain, int _page, int _per_page)
+        public async Task GetAllVisitorGuidByDomain_should_return_badrequest_when_per_page_are_zero_or_lesser(string domain, int _page, int _per_page)
         {
             // Arrange
             var pushContactServiceMock = new Mock<IPushContactService>();
@@ -3165,6 +3165,47 @@ namespace Doppler.PushContact.Test.Controllers
 
             // Assert
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task GetAllVisitorGuidByDomain_should_return_internal_server_error_when_service_throw_an_exception()
+        {
+            // Arrange
+            Fixture fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var page = 0;
+            var per_page = 10;
+
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+
+            pushContactServiceMock
+                .Setup(x => x.GetAllVisitorGuidByDomain(domain, page, per_page))
+                .ThrowsAsync(new Exception("mocked exception"));
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                });
+
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"push-contacts/{domain}/visitor-guids?page={page}&per_page={per_page}")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         }
 
         [Theory]
