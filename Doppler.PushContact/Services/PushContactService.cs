@@ -633,36 +633,7 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
 
         public async Task<ApiPage<string>> GetAllVisitorGuidByDomain(string domain, int page, int per_page)
         {
-            var filterBuilder = Builders<BsonDocument>.Filter;
-
-            var filter = filterBuilder.Eq(PushContactDocumentProps.DomainPropName, domain)
-                & filterBuilder.Eq(PushContactDocumentProps.DeletedPropName, false)
-                & filterBuilder.Ne(PushContactDocumentProps.VisitorGuidPropName, (string)null)
-                & filterBuilder.Exists(PushContactDocumentProps.VisitorGuidPropName);
-
-            var options = new FindOptions<BsonDocument>
-            {
-                Projection = Builders<BsonDocument>.Projection
-                .Include(PushContactDocumentProps.VisitorGuidPropName)
-                .Exclude(PushContactDocumentProps.IdPropName),
-                Skip = page,
-                Limit = per_page
-            };
-
-            try
-            {
-                var pushContactsFiltered = await (await PushContacts.FindAsync(filter, options)).ToListAsync();
-                var visitorGuids = pushContactsFiltered.Select(x => x.GetValue(PushContactDocumentProps.VisitorGuidPropName).AsString).ToList();
-                var newPage = page + pushContactsFiltered.Count;
-
-                return new ApiPage<string>(visitorGuids, newPage, per_page);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error getting {nameof(PushContactModel)}s by {nameof(domain)} {domain}");
-
-                throw new Exception($"Error getting {nameof(PushContactModel)}s by {nameof(domain)} {domain}", ex);
-            }
+            return await _pushContactRepository.GetAllVisitorGuidByDomain(domain, page, per_page);
         }
 
         public async Task<bool> GetEnabledByVisitorGuid(string domain, string visitorGuid)
