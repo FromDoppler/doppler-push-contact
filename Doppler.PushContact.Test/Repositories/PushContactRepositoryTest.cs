@@ -1,19 +1,20 @@
 using AutoFixture;
+using Doppler.PushContact.DTOs;
+using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.Entities;
+using Doppler.PushContact.Repositories;
 using Doppler.PushContact.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Moq;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using System;
-using Xunit;
-using Microsoft.Extensions.Logging;
-using Doppler.PushContact.DTOs;
-using Doppler.PushContact.Repositories;
-using System.Threading;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
 
 namespace Doppler.PushContact.Test.Repositories
 {
@@ -806,6 +807,117 @@ namespace Doppler.PushContact.Test.Repositories
                     It.IsAny<Exception>(),
                     It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
                 Times.Once);
+        }
+
+        [Fact]
+        public async Task GetAllVisitorGuidByDomain_should_log_error_and_throw_exception_when_push_contacts_fetching_fail()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var domain = fixture.Create<string>();
+            var page = fixture.Create<int>();
+            var per_page = fixture.Create<int>();
+
+            var expectedException = new Exception("Aggregate failed");
+
+            var pushContactsCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            pushContactsCollectionMock.Setup(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                It.IsAny<CancellationToken>()))
+                .ThrowsAsync(expectedException);
+
+            var mongoDatabaseMock = new Mock<IMongoDatabase>();
+            mongoDatabaseMock
+                .Setup(x => x.GetCollection<BsonDocument>(pushMongoContextSettings.PushContactsCollectionName, null))
+                .Returns(pushContactsCollectionMock.Object);
+
+            var mongoClientMock = new Mock<IMongoClient>();
+            mongoClientMock
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabaseMock.Object);
+
+            var loggerMock = new Mock<ILogger<PushContactRepository>>();
+
+            var sut = CreateSut(
+                mongoClientMock.Object,
+                Options.Create(pushMongoContextSettings),
+                logger: loggerMock.Object);
+
+            // Act
+            // Assert
+            await Assert.ThrowsAsync<Exception>(() => sut.GetAllVisitorGuidByDomain(domain, page, per_page));
+
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Error getting distinct visitor_guids for domain:")),
+                    It.Is<Exception>(ex => ex.Message == expectedException.Message),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task GetAllVisitorGuidByDomain_should_return_visitor_guids_filtered_by_domain()
+        {
+            // Arrange
+            List<BsonDocument> allPushContactDocuments = FakePushContactDocuments(10);
+
+            var random = new Random();
+            int randomPushContactIndex = random.Next(allPushContactDocuments.Count);
+            var domainFilter = allPushContactDocuments[randomPushContactIndex][PushContactDocumentProps.DomainPropName].AsString;
+
+            var fixture = new Fixture();
+            var page = fixture.Create<int>();
+            var per_page = fixture.Create<int>();
+
+            var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
+
+            var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
+            mockCursor.Setup(_ => _.Current).Returns(allPushContactDocuments.Where(x => x[PushContactDocumentProps.DomainPropName].AsString == domainFilter));
+            mockCursor
+                .SetupSequence(_ => _.MoveNext(It.IsAny<CancellationToken>()))
+                .Returns(true)
+                .Returns(false);
+            mockCursor
+                .SetupSequence(_ => _.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+
+            var pushContactsCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            pushContactsCollectionMock.Setup(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(mockCursor.Object);
+
+            var mongoDatabase = new Mock<IMongoDatabase>();
+            mongoDatabase
+                .Setup(x => x.GetCollection<BsonDocument>(pushMongoContextSettings.PushContactsCollectionName, null))
+                .Returns(pushContactsCollectionMock.Object);
+
+            var mongoClient = new Mock<IMongoClient>();
+            mongoClient
+                .Setup(x => x.GetDatabase(pushMongoContextSettings.DatabaseName, null))
+                .Returns(mongoDatabase.Object);
+
+            var sut = CreateSut(
+                mongoClient.Object,
+                Options.Create(pushMongoContextSettings));
+
+            // Act
+            var result = await sut.GetAllVisitorGuidByDomain(domainFilter, page, per_page);
+
+            // Assert
+            Assert.All(
+                result.Items,
+                x => allPushContactDocuments
+                    .Single(y => y[PushContactDocumentProps.DomainPropName].AsString == domainFilter && y[PushContactDocumentProps.VisitorGuidPropName].AsString == x)
+            );
         }
 
         private static BsonDocument FakeSubscriptionDocument()
