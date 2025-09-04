@@ -1,5 +1,6 @@
 using Doppler.PushContact.ApiModels;
 using Doppler.PushContact.DTOs;
+using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Repositories.Interfaces;
@@ -311,7 +312,8 @@ namespace Doppler.PushContact.Repositories
             }
         }
 
-        public async Task<ApiPage<string>> GetAllVisitorGuidByDomain(string domain, int page, int per_page)
+        // TODO: change implementation to improve performance. Return pages sorted by visitor_guid, and continue querying using the last visitor guide.
+        public async Task<ApiPage<string>> GetDistinctVisitorGuidByDomain(string domain, int page, int per_page)
         {
             try
             {
@@ -356,6 +358,46 @@ namespace Doppler.PushContact.Repositories
                     per_page
                 );
                 throw;
+            }
+        }
+
+        // TODO: it could return repeated in different pages. Use GetDistinctVisitorGuidByDomain instead.
+        public async Task<ApiPage<string>> GetAllVisitorGuidByDomain(string domain, int page, int per_page)
+        {
+            var filterBuilder = Builders<BsonDocument>.Filter;
+
+            var filter = filterBuilder.Eq(PushContactDocumentProps.DomainPropName, domain)
+                & filterBuilder.Eq(PushContactDocumentProps.DeletedPropName, false)
+                & filterBuilder.Ne(PushContactDocumentProps.VisitorGuidPropName, (string)null)
+                & filterBuilder.Exists(PushContactDocumentProps.VisitorGuidPropName);
+
+            var options = new FindOptions<BsonDocument>
+            {
+                Projection = Builders<BsonDocument>.Projection
+                .Include(PushContactDocumentProps.VisitorGuidPropName)
+                .Exclude(PushContactDocumentProps.IdPropName),
+                Skip = page,
+                Limit = per_page
+            };
+
+            try
+            {
+                var pushContactsFiltered = await (await PushContacts.FindAsync(filter, options)).ToListAsync();
+
+                // filter distinct visitor_guids in memory
+                var visitorGuids = new HashSet<string>(
+                    pushContactsFiltered.Select(x => x.GetValue(PushContactDocumentProps.VisitorGuidPropName).AsString)
+                );
+
+                var newPage = page + pushContactsFiltered.Count;
+
+                return new ApiPage<string>(visitorGuids.ToList(), newPage, per_page);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting {nameof(PushContactModel)}s by {nameof(domain)} {domain}");
+
+                throw new Exception($"Error getting {nameof(PushContactModel)}s by {nameof(domain)} {domain}", ex);
             }
         }
 
