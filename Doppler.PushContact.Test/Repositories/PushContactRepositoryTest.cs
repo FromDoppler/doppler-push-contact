@@ -810,7 +810,7 @@ namespace Doppler.PushContact.Test.Repositories
         }
 
         [Fact]
-        public async Task GetAllVisitorGuidByDomain_should_log_error_and_throw_exception_when_push_contacts_fetching_fail()
+        public async Task GetDistinctVisitorGuidByDomain_should_log_error_and_throw_exception_when_push_contacts_fetching_fail()
         {
             // Arrange
             var fixture = new Fixture();
@@ -849,7 +849,7 @@ namespace Doppler.PushContact.Test.Repositories
 
             // Act
             // Assert
-            await Assert.ThrowsAsync<Exception>(() => sut.GetAllVisitorGuidByDomain(domain, page, per_page));
+            await Assert.ThrowsAsync<Exception>(() => sut.GetDistinctVisitorGuidByDomain(domain, page, per_page));
 
             loggerMock.Verify(
                 x => x.Log(
@@ -862,7 +862,7 @@ namespace Doppler.PushContact.Test.Repositories
         }
 
         [Fact]
-        public async Task GetAllVisitorGuidByDomain_should_return_visitor_guids_filtered_by_domain()
+        public async Task GetDistinctVisitorGuidByDomain_should_return_visitor_guids_filtered_by_domain()
         {
             // Arrange
             List<BsonDocument> allPushContactDocuments = FakePushContactDocuments(10);
@@ -910,7 +910,7 @@ namespace Doppler.PushContact.Test.Repositories
                 Options.Create(pushMongoContextSettings));
 
             // Act
-            var result = await sut.GetAllVisitorGuidByDomain(domainFilter, page, per_page);
+            var result = await sut.GetDistinctVisitorGuidByDomain(domainFilter, page, per_page);
 
             // Assert
             Assert.All(

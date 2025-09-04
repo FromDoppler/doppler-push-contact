@@ -311,7 +311,8 @@ namespace Doppler.PushContact.Repositories
             }
         }
 
-        public async Task<ApiPage<string>> GetAllVisitorGuidByDomain(string domain, int page, int per_page)
+        // TODO: change implementation to improve performance. Return pages sorted by visitor_guid, and continue querying using the last visitor guide.
+        public async Task<ApiPage<string>> GetDistinctVisitorGuidByDomain(string domain, int page, int per_page)
         {
             try
             {

@@ -14,6 +14,6 @@ namespace Doppler.PushContact.Repositories.Interfaces
         Task<IEnumerable<SubscriptionInfoDTO>> GetAllSubscriptionInfoByVisitorGuidAsync(string domain, string visitorGuid);
         Task<ContactsStatsDTO> GetContactsStatsAsync(string domainName);
         Task<VisitorInfoDTO> GetVisitorInfoSafeAsync(string deviceToken);
-        Task<ApiPage<string>> GetAllVisitorGuidByDomain(string domain, int page, int per_page);
+        Task<ApiPage<string>> GetDistinctVisitorGuidByDomain(string domain, int page, int per_page);
     }
 }
