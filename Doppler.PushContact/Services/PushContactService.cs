@@ -633,7 +633,7 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
 
         public async Task<ApiPage<string>> GetAllVisitorGuidByDomain(string domain, int page, int per_page)
         {
-            return await _pushContactRepository.GetDistinctVisitorGuidByDomain(domain, page, per_page);
+            return await _pushContactRepository.GetAllVisitorGuidByDomain(domain, page, per_page);
         }
 
         public async Task<bool> GetEnabledByVisitorGuid(string domain, string visitorGuid)

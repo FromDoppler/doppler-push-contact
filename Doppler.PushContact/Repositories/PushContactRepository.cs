@@ -361,6 +361,7 @@ namespace Doppler.PushContact.Repositories
             }
         }
 
+        // TODO: it could return repeated in different pages. Use GetDistinctVisitorGuidByDomain instead.
         public async Task<ApiPage<string>> GetAllVisitorGuidByDomain(string domain, int page, int per_page)
         {
             var filterBuilder = Builders<BsonDocument>.Filter;
@@ -382,10 +383,15 @@ namespace Doppler.PushContact.Repositories
             try
             {
                 var pushContactsFiltered = await (await PushContacts.FindAsync(filter, options)).ToListAsync();
-                var visitorGuids = pushContactsFiltered.Select(x => x.GetValue(PushContactDocumentProps.VisitorGuidPropName).AsString).ToList();
+
+                // filter distinct visitor_guids in memory
+                var visitorGuids = new HashSet<string>(
+                    pushContactsFiltered.Select(x => x.GetValue(PushContactDocumentProps.VisitorGuidPropName).AsString)
+                );
+
                 var newPage = page + pushContactsFiltered.Count;
 
-                return new ApiPage<string>(visitorGuids, newPage, per_page);
+                return new ApiPage<string>(visitorGuids.ToList(), newPage, per_page);
             }
             catch (Exception ex)
             {
