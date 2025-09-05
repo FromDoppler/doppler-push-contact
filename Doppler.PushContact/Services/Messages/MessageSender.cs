@@ -46,10 +46,13 @@ namespace Doppler.PushContact.Services.Messages
             // TODO: use adhock token here.
             // It is recovering our client API request to be resusen to request to Push API,
             // but maybe it will not be acceptable in all scenarios.
-            if (string.IsNullOrEmpty(pushApiToken))
-            {
-                pushApiToken = await _pushApiTokenGetter.GetTokenAsync();
-            }
+            //if (string.IsNullOrEmpty(pushApiToken))
+            //{
+            //    pushApiToken = await _pushApiTokenGetter.GetTokenAsync();
+            //}
+
+            // TODO: analyze better how to handle authentication and token to consume the push api
+            pushApiToken = _messageSenderSettings.AuthenticationToken;
             _logger.LogInformation("APITOKEN en MessageSender.SendAsync1: {ApiToken}", pushApiToken);
 
             SendMessageResponse responseBody = new();
