@@ -97,7 +97,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                 .Times(1);
         }
 
-        [Fact]
+        [Fact(Skip = "Now, the pushApiTokenGetter should not be used.")]
         public async Task SendAsync_should_throw_exception_and_does_not_call_push_api_when_push_api_token_getter_throw_exception()
         {
             // Arrange
