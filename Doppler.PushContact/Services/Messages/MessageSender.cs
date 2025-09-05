@@ -50,33 +50,63 @@ namespace Doppler.PushContact.Services.Messages
             {
                 pushApiToken = await _pushApiTokenGetter.GetTokenAsync();
             }
+            _logger.LogInformation("APITOKEN en MessageSender.SendAsync1: {ApiToken}", pushApiToken);
 
             SendMessageResponse responseBody = new();
             responseBody.Responses = new();
 
             var tokensSkipped = 0;
 
-            do
+            try
             {
-                IEnumerable<string> tokensSelected = targetDeviceTokens.Skip(tokensSkipped).Take(_messageSenderSettings.PushTokensLimit);
-                tokensSkipped += tokensSelected.Count();
-
-                SendMessageResponse messageResponse = await _messageSenderSettings.PushApiUrl
-                .AppendPathSegment("message")
-                .WithOAuthBearerToken(pushApiToken)
-                .PostJsonAsync(new
+                do
                 {
-                    notificationTitle = title,
-                    notificationBody = body,
-                    NotificationOnClickLink = onClickLink,
-                    tokens = tokensSelected,
-                    ImageUrl = imageUrl
-                })
-                .ReceiveJson<SendMessageResponse>();
+                    IEnumerable<string> tokensSelected = targetDeviceTokens.Skip(tokensSkipped).Take(_messageSenderSettings.PushTokensLimit);
+                    tokensSkipped += tokensSelected.Count();
 
-                responseBody.Responses.AddRange(messageResponse.Responses);
+                    SendMessageResponse messageResponse = await _messageSenderSettings.PushApiUrl
+                    .AppendPathSegment("message")
+                    .WithOAuthBearerToken(pushApiToken)
+                    .PostJsonAsync(new
+                    {
+                        notificationTitle = title,
+                        notificationBody = body,
+                        NotificationOnClickLink = onClickLink,
+                        tokens = tokensSelected,
+                        ImageUrl = imageUrl
+                    })
+                    .ReceiveJson<SendMessageResponse>();
 
-            } while (tokensSkipped < targetDeviceTokens.Count());
+                    responseBody.Responses.AddRange(messageResponse.Responses);
+
+                } while (tokensSkipped < targetDeviceTokens.Count());
+            }
+            catch (FlurlHttpException ex)
+            {
+                string responseContent = null;
+                IEnumerable<string> headers = null;
+
+                try
+                {
+                    responseContent = await ex.GetResponseStringAsync();
+                }
+                catch { /* ignorar si no se puede leer el body */ }
+
+                try
+                {
+                    headers = ex.Call?.Response?.Headers?.Select(h => $"{h.Name}: {h.Value}");
+                }
+                catch { /* ignorar si no se pueden leer headers */ }
+
+                _logger.LogError(ex,
+                    "Error al llamar a Push API. StatusCode={StatusCode}, Url={Url}, Response={Response}, Headers={Headers}",
+                    ex.Call?.Response?.StatusCode.ToString() ?? "N/A",
+                    ex.Call?.Request?.Url?.ToString() ?? "N/A",
+                    responseContent ?? "No response body",
+                    headers != null ? string.Join(" | ", headers) : "No headers");
+
+                throw;
+            }
 
             return new SendMessageResult
             {
@@ -150,8 +180,9 @@ namespace Doppler.PushContact.Services.Messages
             catch (ArgumentException argEx)
             {
                 _logger.LogError(
-                    "An error occurred sending webpush using Firebase for messageId: {messageId}. Error: {ErrorMessage}.",
+                    "An error occurred sending webpush using Firebase for messageId: {messageId} and ApiToken: {ApiToken}. Error: {ErrorMessage}.",
                     webPushDTO.MessageId,
+                    authenticationApiToken,
                     argEx.Message
                 );
             }
@@ -159,7 +190,8 @@ namespace Doppler.PushContact.Services.Messages
             {
                 _logger.LogError(
                     ex,
-                    "An unexpected error occurred sending webpush using Firebase for messageId: {messageId}.",
+                    "An unexpected error occurred sending webpush using Firebase for messageId: {messageId} and ApiToken: {ApiToken}.",
+                    authenticationApiToken,
                     webPushDTO.MessageId
                 );
             }
