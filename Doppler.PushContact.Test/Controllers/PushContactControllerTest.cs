@@ -3775,5 +3775,260 @@ namespace Doppler.PushContact.Test.Controllers
                     Times.Once);
             }
         }
+
+        [Theory]
+        [InlineData(TestApiUsersData.TOKEN_EMPTY)]
+        [InlineData(TestApiUsersData.TOKEN_BROKEN)]
+        public async Task GetDistinctVisitorGuidByDomain_should_return_unauthorized_when_token_is_not_valid(string token)
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"push-contacts/visitor-guids")
+            {
+                Headers = { { "Authorization", $"Bearer {token}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20010908)]
+        public async Task GetDistinctVisitorGuidByDomain_should_return_unauthorized_when_token_is_a_expired_superuser_token(string token)
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"push-contacts/visitor-guids")
+            {
+                Headers = { { "Authorization", $"Bearer {token}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
+        [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
+        public async Task GetDistinctVisitorGuidByDomain_should_require_a_valid_token_with_isSU_flag(string token)
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"push-contacts/visitor-guids")
+            {
+                Headers = { { "Authorization", $"Bearer {token}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task GetDistinctVisitorGuidByDomains_should_return_unauthorized_when_authorization_header_is_empty()
+        {
+            // Arrange
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"push-contacts/visitor-guids");
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData(" ")]
+        [InlineData("")]
+        [InlineData(null)]
+        public async Task GetDistinctVisitorGuidByDomains_should_return_bad_request_when_domain_is_whitespace_or_empty_or_null(string domain)
+        {
+            // Arrange
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                });
+
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var url = $"push-contacts/visitor-guids?domain={domain}";
+            var request = new HttpRequestMessage(HttpMethod.Get, url)
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        [InlineData(0)]
+        [InlineData(1001)]
+        public async Task GetDistinctVisitorGuidByDomains_should_return_badrequest_when_per_page_is_zero_or_lesser_than_zero_or_greater_than_1000(int per_page)
+        {
+            // Arrange
+            Fixture fixture = new Fixture();
+            var domain = fixture.Create<string>();
+
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                });
+
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"push-contacts/visitor-guids?domain={domain}&per_page={per_page}")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task GetDistinctVisitorGuidByDomains_should_return_internal_server_error_when_service_throw_an_exception()
+        {
+            // Arrange
+            Fixture fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var nextCursor = fixture.Create<string>();
+            var per_page = 10;
+
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+
+            pushContactServiceMock
+                .Setup(x => x.GetDistinctVisitorGuidByDomain(domain, nextCursor, per_page))
+                .ThrowsAsync(new Exception("mocked exception"));
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                });
+
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"push-contacts/visitor-guids?domain={domain}&nextCursor={nextCursor}&per_page={per_page}")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task GetDistinctVisitorGuidByDomains_should_return_OK()
+        {
+            // Arrange
+            Fixture fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var nextCursorToInit = fixture.Create<string>();
+            var per_page = 10;
+
+            var visitorGuids = new List<string>()
+            {
+                { "visitor1" },
+                { "visitor2" },
+            };
+            var nextCursorToContinue = fixture.Create<string>();
+
+            var cursorPageResponse = new CursorPage<string>(visitorGuids, nextCursorToContinue, per_page);
+
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+
+            pushContactServiceMock
+                .Setup(x => x.GetDistinctVisitorGuidByDomain(domain, nextCursorToInit, per_page))
+                .ReturnsAsync(cursorPageResponse);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                });
+
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"push-contacts/visitor-guids?domain={domain}&nextCursor={nextCursorToInit}&per_page={per_page}")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            var contentString = await response.Content.ReadAsStringAsync();
+            _output.WriteLine(contentString);
+
+            // Assert
+            var result = JsonSerializer.Deserialize<CursorPage<string>>(contentString, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.NotNull(result);
+
+            Assert.Equal(cursorPageResponse.Items, result.Items);
+            Assert.Equal(cursorPageResponse.NextCursor, result.NextCursor);
+            Assert.Equal(cursorPageResponse.PerPage, result.PerPage);
+        }
     }
 }
