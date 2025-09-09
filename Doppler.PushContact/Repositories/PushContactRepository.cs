@@ -312,49 +312,51 @@ namespace Doppler.PushContact.Repositories
             }
         }
 
-        // TODO: change implementation to improve performance. Return pages sorted by visitor_guid, and continue querying using the last visitor guide.
-        public async Task<ApiPage<string>> GetDistinctVisitorGuidByDomain(string domain, int page, int per_page)
+        public async Task<CursorPage<string>> GetDistinctVisitorGuidByDomain(string domain, string lastVisitorGuid, int per_page)
         {
             try
             {
-                var filter = Builders<BsonDocument>.Filter.And(
+                // base filter
+                var baseFilter = Builders<BsonDocument>.Filter.And(
                     Builders<BsonDocument>.Filter.Eq(PushContactDocumentProps.DomainPropName, domain),
                     Builders<BsonDocument>.Filter.Eq(PushContactDocumentProps.DeletedPropName, false),
                     Builders<BsonDocument>.Filter.Ne(PushContactDocumentProps.VisitorGuidPropName, (string)null),
                     Builders<BsonDocument>.Filter.Exists(PushContactDocumentProps.VisitorGuidPropName)
                 );
 
-                var pipeline = PushContacts.Aggregate()
-                    .Match(filter)
-                    .Group(new BsonDocument // group to obtain distinct visitor_guid
-                    {
-                        { "_id", "$" + PushContactDocumentProps.VisitorGuidPropName }
-                    })
-                    .Skip(page)
+                // additional filter to cursor (null when it's the first page)
+                var pagingFilter = !string.IsNullOrEmpty(lastVisitorGuid)
+                    ? Builders<BsonDocument>.Filter.Gt(PushContactDocumentProps.VisitorGuidPropName, lastVisitorGuid)
+                    : Builders<BsonDocument>.Filter.Empty;
+
+                var finalFilter = Builders<BsonDocument>.Filter.And(baseFilter, pagingFilter);
+
+                // sort by visitor_guid asc
+                var docs = await PushContacts.Find(finalFilter)
+                    .Sort(Builders<BsonDocument>.Sort.Ascending(PushContactDocumentProps.VisitorGuidPropName))
                     .Limit(per_page)
-                    .Project(new BsonDocument
-                    {
-                        { PushContactDocumentProps.VisitorGuidPropName, "$_id" },
-                        { "_id", 0 }
-                    });
+                    .Project(Builders<BsonDocument>.Projection
+                        .Include(PushContactDocumentProps.VisitorGuidPropName)
+                        .Exclude(PushContactDocumentProps.IdPropName))
+                    .ToListAsync();
 
-                var result = await pipeline.ToListAsync();
+                // filter distinct visitor_guids in memory using hashset
+                var visitorGuids = new HashSet<string>(
+                    docs.Select(d => SafeGetString(d, PushContactDocumentProps.VisitorGuidPropName))
+                );
 
-                var visitorGuids = result
-                    .Select(x => SafeGetString(x, PushContactDocumentProps.VisitorGuidPropName))
-                    .ToList();
+                // the newCursor is the last visitor_guid
+                var newCursor = visitorGuids.LastOrDefault();
 
-                var newPage = page + visitorGuids.Count;
-
-                return new ApiPage<string>(visitorGuids, newPage, per_page);
+                return new CursorPage<string>(visitorGuids.ToList(), newCursor, per_page);
             }
             catch (Exception ex)
             {
                 _logger.LogError(
                     ex,
-                    "Error getting distinct visitor_guids for domain: {domain}, page: {page}, per_page: {per_page}.",
+                    "Error getting distinct visitor_guids for domain: {domain}, lastVisitorGuid: {lastVisitorGuid}, per_page: {per_page}.",
                     domain,
-                    page,
+                    lastVisitorGuid,
                     per_page
                 );
                 throw;

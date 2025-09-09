@@ -818,16 +818,14 @@ namespace Doppler.PushContact.Test.Repositories
             var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
 
             var domain = fixture.Create<string>();
-            var page = fixture.Create<int>();
+            var newCursor = fixture.Create<string>();
             var per_page = fixture.Create<int>();
 
             var expectedException = new Exception("Aggregate failed");
 
             var pushContactsCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
-            pushContactsCollectionMock.Setup(c => c.AggregateAsync(
-                It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
-                It.IsAny<AggregateOptions>(),
-                It.IsAny<CancellationToken>()))
+            pushContactsCollectionMock
+                .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
                 .ThrowsAsync(expectedException);
 
             var mongoDatabaseMock = new Mock<IMongoDatabase>();
@@ -849,7 +847,7 @@ namespace Doppler.PushContact.Test.Repositories
 
             // Act
             // Assert
-            await Assert.ThrowsAsync<Exception>(() => sut.GetDistinctVisitorGuidByDomain(domain, page, per_page));
+            await Assert.ThrowsAsync<Exception>(() => sut.GetDistinctVisitorGuidByDomain(domain, newCursor, per_page));
 
             loggerMock.Verify(
                 x => x.Log(
@@ -872,28 +870,30 @@ namespace Doppler.PushContact.Test.Repositories
             var domainFilter = allPushContactDocuments[randomPushContactIndex][PushContactDocumentProps.DomainPropName].AsString;
 
             var fixture = new Fixture();
-            var page = fixture.Create<int>();
+            var newCursor = fixture.Create<string>();
             var per_page = fixture.Create<int>();
 
             var pushMongoContextSettings = fixture.Create<PushMongoContextSettings>();
 
-            var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
-            mockCursor.Setup(_ => _.Current).Returns(allPushContactDocuments.Where(x => x[PushContactDocumentProps.DomainPropName].AsString == domainFilter));
-            mockCursor
+            var pushContactsCursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+            pushContactsCursorMock
+                .Setup(_ => _.Current)
+                .Returns(allPushContactDocuments.Where(x => x[PushContactDocumentProps.DomainPropName].AsString == domainFilter));
+
+            pushContactsCursorMock
                 .SetupSequence(_ => _.MoveNext(It.IsAny<CancellationToken>()))
                 .Returns(true)
                 .Returns(false);
-            mockCursor
+
+            pushContactsCursorMock
                 .SetupSequence(_ => _.MoveNextAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(true)
-                .ReturnsAsync(false);
+                .Returns(Task.FromResult(true))
+                .Returns(Task.FromResult(false));
 
             var pushContactsCollectionMock = new Mock<IMongoCollection<BsonDocument>>();
-            pushContactsCollectionMock.Setup(c => c.AggregateAsync(
-                It.IsAny<PipelineDefinition<BsonDocument, BsonDocument>>(),
-                It.IsAny<AggregateOptions>(),
-                It.IsAny<CancellationToken>()))
-                .ReturnsAsync(mockCursor.Object);
+            pushContactsCollectionMock
+                .Setup(x => x.FindAsync(It.IsAny<FilterDefinition<BsonDocument>>(), It.IsAny<FindOptions<BsonDocument, BsonDocument>>(), default))
+                .ReturnsAsync(pushContactsCursorMock.Object);
 
             var mongoDatabase = new Mock<IMongoDatabase>();
             mongoDatabase
@@ -910,7 +910,7 @@ namespace Doppler.PushContact.Test.Repositories
                 Options.Create(pushMongoContextSettings));
 
             // Act
-            var result = await sut.GetDistinctVisitorGuidByDomain(domainFilter, page, per_page);
+            var result = await sut.GetDistinctVisitorGuidByDomain(domainFilter, newCursor, per_page);
 
             // Assert
             Assert.All(

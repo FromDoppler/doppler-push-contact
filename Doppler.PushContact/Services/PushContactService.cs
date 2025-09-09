@@ -636,6 +636,11 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
             return await _pushContactRepository.GetAllVisitorGuidByDomain(domain, page, per_page);
         }
 
+        public async Task<CursorPage<string>> GetDistinctVisitorGuidByDomain(string domain, string lastVisitorGuid, int per_page)
+        {
+            return await _pushContactRepository.GetDistinctVisitorGuidByDomain(domain, lastVisitorGuid, per_page);
+        }
+
         public async Task<bool> GetEnabledByVisitorGuid(string domain, string visitorGuid)
         {
             var filterBuilder = Builders<BsonDocument>.Filter;
