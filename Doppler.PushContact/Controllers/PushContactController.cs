@@ -304,6 +304,7 @@ namespace Doppler.PushContact.Controllers
             //});
         }
 
+        [Obsolete("This endpoint will be deprecated. It will be replaced by 'push-contacts/visitor-guids'.")]
         [HttpGet]
         [Route("push-contacts/{domain}/visitor-guids")]
         public async Task<ActionResult<ApiPage<string>>> GetAllVisitorGuidByDomain([FromRoute] string domain, [FromQuery] int page, [FromQuery] int per_page)
@@ -333,6 +334,35 @@ namespace Doppler.PushContact.Controllers
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,
                     new { error = "Unexpected error obtaining visitor-guids." }
+                );
+            }
+        }
+
+        [HttpGet]
+        [Route("push-contacts/visitor-guids")]
+        public async Task<ActionResult<CursorPage<string>>> GetDistinctVisitorGuidByDomain([FromQuery] string domain, [FromQuery] string nextCursor = null, [FromQuery] int per_page = 100)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(domain) || string.IsNullOrWhiteSpace(domain))
+                {
+                    return BadRequest($"'{nameof(domain)}' cannot be null, empty or whitespace.");
+                }
+
+                if (per_page <= 0 || per_page > 1000)
+                {
+                    return BadRequest($"'{nameof(per_page)}' has to be greater than 0 and lesser/equal to 1000.");
+                }
+
+                var visitorGuidsCursorPage = await _pushContactService.GetDistinctVisitorGuidByDomain(domain, nextCursor, per_page);
+
+                return Ok(visitorGuidsCursorPage);
+            }
+            catch (Exception)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "Unexpected error obtaining distinct visitor-guids." }
                 );
             }
         }
