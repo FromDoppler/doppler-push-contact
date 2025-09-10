@@ -955,12 +955,12 @@ namespace Doppler.PushContact.Test.Services
 
             // verifica que NO se llama al procesamiento de visitor
             webPushPublisherServiceMock.Verify(x =>
-                x.ProcessWebPushForVisitorSafe(webPushDTO, It.IsAny<VisitorFields>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), null),
+                x.ProcessWebPushForVisitorWithFields(webPushDTO, It.IsAny<VisitorFields>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), null),
                 Times.Never);
         }
 
         [Fact]
-        public async Task ProcessWebPushForVisitorSafe_should_return_without_processing_when_replacement_is_mandatory_n_fields_are_missing()
+        public async Task ProcessWebPushForVisitorWithFields_should_return_without_processing_when_replacement_is_mandatory_n_fields_are_missing()
         {
             // Arrange
             // Arrange
@@ -1004,7 +1004,7 @@ namespace Doppler.PushContact.Test.Services
             { CallBase = true };
 
             // Act
-            await webPushPublisherServiceMock.Object.ProcessWebPushForVisitorSafe(
+            await webPushPublisherServiceMock.Object.ProcessWebPushForVisitorWithFields(
                 webPushDTO,
                 visitorFields1,
                 visitorsWithReplacements.ReplacementIsMandatory,
@@ -1027,7 +1027,7 @@ namespace Doppler.PushContact.Test.Services
         }
 
         [Fact]
-        public async Task ProcessWebPushForVisitorSafe_should_log_error_when_repository_throws_an_exception()
+        public async Task ProcessWebPushForVisitorWithFields_should_log_error_when_repository_throws_an_exception()
         {
             // Arrange
             var fixture = new Fixture();
@@ -1088,7 +1088,7 @@ namespace Doppler.PushContact.Test.Services
             { CallBase = true };
 
             // Act
-            await webPushPublisherServiceMock.Object.ProcessWebPushForVisitorSafe(
+            await webPushPublisherServiceMock.Object.ProcessWebPushForVisitorWithFields(
                 webPushDTO,
                 visitorFields1,
                 visitorsWithReplacements.ReplacementIsMandatory,
