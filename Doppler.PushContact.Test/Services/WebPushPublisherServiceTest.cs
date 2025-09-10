@@ -78,7 +78,7 @@ namespace Doppler.PushContact.Test.Services
         }
 
         [Fact]
-        public async Task ProcessWebPushInBatches_should_process_items_in_batches_based_on_configured_batch_size()
+        public async Task ProcessWebPushByDomainInBatches_should_process_items_in_batches_based_on_configured_batch_size()
         {
             // Arrange
             var fixture = new Fixture();
@@ -131,7 +131,7 @@ namespace Doppler.PushContact.Test.Services
                 .Verifiable();
 
             // Act
-            webPushPublisherServiceMock.Object.ProcessWebPushInBatches(domain, webPushDTO, null);
+            webPushPublisherServiceMock.Object.ProcessWebPushByDomainInBatches(domain, webPushDTO, null);
 
             // Assert
             Assert.NotNull(capturedFunctionToBeSimulated);
@@ -149,7 +149,7 @@ namespace Doppler.PushContact.Test.Services
         }
 
         [Fact]
-        public async Task ProcessWebPushInBatches_should_log_warning_and_do_nothing_when_cancelled_before_starting()
+        public async Task ProcessWebPushByDomainInBatches_should_log_warning_and_do_nothing_when_cancelled_before_starting()
         {
             // Arrange
             var fixture = new Fixture();
@@ -184,7 +184,7 @@ namespace Doppler.PushContact.Test.Services
             );
 
             // Act
-            sut.ProcessWebPushInBatches(domain, webPushDTO, null);
+            sut.ProcessWebPushByDomainInBatches(domain, webPushDTO, null);
 
             // Assert
             Assert.NotNull(capturedFunctionToBeSimulated);
@@ -206,7 +206,7 @@ namespace Doppler.PushContact.Test.Services
         }
 
         [Fact]
-        public async Task ProcessWebPushInBatches_should_log_error_when_exception_occurs()
+        public async Task ProcessWebPushByDomainInBatches_should_log_error_when_exception_occurs()
         {
             // Arrange
             var fixture = new Fixture();
@@ -244,7 +244,7 @@ namespace Doppler.PushContact.Test.Services
             );
 
             // Act
-            sut.ProcessWebPushInBatches(domain, webPushDTO, null);
+            sut.ProcessWebPushByDomainInBatches(domain, webPushDTO, null);
 
             // Assert
             Assert.NotNull(capturedFunc);

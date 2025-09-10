@@ -97,7 +97,7 @@ namespace Doppler.PushContact.Services
             });
         }
 
-        public async Task ProcessWebPushForVisitorsInBatchesAsync(
+        internal virtual async Task ProcessWebPushForVisitorsInBatchesAsync(
             List<string> visitorGuids,
             WebPushDTO messageDTO,
             string authenticationApiToken = null,
@@ -199,7 +199,7 @@ namespace Doppler.PushContact.Services
             }
         }
 
-        public void ProcessWebPushInBatches(string domain, WebPushDTO messageDTO, string authenticationApiToken = null)
+        public void ProcessWebPushByDomainInBatches(string domain, WebPushDTO messageDTO, string authenticationApiToken = null)
         {
             _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
             {
