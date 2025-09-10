@@ -56,41 +56,6 @@ namespace Doppler.PushContact.Services
             _webPushPublisherSettings = webPushQueueSettings;
         }
 
-        // It is not being used, was replaced by ProcessWebPushInBatches
-        public void ProcessWebPush(string domain, WebPushDTO messageDTO, string authenticationApiToken = null)
-        {
-            _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
-            {
-                try
-                {
-                    var deviceTokens = new List<string>();
-                    var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByDomainAsync(domain);
-                    foreach (var subscription in subscriptionsInfo)
-                    {
-                        if (IsValidSubscription(subscription))
-                        {
-                            await EnqueueWebPushAsync(messageDTO, subscription.Subscription, subscription.PushContactId, cancellationToken);
-                        }
-                        else if (!string.IsNullOrEmpty(subscription.DeviceToken))
-                        {
-                            deviceTokens.Add(subscription.DeviceToken);
-                        }
-                    }
-
-                    await _messageSender.SendFirebaseWebPushAsync(messageDTO, deviceTokens, authenticationApiToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(
-                        ex,
-                        "An unexpected error occurred processing webpush for domain: {domain} and messageId: {messageId}.",
-                        domain,
-                        messageDTO.MessageId
-                    );
-                }
-            });
-        }
-
         public void ProcessWebPushForVisitors(WebPushDTO messageDTO, FieldsReplacementList visitorsWithReplacements, string authenticationApiToken = null)
         {
             _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
