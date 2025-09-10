@@ -107,8 +107,8 @@ namespace Doppler.PushContact.Services
             try
             {
                 _logger.LogInformation(
-                    "Starting to process webpush for domain: {Domain}, messageId: {MessageId}",
-                    messageDTO.Domain,
+                    "Starting to process webpush for visitorguids ({visitorGuidsQuantity}) in batches, messageId: {MessageId}",
+                    visitorGuids.Count,
                     messageDTO.MessageId
                 );
 
@@ -430,7 +430,7 @@ namespace Doppler.PushContact.Services
             try
             {
                 _logger.LogDebug(
-                    "Starting to process webpush for messageId: {MessageId}, visitorGuid: {VisitorGuid}",
+                    "Starting to process webpush with fields for messageId: {MessageId}, visitorGuid: {VisitorGuid}",
                     messageDTO.MessageId,
                     visitorWithFields.VisitorGuid
                 );
