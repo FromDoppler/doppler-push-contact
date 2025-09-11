@@ -813,7 +813,7 @@ namespace Doppler.PushContact.Test.Controllers
 
             // Assert
             // verify ProcessWebPushInBatches was called once
-            webPushPublisherServiceMock.Verify(x => x.ProcessWebPushInBatches(domain, It.IsAny<WebPushDTO>(), It.IsAny<string>()), Times.Once);
+            webPushPublisherServiceMock.Verify(x => x.ProcessWebPushByDomainInBatches(domain, It.IsAny<WebPushDTO>(), It.IsAny<string>()), Times.Once);
 
             Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
 

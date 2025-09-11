@@ -56,46 +56,6 @@ namespace Doppler.PushContact.Services
             _webPushPublisherSettings = webPushQueueSettings;
         }
 
-        // It is not being used, was replaced by ProcessWebPushInBatches
-        public void ProcessWebPush(string domain, WebPushDTO messageDTO, string authenticationApiToken = null)
-        {
-            _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
-            {
-                try
-                {
-                    var deviceTokens = new List<string>();
-                    var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByDomainAsync(domain);
-                    foreach (var subscription in subscriptionsInfo)
-                    {
-                        if (subscription.Subscription != null &&
-                            subscription.Subscription.Keys != null &&
-                            !string.IsNullOrEmpty(subscription.Subscription.EndPoint) &&
-                            !string.IsNullOrEmpty(subscription.Subscription.Keys.Auth) &&
-                            !string.IsNullOrEmpty(subscription.Subscription.Keys.P256DH)
-                        )
-                        {
-                            await EnqueueWebPushAsync(messageDTO, subscription.Subscription, subscription.PushContactId, cancellationToken);
-                        }
-                        else if (!string.IsNullOrEmpty(subscription.DeviceToken))
-                        {
-                            deviceTokens.Add(subscription.DeviceToken);
-                        }
-                    }
-
-                    await _messageSender.SendFirebaseWebPushAsync(messageDTO, deviceTokens, authenticationApiToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(
-                        ex,
-                        "An unexpected error occurred processing webpush for domain: {domain} and messageId: {messageId}.",
-                        domain,
-                        messageDTO.MessageId
-                    );
-                }
-            });
-        }
-
         public void ProcessWebPushForVisitors(WebPushDTO messageDTO, FieldsReplacementList visitorsWithReplacements, string authenticationApiToken = null)
         {
             _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
@@ -111,20 +71,135 @@ namespace Doppler.PushContact.Services
                     return;
                 }
 
+                var visitorguidsToProcessInBatch = new List<string>();
                 foreach (var visitorWithFields in visitorsWithReplacements.VisitorsFieldsList)
                 {
-                    await ProcessWebPushForVisitorSafe(
-                        messageDTO,
-                        visitorWithFields,
-                        visitorsWithReplacements.ReplacementIsMandatory,
-                        cancellationToken,
-                        authenticationApiToken
-                    );
+                    if (visitorWithFields.ReplaceFields)
+                    {
+                        await ProcessWebPushForVisitorWithFields(
+                            messageDTO,
+                            visitorWithFields,
+                            visitorsWithReplacements.ReplacementIsMandatory,
+                            cancellationToken,
+                            authenticationApiToken
+                        );
+                    }
+                    else
+                    {
+                        visitorguidsToProcessInBatch.Add(visitorWithFields.VisitorGuid);
+                    }
+                }
+
+                if (visitorguidsToProcessInBatch != null && visitorguidsToProcessInBatch.Count > 0)
+                {
+                    await ProcessWebPushForVisitorsInBatchesAsync(visitorguidsToProcessInBatch, messageDTO, authenticationApiToken, cancellationToken);
                 }
             });
         }
 
-        public void ProcessWebPushInBatches(string domain, WebPushDTO messageDTO, string authenticationApiToken = null)
+        internal virtual async Task ProcessWebPushForVisitorsInBatchesAsync(
+            List<string> visitorGuids,
+            WebPushDTO messageDTO,
+            string authenticationApiToken = null,
+            CancellationToken cancellationToken = default
+        )
+        {
+            try
+            {
+                _logger.LogInformation(
+                    "Starting to process webpush for visitorguids ({visitorGuidsQuantity}) in batches, messageId: {MessageId}",
+                    visitorGuids.Count,
+                    messageDTO.MessageId
+                );
+
+                var deviceTokensBatch = new List<string>();
+                int processedDeviceTokensCount = 0;
+                int deviceTokenBatchIndex = 0;
+
+                var subscriptionsBatch = new List<SubscriptionInfoDTO>();
+                int processedSubscriptionsCount = 0;
+                int subscriptionsBatchIndex = 0;
+
+                var sizeFromConfig = _webPushPublisherSettings?.Value?.ProcessPushBatchSize ?? 0;
+                var batchSize = sizeFromConfig > 0 ? sizeFromConfig : 500;
+
+                foreach (var visitorGuid in visitorGuids)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        _logger.LogWarning(
+                            "WebPush processing was cancelled. Domain: {Domain}, MessageId: {MessageId}",
+                            messageDTO.Domain,
+                            messageDTO.MessageId
+                        );
+                        break;
+                    }
+
+                    var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByVisitorGuidAsync(messageDTO.Domain, visitorGuid);
+
+                    foreach (var subscription in subscriptionsInfo)
+                    {
+                        if (IsValidSubscription(subscription))
+                        {
+                            subscriptionsBatch.Add(subscription);
+
+                            if (subscriptionsBatch.Count >= batchSize)
+                            {
+                                processedSubscriptionsCount += subscriptionsBatch.Count;
+                                await ProcessWebPushBatchAsync(subscriptionsBatch, messageDTO, cancellationToken);
+                                _logger.LogDebug("Processed subscriptions batch #{BatchIndex}, processed so far: {Count}", ++subscriptionsBatchIndex, processedSubscriptionsCount);
+                                subscriptionsBatch.Clear();
+                            }
+                        }
+                        else if (!string.IsNullOrEmpty(subscription.DeviceToken))
+                        {
+                            deviceTokensBatch.Add(subscription.DeviceToken);
+
+                            if (deviceTokensBatch.Count >= batchSize)
+                            {
+                                processedDeviceTokensCount += deviceTokensBatch.Count;
+                                await _messageSender.SendFirebaseWebPushAsync(messageDTO, deviceTokensBatch, authenticationApiToken);
+                                _logger.LogDebug("Processed device tokens batch #{BatchIndex}, processed so far: {Count}", ++deviceTokenBatchIndex, processedDeviceTokensCount);
+                                deviceTokensBatch.Clear();
+                            }
+                        }
+                    }
+                }
+
+                // send incomplete batches
+                if (subscriptionsBatch.Count > 0)
+                {
+                    processedSubscriptionsCount += subscriptionsBatch.Count;
+                    await ProcessWebPushBatchAsync(subscriptionsBatch, messageDTO, cancellationToken);
+                    _logger.LogDebug("Processed final subscriptions batch #{BatchIndex}, processed: {Count}", ++subscriptionsBatchIndex, processedSubscriptionsCount);
+                }
+
+                if (deviceTokensBatch.Count > 0)
+                {
+                    processedDeviceTokensCount += deviceTokensBatch.Count;
+                    await _messageSender.SendFirebaseWebPushAsync(messageDTO, deviceTokensBatch, authenticationApiToken);
+                    _logger.LogDebug("Processed final device tokens batch #{BatchIndex}, processed: {Count}", ++deviceTokenBatchIndex, processedDeviceTokensCount);
+                }
+
+                _logger.LogInformation(
+                    "Finished processing {TotalSubscriptions} subscriptions and {TotalDeviceToken} deviceTokens, for domain: {Domain}",
+                    processedSubscriptionsCount,
+                    processedDeviceTokensCount,
+                    messageDTO.Domain
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred processing webpush for domain: {Domain} and messageId: {MessageId}.",
+                    messageDTO.Domain,
+                    messageDTO.MessageId
+                );
+            }
+        }
+
+        public void ProcessWebPushByDomainInBatches(string domain, WebPushDTO messageDTO, string authenticationApiToken = null)
         {
             _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
             {
@@ -152,11 +227,7 @@ namespace Doppler.PushContact.Services
                     // use "await foreach" to consume a method that returns results as a stream
                     await foreach (var subscription in _pushContactRepository.GetSubscriptionInfoByDomainAsStreamAsync(domain, cancellationToken))
                     {
-                        if (subscription.Subscription != null &&
-                            subscription.Subscription.Keys != null &&
-                            !string.IsNullOrEmpty(subscription.Subscription.EndPoint) &&
-                            !string.IsNullOrEmpty(subscription.Subscription.Keys.Auth) &&
-                            !string.IsNullOrEmpty(subscription.Subscription.Keys.P256DH))
+                        if (IsValidSubscription(subscription))
                         {
                             subscriptionsBatch.Add(subscription);
 
@@ -348,7 +419,7 @@ namespace Doppler.PushContact.Services
             return missing.ToList();
         }
 
-        internal virtual async Task ProcessWebPushForVisitorSafe(
+        internal virtual async Task ProcessWebPushForVisitorWithFields(
             WebPushDTO messageDTO,
             VisitorFields visitorWithFields,
             bool replacementIsMandatory,
@@ -359,7 +430,7 @@ namespace Doppler.PushContact.Services
             try
             {
                 _logger.LogDebug(
-                    "Starting to process webpush for messageId: {MessageId}, visitorGuid: {VisitorGuid}",
+                    "Starting to process webpush with fields for messageId: {MessageId}, visitorGuid: {VisitorGuid}",
                     messageDTO.MessageId,
                     visitorWithFields.VisitorGuid
                 );
@@ -392,12 +463,7 @@ namespace Doppler.PushContact.Services
                 var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByVisitorGuidAsync(messageDTO.Domain, visitorWithFields.VisitorGuid);
                 foreach (var subscription in subscriptionsInfo)
                 {
-                    if (subscription.Subscription != null &&
-                        subscription.Subscription.Keys != null &&
-                        !string.IsNullOrEmpty(subscription.Subscription.EndPoint) &&
-                        !string.IsNullOrEmpty(subscription.Subscription.Keys.Auth) &&
-                        !string.IsNullOrEmpty(subscription.Subscription.Keys.P256DH)
-                    )
+                    if (IsValidSubscription(subscription))
                     {
                         await EnqueueWebPushAsync(messageWithReplacedFields, subscription.Subscription, subscription.PushContactId, cancellationToken);
                     }
@@ -418,6 +484,16 @@ namespace Doppler.PushContact.Services
                     visitorWithFields.VisitorGuid
                 );
             }
+        }
+
+        private bool IsValidSubscription(SubscriptionInfoDTO subscription)
+        {
+            return subscription != null &&
+                subscription.Subscription != null &&
+                subscription.Subscription.Keys != null &&
+                !string.IsNullOrEmpty(subscription.Subscription.EndPoint) &&
+                !string.IsNullOrEmpty(subscription.Subscription.Keys.Auth) &&
+                !string.IsNullOrEmpty(subscription.Subscription.Keys.P256DH);
         }
     }
 }

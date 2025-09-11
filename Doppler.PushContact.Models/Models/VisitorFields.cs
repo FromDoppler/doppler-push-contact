@@ -6,5 +6,6 @@ namespace Doppler.PushContact.Models.Models
     {
         public string VisitorGuid { get; set; }
         public Dictionary<string, string> Fields { get; set; }
+        public bool ReplaceFields => Fields != null && Fields.Count > 0;
     }
 }
