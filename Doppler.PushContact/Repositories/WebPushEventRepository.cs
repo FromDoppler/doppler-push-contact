@@ -8,6 +8,8 @@ using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -186,6 +188,28 @@ namespace Doppler.PushContact.Repositories
                 );
                 throw;
             }
+        }
+
+        public async Task<int> BulkInsertAsync(IEnumerable<WebPushEvent> webPushEvents)
+        {
+            if (webPushEvents == null)
+            {
+                return 0;
+            }
+
+            var documents = webPushEvents.Select(e => e.ToBsonDocument()).ToList();
+
+            if (!documents.Any())
+            {
+                return 0;
+            }
+
+            await WebPushEvents.InsertManyAsync(
+                documents,
+                new InsertManyOptions { IsOrdered = false } // false = no se ejecutan en orden, y si alguna falla, se seguirán ejecutando las restantes
+            );
+
+            return documents.Count;
         }
 
         private IMongoCollection<BsonDocument> WebPushEvents
