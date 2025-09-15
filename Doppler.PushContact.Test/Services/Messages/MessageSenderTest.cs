@@ -34,6 +34,7 @@ namespace Doppler.PushContact.Test.Services.Messages
             IOptions<MessageSenderSettings> messageSenderSettings = null,
             IMessageRepository messageRepository = null,
             IPushContactService pushContactService = null,
+            IWebPushEventService webPushEventService = null,
             ILogger<MessageSender> logger = null
         )
         {
@@ -42,6 +43,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                 pushApiTokenGetter ?? Mock.Of<IPushApiTokenGetter>(),
                 messageRepository ?? Mock.Of<IMessageRepository>(),
                 pushContactService ?? Mock.Of<IPushContactService>(),
+                webPushEventService ?? Mock.Of<IWebPushEventService>(),
                 logger ?? Mock.Of<ILogger<MessageSender>>()
             );
         }
@@ -399,12 +401,14 @@ namespace Doppler.PushContact.Test.Services.Messages
             var mockPushApiTokenGetter = new Mock<IPushApiTokenGetter>();
             var mockMessageRepository = new Mock<IMessageRepository>();
             var mockPushContactService = new Mock<IPushContactService>();
+            var mockWebPushEventService = new Mock<IWebPushEventService>();
 
             using var httpTest = new HttpTest();
             var sut = CreateSut(
                 pushApiTokenGetter: mockPushApiTokenGetter.Object,
                 messageRepository: mockMessageRepository.Object,
-                pushContactService: mockPushContactService.Object
+                pushContactService: mockPushContactService.Object,
+                webPushEventService: mockWebPushEventService.Object
             );
 
             // Act
@@ -414,7 +418,8 @@ namespace Doppler.PushContact.Test.Services.Messages
             // verify that none the involved services were called
             mockPushApiTokenGetter.Verify(x => x.GetTokenAsync(), Times.Never);
             mockMessageRepository.Verify(x => x.UpdateDeliveriesAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()), Times.Never);
-            mockPushContactService.Verify(x => x.AddHistoryEventsAndMarkDeletedContactsAsync(It.IsAny<Guid>(), It.IsAny<SendMessageResult>()), Times.Never);
+            mockPushContactService.Verify(x => x.MarkDeletedContactsAsync(It.IsAny<Guid>(), It.IsAny<SendMessageResult>()), Times.Never);
+            mockWebPushEventService.Verify(x => x.RegisterWebPushEventsAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<SendMessageResult>()), Times.Never);
             httpTest.ShouldNotHaveMadeACall();
         }
 
@@ -504,6 +509,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                 Title = fixture.Create<string>(),
                 Body = fixture.Create<string>(),
                 MessageId = fixture.Create<Guid>(),
+                Domain = fixture.Create<string>(),
             };
             var authenticationApiToken = fixture.Create<string>();
 
@@ -513,13 +519,15 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var mockMessageRepository = new Mock<IMessageRepository>();
             var mockPushContactService = new Mock<IPushContactService>();
+            var mockWebPushEventService = new Mock<IWebPushEventService>();
 
             using var httpTest = new HttpTest();
             httpTest.RespondWithJson(sendMessageResponse, 200);
 
             var sut = CreateSut(
                 messageRepository: mockMessageRepository.Object,
-                pushContactService: mockPushContactService.Object
+                pushContactService: mockPushContactService.Object,
+                webPushEventService: mockWebPushEventService.Object
             );
 
             // Act
@@ -529,8 +537,9 @@ namespace Doppler.PushContact.Test.Services.Messages
             httpTest.ShouldHaveCalled($"{messageSenderSettingsDefault.PushApiUrl}/message")
                 .WithVerb(HttpMethod.Post)
                 .Times(1);
-            mockPushContactService.Verify(x => x.AddHistoryEventsAndMarkDeletedContactsAsync(webPushDTO.MessageId, It.IsAny<SendMessageResult>()), Times.Once);
+            mockPushContactService.Verify(x => x.MarkDeletedContactsAsync(webPushDTO.MessageId, It.IsAny<SendMessageResult>()), Times.Once);
             mockMessageRepository.Verify(x => x.UpdateDeliveriesAsync(webPushDTO.MessageId, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()), Times.Once);
+            mockWebPushEventService.Verify(x => x.RegisterWebPushEventsAsync(webPushDTO.Domain, webPushDTO.MessageId, It.IsAny<SendMessageResult>()), Times.Once);
         }
 
         [Fact]
@@ -551,7 +560,7 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var pushContactServiceMock = new Mock<IPushContactService>();
             pushContactServiceMock
-                .Setup(x => x.AddHistoryEventsAndMarkDeletedContactsAsync(webPushDTO.MessageId, It.IsAny<SendMessageResult>()))
+                .Setup(x => x.MarkDeletedContactsAsync(webPushDTO.MessageId, It.IsAny<SendMessageResult>()))
                 .ThrowsAsync(new Exception());
 
             var sendMessageResponse = fixture.Create<SendMessageResponse>();

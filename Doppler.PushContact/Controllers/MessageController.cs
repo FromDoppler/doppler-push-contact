@@ -60,7 +60,7 @@ namespace Doppler.PushContact.Controllers
             var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
             var sendMessageResult = await _messageSender.SendAsync(message.Title, message.Body, deviceTokens, message.OnClickLink, message.ImageUrl);
 
-            await _pushContactService.AddHistoryEventsAndMarkDeletedContactsAsync(messageId, sendMessageResult);
+            await _pushContactService.MarkDeletedContactsAsync(messageId, sendMessageResult);
 
             var sent = sendMessageResult.SendMessageTargetResult.Count();
             var delivered = sendMessageResult.SendMessageTargetResult.Count(x => x.IsSuccess);

@@ -292,6 +292,7 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
             }
         }
 
+        // TODO: remove this method. Now, the history_events should not be considered as subdocuments of push-contacts anymore.
         public async Task AddHistoryEventsAsync(IEnumerable<PushContactHistoryEvent> pushContactHistoryEvents)
         {
             if (pushContactHistoryEvents == null || !pushContactHistoryEvents.Any())
@@ -334,10 +335,8 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
             }
         }
 
-        // TODO: If we decide not to register more history events, rename this method properly: MarkDeletedContactsAsync.
-        public async Task AddHistoryEventsAndMarkDeletedContactsAsync(Guid messageId, SendMessageResult sendMessageResult)
+        public async Task MarkDeletedContactsAsync(Guid messageId, SendMessageResult sendMessageResult)
         {
-            //TO DO: implement abstraction
             if (sendMessageResult == null)
             {
                 throw new ArgumentNullException($"{typeof(SendMessageResult)} cannot be null");
@@ -351,25 +350,6 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
             if (notValidTargetDeviceToken != null && notValidTargetDeviceToken.Any())
             {
                 await DeleteByDeviceTokenAsync(notValidTargetDeviceToken);
-            }
-
-            var now = DateTime.UtcNow;
-
-            var pushContactHistoryEvents = sendMessageResult
-                .SendMessageTargetResult?
-                .Select(x => new PushContactHistoryEvent
-                {
-                    DeviceToken = x.TargetDeviceToken,
-                    SentSuccess = x.IsSuccess,
-                    EventDate = now,
-                    Details = x.NotSuccessErrorDetails,
-                    MessageId = messageId
-                });
-
-            if (pushContactHistoryEvents != null && pushContactHistoryEvents.Any())
-            {
-                // TODO: registering in historyevents isn't scalable. If it's necessary consider an alternative. Otherwise, delete it.
-                //await AddHistoryEventsAsync(pushContactHistoryEvents);
             }
         }
 

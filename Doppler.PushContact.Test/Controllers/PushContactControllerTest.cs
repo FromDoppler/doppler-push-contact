@@ -2464,7 +2464,7 @@ namespace Doppler.PushContact.Test.Controllers
             var response = await client.SendAsync(request);
 
             // Assert
-            pushContactServiceMock.Verify(x => x.AddHistoryEventsAndMarkDeletedContactsAsync(It.IsAny<Guid>(), sendMessageResult), Times.Once());
+            pushContactServiceMock.Verify(x => x.MarkDeletedContactsAsync(It.IsAny<Guid>(), sendMessageResult), Times.Once());
         }
 
         [Fact]

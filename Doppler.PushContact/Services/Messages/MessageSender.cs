@@ -179,7 +179,7 @@ namespace Doppler.PushContact.Services.Messages
                     authenticationApiToken
                 );
 
-                await _pushContactService.AddHistoryEventsAndMarkDeletedContactsAsync(webPushDTO.MessageId, sendMessageResult);
+                await _pushContactService.MarkDeletedContactsAsync(webPushDTO.MessageId, sendMessageResult);
 
                 await _webPushEventService.RegisterWebPushEventsAsync(webPushDTO.Domain, webPushDTO.MessageId, sendMessageResult);
 
