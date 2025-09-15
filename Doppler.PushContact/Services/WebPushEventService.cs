@@ -5,6 +5,7 @@ using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services.Messages;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -103,6 +104,45 @@ namespace Doppler.PushContact.Services
             var consumedFromMessages = await _messageRepository.GetMessageSends(domain, dateFrom, dateTo);
 
             return consumedFromWebPushEvents + consumedFromMessages;
+        }
+
+        public async Task RegisterWebPushEventsAsync(string domain, Guid messageId, SendMessageResult sendMessageResult)
+        {
+            if (sendMessageResult == null)
+            {
+                return;
+            }
+
+            var webPushEvents = sendMessageResult.SendMessageTargetResult?
+                .Select(sendResult => new WebPushEvent
+                    {
+                        Domain = domain,
+                        MessageId = messageId,
+                        DeviceToken = sendResult.TargetDeviceToken,
+                        Date = DateTime.UtcNow,
+                        Type = sendResult.IsSuccess ? (int)WebPushEventType.Delivered : (int)WebPushEventType.DeliveryFailed,
+                        SubType = sendResult.IsSuccess ? (int)WebPushEventSubType.None :
+                            sendResult.IsValidTargetDeviceToken ? (int)WebPushEventSubType.UnknownFailure : (int)WebPushEventSubType.InvalidSubcription,
+                        ErrorMessage = sendResult.NotSuccessErrorDetails,
+                    }
+                );
+
+            if (webPushEvents != null && webPushEvents.Any())
+            {
+                try
+                {
+                    await _webPushEventRepository.BulkInsertAsync(webPushEvents);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Unexpected error while registering WebPushEvents for domain: {domain}, messageId: {messageId}.",
+                        domain,
+                        messageId
+                    );
+                }
+            }
         }
     }
 }

@@ -17,6 +17,7 @@ namespace Doppler.PushContact.Services.Messages
         private readonly IPushApiTokenGetter _pushApiTokenGetter;
         private readonly IMessageRepository _messageRepository;
         private readonly IPushContactService _pushContactService;
+        private readonly IWebPushEventService _webPushEventService;
         private readonly ILogger<MessageSender> _logger;
 
         public MessageSender(
@@ -24,6 +25,7 @@ namespace Doppler.PushContact.Services.Messages
             IPushApiTokenGetter pushApiTokenGetter,
             IMessageRepository messageRepository,
             IPushContactService pushContactService,
+            IWebPushEventService webPushEventService,
             ILogger<MessageSender> logger
         )
         {
@@ -31,6 +33,7 @@ namespace Doppler.PushContact.Services.Messages
             _pushApiTokenGetter = pushApiTokenGetter;
             _messageRepository = messageRepository;
             _pushContactService = pushContactService;
+            _webPushEventService = webPushEventService;
             _logger = logger;
         }
 
@@ -177,6 +180,8 @@ namespace Doppler.PushContact.Services.Messages
                 );
 
                 await _pushContactService.AddHistoryEventsAndMarkDeletedContactsAsync(webPushDTO.MessageId, sendMessageResult);
+
+                await _webPushEventService.RegisterWebPushEventsAsync(webPushDTO.Domain, webPushDTO.MessageId, sendMessageResult);
 
                 await RegisterStatisticsAsync(webPushDTO.MessageId, sendMessageResult);
             }
