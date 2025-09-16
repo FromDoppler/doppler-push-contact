@@ -112,16 +112,16 @@ namespace Doppler.PushContact.Services
 
             var webPushEvents = sendMessageResult.SendMessageTargetResult?
                 .Select(sendResult => new WebPushEvent
-                    {
-                        Domain = domain,
-                        MessageId = messageId,
-                        DeviceToken = sendResult.TargetDeviceToken,
-                        Date = DateTime.UtcNow,
-                        Type = sendResult.IsSuccess ? (int)WebPushEventType.Delivered : (int)WebPushEventType.DeliveryFailed,
-                        SubType = sendResult.IsSuccess ? (int)WebPushEventSubType.None :
+                {
+                    Domain = domain,
+                    MessageId = messageId,
+                    DeviceToken = sendResult.TargetDeviceToken,
+                    Date = DateTime.UtcNow,
+                    Type = sendResult.IsSuccess ? (int)WebPushEventType.Delivered : (int)WebPushEventType.DeliveryFailed,
+                    SubType = sendResult.IsSuccess ? (int)WebPushEventSubType.None :
                             sendResult.IsValidTargetDeviceToken ? (int)WebPushEventSubType.UnknownFailure : (int)WebPushEventSubType.InvalidSubcription,
-                        ErrorMessage = sendResult.NotSuccessErrorDetails,
-                    }
+                    ErrorMessage = sendResult.NotSuccessErrorDetails,
+                }
                 );
 
             if (webPushEvents != null && webPushEvents.Any())
