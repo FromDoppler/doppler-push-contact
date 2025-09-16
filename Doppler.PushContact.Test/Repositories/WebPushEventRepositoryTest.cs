@@ -368,7 +368,7 @@ namespace Doppler.PushContact.Test.Repositories
                 x => x.Log(
                     LogLevel.Error,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((o, t) => o.ToString().Contains("Error summarizing 'WebPushEvents' for domain:")),
+                    It.Is<It.IsAnyType>((o, t) => o.ToString().Contains("Error summarizing billable 'WebPushEvents' for domain:")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception, string>>()),
                 Times.Once

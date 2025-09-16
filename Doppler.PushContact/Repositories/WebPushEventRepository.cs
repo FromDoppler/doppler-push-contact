@@ -135,42 +135,55 @@ namespace Doppler.PushContact.Repositories
         {
             try
             {
-                var filter = Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq(WebPushEventDocumentProps.Domain_PropName, domain),
-                    Builders<BsonDocument>.Filter.Gte(WebPushEventDocumentProps.Date_PropName, new BsonDateTime(dateFrom.UtcDateTime)),
-                    Builders<BsonDocument>.Filter.Lte(WebPushEventDocumentProps.Date_PropName, new BsonDateTime(dateTo.UtcDateTime))
-                );
+                var from = new BsonDateTime(dateFrom.UtcDateTime);
+                var to = new BsonDateTime(dateTo.UtcDateTime);
 
-                // define conditions for "consumed" (it is "Delivered", or "DeliveryFailed" with sub_type "InvalidSubcription")
-                var consumedCondition = new BsonDocument("$or", new BsonArray
+                var baseDomainDateFilter = new BsonDocument
                 {
-                    new BsonDocument("$eq", new BsonArray {
-                        "$" + WebPushEventDocumentProps.Type_PropName, (int)WebPushEventType.Delivered
-                    }),
-
-                    new BsonDocument("$and", new BsonArray
+                    { WebPushEventDocumentProps.Domain_PropName, domain },
                     {
-                        new BsonDocument("$eq", new BsonArray {
-                            "$" + WebPushEventDocumentProps.Type_PropName, (int)WebPushEventType.DeliveryFailed
-                        }),
-                        new BsonDocument("$eq", new BsonArray {
-                            "$" + WebPushEventDocumentProps.SubType_PropName, (int)WebPushEventSubType.InvalidSubcription
-                        })
-                    })
-                });
+                        WebPushEventDocumentProps.Date_PropName,
+                        new BsonDocument { { "$gte", from }, { "$lte", to } }
+                    }
+                };
+
+                var deliveredMatch = new BsonDocument(baseDomainDateFilter)
+                {
+                    { WebPushEventDocumentProps.Type_PropName, (int)WebPushEventType.Delivered }
+                };
+
+                var deliveryFailedMatch = new BsonDocument(baseDomainDateFilter)
+                {
+                    { WebPushEventDocumentProps.Type_PropName, (int)WebPushEventType.DeliveryFailed },
+                    { WebPushEventDocumentProps.SubType_PropName, (int)WebPushEventSubType.InvalidSubcription }
+                };
+
+                var unionStage = new BsonDocument
+                {
+                    {
+                        "$unionWith",
+                        new BsonDocument
+                        {
+                            { "coll", "webPushEvent" },
+                            {
+                                "pipeline", new BsonArray
+                                {
+                                    new BsonDocument("$match", deliveryFailedMatch),
+                                    new BsonDocument("$project", new BsonDocument("_id", 1))
+                                }
+                            }
+                        }
+                    }
+                };
 
                 var pipeline = WebPushEvents.Aggregate()
-                    .Match(filter)
+                    .Match(deliveredMatch)
+                    .Project(new BsonDocument("_id", 1))
+                    .AppendStage<BsonDocument>(unionStage)
                     .Group(new BsonDocument
                     {
                         { "_id", BsonNull.Value },
-                        { "Consumed", new BsonDocument("$sum", new BsonDocument("$cond", new BsonArray
-                            {
-                                consumedCondition,
-                                1,
-                                0
-                            })
-                        )}
+                        { "Consumed", new BsonDocument("$sum", 1) }
                     });
 
                 var result = await pipeline.FirstOrDefaultAsync();
@@ -181,7 +194,7 @@ namespace Doppler.PushContact.Repositories
             {
                 _logger.LogError(
                     ex,
-                    "Error summarizing 'WebPushEvents' for domain: {domain}, from: {DateFrom}, to: {DateTo}.",
+                    "Error summarizing billable 'WebPushEvents' for domain: {domain}, from: {DateFrom}, to: {DateTo}.",
                     domain,
                     dateFrom.UtcDateTime,
                     dateTo.UtcDateTime

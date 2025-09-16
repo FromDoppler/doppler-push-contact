@@ -289,31 +289,24 @@ namespace Doppler.PushContact.Test.Services
             var to = DateTimeOffset.UtcNow;
 
             var webPushEventsConsumed = 10;
-            var messageConsumed = 20;
 
             var mockPushContactService = new Mock<IPushContactService>();
-            var mockMessageRepository = new Mock<IMessageRepository>();
             var mockWebPushEventRepository = new Mock<IWebPushEventRepository>();
 
             mockWebPushEventRepository
                 .Setup(repo => repo.GetWebPushEventConsumed(domain, from, to))
                 .ReturnsAsync(webPushEventsConsumed);
 
-            mockMessageRepository
-                .Setup(repo => repo.GetMessageSends(domain, from, to))
-                .ReturnsAsync(messageConsumed);
-
             var sut = CreateSut(
                 webPushEventRepository: mockWebPushEventRepository.Object,
-                pushContactService: mockPushContactService.Object,
-                messageRepository: mockMessageRepository.Object
+                pushContactService: mockPushContactService.Object
             );
 
             // Act
             var consumedResult = await sut.GetWebPushEventConsumed(domain, from, to);
 
             // Assert
-            Assert.Equal(webPushEventsConsumed + messageConsumed, consumedResult);
+            Assert.Equal(webPushEventsConsumed, consumedResult);
         }
     }
 }

@@ -3513,7 +3513,7 @@ namespace Doppler.PushContact.Test.Controllers
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
-        [Fact]
+        [Fact(Skip = "It doesn't apply anymore. Now, the webpushevent's are not summarized.")]
         public async Task GetMessageDetails_should_return_ok_summarizing_webpushevents_and_message_stats_when_message_has_stats()
         {
             // Arrange

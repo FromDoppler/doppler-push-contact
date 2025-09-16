@@ -60,10 +60,23 @@ namespace Doppler.PushContact.WebPushSender.Repositories.Setup
                     .Ascending(WebPushEventDocumentProps.SubType_PropName)
             );
 
+            var index_Domain_Date_Type = new CreateIndexModel<BsonDocument>(
+                indexKeysDefinitionBuilder
+                    .Ascending(WebPushEventDocumentProps.Domain_PropName)
+                    .Ascending(WebPushEventDocumentProps.Date_PropName)
+                    .Ascending(WebPushEventDocumentProps.Type_PropName)
+            );
+
+            var index_DeviceToken = new CreateIndexModel<BsonDocument>(
+                indexKeysDefinitionBuilder.Ascending(WebPushEventDocumentProps.DeviceToken_PropName)
+            );
+
             webPushEventCollection.Indexes.CreateMany([
                 indexModelPushContactId,
                 indexModelMessageIdAndType,
                 indexModel_Domain_Date_Type_SubType,
+                index_Domain_Date_Type,
+                index_DeviceToken,
             ]);
         }
     }
