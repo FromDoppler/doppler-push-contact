@@ -59,6 +59,7 @@ namespace Doppler.PushContact.Services.Messages
                 { MessageDocumentProps.SentPropName, sent },
                 { MessageDocumentProps.DeliveredPropName, delivered },
                 { MessageDocumentProps.NotDeliveredPropName, notDelivered },
+                { MessageDocumentProps.BillableSendsPropName, 0 },
                 { MessageDocumentProps.ImageUrlPropName, string.IsNullOrEmpty(imageUrl) ? BsonNull.Value : imageUrl},
                 { MessageDocumentProps.InsertedDatePropName, now }
             };
@@ -94,7 +95,7 @@ namespace Doppler.PushContact.Services.Messages
             await UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered, billableSends);
         }
 
-        // TODO: redefine as private when the endpoint accessing this is removed (maybe remove to UpdateDeliveriesSafe)
+        // TODO: redefine as private when the endpoint accessing this is removed (maybe rename to UpdateDeliveriesSafe)
         public async Task UpdateDeliveriesAsync(Guid messageId, int sent, int delivered, int notDelivered, int billableSends = 0)
         {
             var filterDefinition = Builders<BsonDocument>.Filter
