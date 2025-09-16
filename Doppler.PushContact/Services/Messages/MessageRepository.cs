@@ -75,7 +75,6 @@ namespace Doppler.PushContact.Services.Messages
             }
         }
 
-        // TODO: registrar la cantidad de consumos facturables aca, y luego obtener el dato desde el mensaje?
         public async Task RegisterStatisticsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents)
         {
             if (webPushEvents == null || !webPushEvents.Any())
@@ -87,11 +86,16 @@ namespace Doppler.PushContact.Services.Messages
             var delivered = webPushEvents.Count(x => x.Type == (int)WebPushEventType.Delivered);
             var notDelivered = sent - delivered;
 
-            await UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered);
+            var billableSends = webPushEvents.Count(x =>
+                x.Type == (int)WebPushEventType.Delivered ||
+                (x.Type == (int)WebPushEventType.DeliveryFailed && x.SubType == (int)WebPushEventSubType.InvalidSubcription)
+            );
+
+            await UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered, billableSends);
         }
 
         // TODO: redefine as private when the endpoint accessing this is removed (maybe remove to UpdateDeliveriesSafe)
-        public async Task UpdateDeliveriesAsync(Guid messageId, int sent, int delivered, int notDelivered)
+        public async Task UpdateDeliveriesAsync(Guid messageId, int sent, int delivered, int notDelivered, int billableSends = 0)
         {
             var filterDefinition = Builders<BsonDocument>.Filter
                 .Eq(MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard));
@@ -99,7 +103,8 @@ namespace Doppler.PushContact.Services.Messages
             var updateDefinition = Builders<BsonDocument>.Update
                 .Inc(MessageDocumentProps.SentPropName, sent)
                 .Inc(MessageDocumentProps.DeliveredPropName, delivered)
-                .Inc(MessageDocumentProps.NotDeliveredPropName, notDelivered);
+                .Inc(MessageDocumentProps.NotDeliveredPropName, notDelivered)
+                .Inc(MessageDocumentProps.BillableSendsPropName, billableSends);
 
             try
             {

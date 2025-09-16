@@ -26,17 +26,20 @@ namespace Doppler.PushContact.WebPushSender.Repositories
             _logger = logger;
         }
 
-        // TODO: registrar la cantidad de consumos facturables aca, y luego obtener el dato desde el mensaje?
         public async Task RegisterStatisticsAsync(Guid messageId, WebPushEvent webPushEvent)
         {
             var sent = 1;
             var delivered = webPushEvent.Type == (int)WebPushEventType.Delivered ? 1 : 0;
             var notDelivered = sent - delivered;
 
-            await UpdateDeliveriesSafe(messageId, sent, delivered, notDelivered);
+            var billableSends =
+                webPushEvent.Type == (int)WebPushEventType.Delivered ||
+                (webPushEvent.Type == (int)WebPushEventType.DeliveryFailed && webPushEvent.SubType == (int)WebPushEventSubType.InvalidSubcription) ? 1 : 0;
+
+            await UpdateDeliveriesSafe(messageId, sent, delivered, notDelivered, billableSends);
         }
 
-        private async Task UpdateDeliveriesSafe(Guid messageId, int sent, int delivered, int notDelivered)
+        private async Task UpdateDeliveriesSafe(Guid messageId, int sent, int delivered, int notDelivered, int billableSends)
         {
             var filterDefinition = Builders<BsonDocument>.Filter
                 .Eq(MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard));
@@ -44,7 +47,8 @@ namespace Doppler.PushContact.WebPushSender.Repositories
             var updateDefinition = Builders<BsonDocument>.Update
                 .Inc(MessageDocumentProps.SentPropName, sent)
                 .Inc(MessageDocumentProps.DeliveredPropName, delivered)
-                .Inc(MessageDocumentProps.NotDeliveredPropName, notDelivered);
+                .Inc(MessageDocumentProps.NotDeliveredPropName, notDelivered)
+                .Inc(MessageDocumentProps.BillableSendsPropName, billableSends);
 
             try
             {

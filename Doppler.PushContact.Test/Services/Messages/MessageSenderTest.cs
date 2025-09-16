@@ -417,7 +417,7 @@ namespace Doppler.PushContact.Test.Services.Messages
             // Assert
             // verify that none the involved services were called
             mockPushApiTokenGetter.Verify(x => x.GetTokenAsync(), Times.Never);
-            mockMessageRepository.Verify(x => x.UpdateDeliveriesAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+            mockMessageRepository.Verify(x => x.RegisterStatisticsAsync(It.IsAny<Guid>(), It.IsAny<IEnumerable<WebPushEvent>>()), Times.Never);
             mockPushContactService.Verify(x => x.MarkDeletedContactsAsync(It.IsAny<Guid>(), It.IsAny<SendMessageResult>()), Times.Never);
             mockWebPushEventService.Verify(x => x.RegisterWebPushEventsAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<SendMessageResult>()), Times.Never);
             httpTest.ShouldNotHaveMadeACall();

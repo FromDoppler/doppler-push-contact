@@ -11,6 +11,7 @@ namespace Doppler.PushContact.Services
 {
     public interface IWebPushEventService
     {
+        // TODO: revisar este conteo
         Task<WebPushEventSummarizationDTO> GetWebPushEventSummarizationAsync(Guid messageId);
         Task<bool> RegisterWebPushEventAsync(
             string contactId,
@@ -18,6 +19,7 @@ namespace Doppler.PushContact.Services
             WebPushEventType type,
             CancellationToken cancellationToken
         );
+        // TODO: revisar este conteo
         Task<int> GetWebPushEventConsumed(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo);
         Task<IEnumerable<WebPushEvent>> RegisterWebPushEventsAsync(string domain, Guid messageId, SendMessageResult sendMessageResult);
     }

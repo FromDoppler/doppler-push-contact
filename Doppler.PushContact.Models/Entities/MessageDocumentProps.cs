@@ -23,5 +23,7 @@ namespace Doppler.PushContact.Models.Entities
         public const string InsertedDatePropName = "inserted_date";
 
         public const string ImageUrlPropName = "image_url";
+
+        public const string BillableSendsPropName = "billable_sends";
     }
 }
