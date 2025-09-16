@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using System;
 
 namespace Doppler.PushContact.WebPushSender.Repositories.Setup
 {
@@ -72,12 +73,21 @@ namespace Doppler.PushContact.WebPushSender.Repositories.Setup
                 indexKeysDefinitionBuilder.Ascending(WebPushEventDocumentProps.DeviceToken_PropName)
             );
 
+            var index_Date_TTL = new CreateIndexModel<BsonDocument>(
+                indexKeysDefinitionBuilder.Ascending(WebPushEventDocumentProps.Date_PropName),
+                new CreateIndexOptions
+                {
+                    ExpireAfter = TimeSpan.FromDays(180)
+                }
+            );
+
             webPushEventCollection.Indexes.CreateMany([
                 indexModelPushContactId,
                 indexModelMessageIdAndType,
                 indexModel_Domain_Date_Type_SubType,
                 index_Domain_Date_Type,
                 index_DeviceToken,
+                index_Date_TTL,
             ]);
         }
     }
