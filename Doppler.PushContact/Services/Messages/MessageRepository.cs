@@ -1,4 +1,5 @@
 using Doppler.PushContact.ApiModels;
+using Doppler.PushContact.Models.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;

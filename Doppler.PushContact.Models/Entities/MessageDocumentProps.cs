@@ -1,4 +1,4 @@
-namespace Doppler.PushContact.Services.Messages
+namespace Doppler.PushContact.Models.Entities
 {
     public static class MessageDocumentProps
     {

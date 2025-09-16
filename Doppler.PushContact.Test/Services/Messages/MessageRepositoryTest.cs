@@ -12,6 +12,7 @@ using System.Threading;
 using System;
 using Xunit;
 using MongoDB.Bson.Serialization;
+using Doppler.PushContact.Models.Entities;
 
 namespace Doppler.PushContact.Test.Services.Messages
 {
