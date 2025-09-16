@@ -32,6 +32,7 @@ namespace Doppler.PushContact.WebPushSender.Repositories.Setup
 
             services.AddScoped<IWebPushEventRepository, WebPushEventRepository>();
             services.AddScoped<IPushContactRepository, PushContactRepository>();
+            services.AddScoped<IMessageRepository, MessageRepository>();
 
             return services;
         }
