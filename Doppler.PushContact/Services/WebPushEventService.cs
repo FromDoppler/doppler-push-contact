@@ -5,6 +5,7 @@ using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services.Messages;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -106,11 +107,11 @@ namespace Doppler.PushContact.Services
             return consumedFromWebPushEvents + consumedFromMessages;
         }
 
-        public async Task RegisterWebPushEventsAsync(string domain, Guid messageId, SendMessageResult sendMessageResult)
+        public async Task<IEnumerable<WebPushEvent>> RegisterWebPushEventsAsync(string domain, Guid messageId, SendMessageResult sendMessageResult)
         {
             if (sendMessageResult == null)
             {
-                return;
+                return null;
             }
 
             var webPushEvents = sendMessageResult.SendMessageTargetResult?
@@ -142,7 +143,11 @@ namespace Doppler.PushContact.Services
                         messageId
                     );
                 }
+
+                return webPushEvents;
             }
+
+            return null;
         }
     }
 }

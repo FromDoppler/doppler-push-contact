@@ -1,7 +1,9 @@
 using Doppler.PushContact.DTOs;
+using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.Services.Messages;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,6 +19,6 @@ namespace Doppler.PushContact.Services
             CancellationToken cancellationToken
         );
         Task<int> GetWebPushEventConsumed(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo);
-        Task RegisterWebPushEventsAsync(string domain, Guid messageId, SendMessageResult sendMessageResult);
+        Task<IEnumerable<WebPushEvent>> RegisterWebPushEventsAsync(string domain, Guid messageId, SendMessageResult sendMessageResult);
     }
 }

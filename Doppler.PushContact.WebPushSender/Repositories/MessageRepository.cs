@@ -30,12 +30,7 @@ namespace Doppler.PushContact.WebPushSender.Repositories
         {
             var sent = 1;
             var delivered = webPushEvent.Type == (int)WebPushEventType.Delivered ? 1 : 0;
-
-            // TODO: consider re-analyze summarization when ProcessingFailed and DeliveryFailedButRetry will be treated
-            var notDelivered =
-                webPushEvent.Type == (int)WebPushEventType.ProcessingFailed ||
-                webPushEvent.Type == (int)WebPushEventType.DeliveryFailed ||
-                webPushEvent.Type == (int)WebPushEventType.DeliveryFailedButRetry ? 1 : 0;
+            var notDelivered = sent - delivered;
 
             await UpdateDeliveriesSafe(messageId, sent, delivered, notDelivered);
         }

@@ -1,10 +1,12 @@
 using Doppler.PushContact.ApiModels;
 using Doppler.PushContact.Models.Entities;
+using Doppler.PushContact.Models.Enums;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -73,6 +75,21 @@ namespace Doppler.PushContact.Services.Messages
             }
         }
 
+        public async Task RegisterStatisticsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents)
+        {
+            if (webPushEvents == null || !webPushEvents.Any())
+            {
+                return;
+            }
+
+            var sent = webPushEvents.Count();
+            var delivered = webPushEvents.Count(x => x.Type == (int)WebPushEventType.Delivered);
+            var notDelivered = sent - delivered;
+
+            await UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered);
+        }
+
+        // TODO: redefine as private when the endpoint accessing this is removed (maybe remove to UpdateDeliveriesSafe)
         public async Task UpdateDeliveriesAsync(Guid messageId, int sent, int delivered, int notDelivered)
         {
             var filterDefinition = Builders<BsonDocument>.Filter

@@ -1,5 +1,6 @@
 using AutoFixture;
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Services.Messages;
 using Doppler.PushContact.Services.Messages.ExternalContracts;
@@ -7,7 +8,6 @@ using Flurl.Http;
 using Flurl.Http.Testing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MongoDB.Bson;
 using MongoDB.Driver;
 using Moq;
 using System;
@@ -538,7 +538,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                 .WithVerb(HttpMethod.Post)
                 .Times(1);
             mockPushContactService.Verify(x => x.MarkDeletedContactsAsync(webPushDTO.MessageId, It.IsAny<SendMessageResult>()), Times.Once);
-            mockMessageRepository.Verify(x => x.UpdateDeliveriesAsync(webPushDTO.MessageId, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()), Times.Once);
+            mockMessageRepository.Verify(x => x.RegisterStatisticsAsync(webPushDTO.MessageId, It.IsAny<IEnumerable<WebPushEvent>>()), Times.Once);
             mockWebPushEventService.Verify(x => x.RegisterWebPushEventsAsync(webPushDTO.Domain, webPushDTO.MessageId, It.IsAny<SendMessageResult>()), Times.Once);
         }
 

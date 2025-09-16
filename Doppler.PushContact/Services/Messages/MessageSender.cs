@@ -181,9 +181,9 @@ namespace Doppler.PushContact.Services.Messages
 
                 await _pushContactService.MarkDeletedContactsAsync(webPushDTO.MessageId, sendMessageResult);
 
-                await _webPushEventService.RegisterWebPushEventsAsync(webPushDTO.Domain, webPushDTO.MessageId, sendMessageResult);
+                var webPushEvents = await _webPushEventService.RegisterWebPushEventsAsync(webPushDTO.Domain, webPushDTO.MessageId, sendMessageResult);
 
-                await RegisterStatisticsAsync(webPushDTO.MessageId, sendMessageResult);
+                await _messageRepository.RegisterStatisticsAsync(webPushDTO.MessageId, webPushEvents);
             }
             catch (ArgumentException argEx)
             {
@@ -203,15 +203,6 @@ namespace Doppler.PushContact.Services.Messages
                     webPushDTO.MessageId
                 );
             }
-        }
-
-        private async Task RegisterStatisticsAsync(Guid messageId, SendMessageResult sendMessageResult)
-        {
-            var sent = sendMessageResult.SendMessageTargetResult.Count();
-            var delivered = sendMessageResult.SendMessageTargetResult.Count(x => x.IsSuccess);
-            var notDelivered = sent - delivered;
-
-            await _messageRepository.UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered);
         }
     }
 }
