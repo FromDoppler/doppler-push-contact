@@ -75,6 +75,7 @@ namespace Doppler.PushContact.Services.Messages
             }
         }
 
+        // TODO: registrar la cantidad de consumos facturables aca, y luego obtener el dato desde el mensaje?
         public async Task RegisterStatisticsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents)
         {
             if (webPushEvents == null || !webPushEvents.Any())
@@ -115,7 +116,6 @@ namespace Doppler.PushContact.Services.Messages
             var filterBuilder = Builders<BsonDocument>.Filter;
 
             var filter = filterBuilder.Eq(MessageDocumentProps.DomainPropName, domain);
-
             filter &= filterBuilder.Eq(MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard));
 
             try

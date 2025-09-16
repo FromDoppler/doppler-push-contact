@@ -26,6 +26,7 @@ namespace Doppler.PushContact.WebPushSender.Repositories
             _logger = logger;
         }
 
+        // TODO: registrar la cantidad de consumos facturables aca, y luego obtener el dato desde el mensaje?
         public async Task RegisterStatisticsAsync(Guid messageId, WebPushEvent webPushEvent)
         {
             var sent = 1;
