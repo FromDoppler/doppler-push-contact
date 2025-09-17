@@ -3671,6 +3671,140 @@ namespace Doppler.PushContact.Test.Controllers
             Assert.Equal(messageDeliveryResults.NotDelivered + webPushEventsSummarization.NotDelivered, result.NotDelivered);
         }
 
+        [Fact]
+        public async Task GetMessageDetails_should_return_ok_returning_message_stats()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+
+            var messageDetailsWithStats = new MessageDetails()
+            {
+                MessageId = messageId,
+                Domain = domain,
+                Sent = 10,
+                Delivered = 9,
+                NotDelivered = 1,
+            };
+
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            messageRepositoryMock
+                .Setup(mr => mr.GetMessageDetailsAsync(domain, messageId))
+                .ReturnsAsync(messageDetailsWithStats);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var from = DateTime.UtcNow.AddDays(-1);
+            var to = DateTime.UtcNow;
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"push-contacts/{domain}/messages/{messageId}/details?from={from}&to={to}")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.EnsureSuccessStatusCode(); // Check if the status code is 2xx
+
+            var result = await response.Content.ReadFromJsonAsync<MessageDetailsResponse>();
+
+            Assert.Equal(domain, result.Domain);
+            Assert.Equal(messageId, result.MessageId);
+            Assert.Equal(messageDetailsWithStats.Sent, result.Sent);
+            Assert.Equal(messageDetailsWithStats.Delivered, result.Delivered);
+            Assert.Equal(messageDetailsWithStats.NotDelivered, result.NotDelivered);
+        }
+
+        [Fact]
+        public async Task GetMessageDetails_should_return_ok_but_results_in_zero_when_service_throws_exception()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+
+            var exceptionMessage = "testing exception";
+
+            var messageDetailsWithStatsEmpty = new MessageDetails()
+            {
+                MessageId = messageId,
+                Domain = domain,
+                Sent = 0,
+                Delivered = 0,
+                NotDelivered = 0,
+            };
+
+            var pushContactServiceMock = new Mock<IPushContactService>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var loggerMock = new Mock<ILogger<PushContactController>>();
+
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            messageRepositoryMock
+                .Setup(mr => mr.GetMessageDetailsAsync(domain, messageId))
+                .ThrowsAsync(new Exception(exceptionMessage));
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactServiceMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var from = DateTime.UtcNow.AddDays(-1);
+            var to = DateTime.UtcNow;
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"push-contacts/{domain}/messages/{messageId}/details?from={from}&to={to}")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.EnsureSuccessStatusCode(); // Check if the status code is 2xx
+
+            var result = await response.Content.ReadFromJsonAsync<MessageDetailsResponse>();
+
+            Assert.Equal(domain, result.Domain);
+            Assert.Equal(messageId, result.MessageId);
+            Assert.Equal(messageDetailsWithStatsEmpty.Sent, result.Sent);
+            Assert.Equal(messageDetailsWithStatsEmpty.Delivered, result.Delivered);
+            Assert.Equal(messageDetailsWithStatsEmpty.NotDelivered, result.NotDelivered);
+
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("An unexpected error occurred obtaining message details.")),
+                    It.Is<Exception>(e => e.Message == exceptionMessage),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
+        }
+
         [Theory(Skip = "avoid intermittent problems with EncryptionHelper/Decrypt")]
         [InlineData(
             "66291accdc3ab636288af4ab",
