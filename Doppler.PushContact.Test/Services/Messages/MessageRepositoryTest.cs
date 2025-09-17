@@ -364,5 +364,72 @@ namespace Doppler.PushContact.Test.Services.Messages
                 Times.Once
             );
         }
+
+        public static IEnumerable<object[]> GetEmptyWebPushEventsList()
+        {
+            yield return new object[] { null };
+            yield return new object[] { new List<WebPushEvent>() };
+        }
+
+        [Theory]
+        [MemberData(nameof(GetEmptyWebPushEventsList))]
+        public async Task RegisterStatisticsAsync_ShouldReturnWithoutInvokeDB_WhenWebPushEventsIsEmpty(List<WebPushEvent> webPushEvents)
+        {
+            // Arrange
+            Fixture fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+
+            var sut = CreateSut(collectionMock.Object);
+
+            // Act
+            await sut.RegisterStatisticsAsync(messageId, webPushEvents);
+
+            // Assert
+            collectionMock.Verify(c =>
+                c.UpdateOneAsync(
+                    It.IsAny<FilterDefinition<BsonDocument>>(),
+                    It.IsAny<UpdateDefinition<BsonDocument>>(),
+                    null,
+                    It.IsAny<CancellationToken>()
+                ),
+                Times.Never);
+        }
+
+        [Fact]
+        public async Task RegisterStatisticsAsync_ShouldReturnTrue_WhenInsertSucceeds()
+        {
+            // Arrange
+            Fixture fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var webPushEvent1 = new WebPushEvent
+            {
+                PushContactId = fixture.Create<string>(),
+                MessageId = fixture.Create<Guid>(),
+                Type = fixture.Create<int>(),
+                Date = fixture.Create<DateTime>(),
+            };
+
+            var webPushEvents = new List<WebPushEvent>() { webPushEvent1 };
+
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+
+            var sut = CreateSut(collectionMock.Object);
+
+            // Act
+            await sut.RegisterStatisticsAsync(messageId, webPushEvents);
+
+            // Assert
+            collectionMock.Verify(c =>
+                c.UpdateOneAsync(
+                    It.IsAny<FilterDefinition<BsonDocument>>(),
+                    It.IsAny<UpdateDefinition<BsonDocument>>(),
+                    null,
+                    It.IsAny<CancellationToken>()
+                ),
+                Times.Once);
+        }
     }
 }
