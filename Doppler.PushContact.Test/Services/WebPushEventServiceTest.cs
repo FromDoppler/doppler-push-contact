@@ -8,6 +8,8 @@ using Doppler.PushContact.Services.Messages;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -307,6 +309,172 @@ namespace Doppler.PushContact.Test.Services
 
             // Assert
             Assert.Equal(webPushEventsConsumed, consumedResult);
+        }
+
+        public static IEnumerable<object[]> GetInvalidSendMessageResults()
+        {
+            yield return new object[] { null };
+            yield return new object[] { new SendMessageResult { SendMessageTargetResult = null } };
+            yield return new object[] { new SendMessageResult { SendMessageTargetResult = new List<SendMessageTargetResult>() } };
+        }
+
+        [Theory]
+        [MemberData(nameof(GetInvalidSendMessageResults))]
+        public async Task RegisterWebPushEventsAsync_ShouldReturnNull_WhenSendMessageResultsIsNullOrEmpty(SendMessageResult sendMessageResult)
+        {
+            // Arrange
+            Fixture fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+
+            var sut = CreateSut();
+
+            // Act
+            var result = await sut.RegisterWebPushEventsAsync(domain, messageId, sendMessageResult);
+
+            // Assert
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public async Task RegisterWebPushEventsAsync_ShouldReturnWebPushEvents_WhenSendMessageResultsHaveElements()
+        {
+            // Arrange
+            Fixture fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+            var deviceTokenValid = fixture.Create<string>();
+            var deviceTokenInvalid = fixture.Create<string>();
+            var deviceTokenWithUnknownFailure = fixture.Create<string>();
+            var errorMessageInvalidToken = "invalid token";
+            var errorMessageUnknownFailure = "unknown failure";
+
+            var sendMessageResult = new SendMessageResult()
+            {
+                SendMessageTargetResult = new List<SendMessageTargetResult>()
+                {
+                    new SendMessageTargetResult()
+                    {
+                        IsSuccess = true,
+                        IsValidTargetDeviceToken = true,
+                        TargetDeviceToken = deviceTokenValid,
+                        NotSuccessErrorDetails = string.Empty,
+                    },
+                    new SendMessageTargetResult()
+                    {
+                        IsSuccess = false,
+                        IsValidTargetDeviceToken = false,
+                        TargetDeviceToken = deviceTokenInvalid,
+                        NotSuccessErrorDetails = errorMessageInvalidToken,
+                    },
+                    new SendMessageTargetResult()
+                    {
+                        IsSuccess = false,
+                        IsValidTargetDeviceToken = true,
+                        TargetDeviceToken = deviceTokenWithUnknownFailure,
+                        NotSuccessErrorDetails = errorMessageUnknownFailure,
+                    }
+                }
+            };
+
+            var mockWebPushEventRepository = new Mock<IWebPushEventRepository>();
+            mockWebPushEventRepository.Setup(mwpr => mwpr.BulkInsertAsync(It.IsAny<IEnumerable<WebPushEvent>>()));
+
+            var sut = CreateSut(
+                webPushEventRepository: mockWebPushEventRepository.Object
+            );
+
+            // Act
+            var result = (await sut.RegisterWebPushEventsAsync(domain, messageId, sendMessageResult)).ToList();
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(sendMessageResult.SendMessageTargetResult.Count(), result.Count());
+
+            // webPushEvent with DeviceToken valid
+            var webPushEventResult_DeviceTokenValid = result.FirstOrDefault(r => r.DeviceToken == deviceTokenValid);
+            Assert.Equal(domain, webPushEventResult_DeviceTokenValid.Domain);
+            Assert.Equal(messageId, webPushEventResult_DeviceTokenValid.MessageId);
+            Assert.Equal(deviceTokenValid, webPushEventResult_DeviceTokenValid.DeviceToken);
+            Assert.Null(webPushEventResult_DeviceTokenValid.PushContactId);
+            Assert.Equal((int)WebPushEventType.Delivered, webPushEventResult_DeviceTokenValid.Type);
+            Assert.Equal((int)WebPushEventSubType.None, webPushEventResult_DeviceTokenValid.SubType);
+            Assert.Equal(string.Empty, webPushEventResult_DeviceTokenValid.ErrorMessage);
+
+            // webPushEvent with DeviceToken invalid
+            var webPushEventResult_DeviceTokenInvalid = result.FirstOrDefault(r => r.DeviceToken == deviceTokenInvalid);
+            Assert.Equal(domain, webPushEventResult_DeviceTokenInvalid.Domain);
+            Assert.Equal(messageId, webPushEventResult_DeviceTokenInvalid.MessageId);
+            Assert.Equal(deviceTokenInvalid, webPushEventResult_DeviceTokenInvalid.DeviceToken);
+            Assert.Null(webPushEventResult_DeviceTokenValid.PushContactId);
+            Assert.Equal((int)WebPushEventType.DeliveryFailed, webPushEventResult_DeviceTokenInvalid.Type);
+            Assert.Equal((int)WebPushEventSubType.InvalidSubcription, webPushEventResult_DeviceTokenInvalid.SubType);
+            Assert.Equal(errorMessageInvalidToken, webPushEventResult_DeviceTokenInvalid.ErrorMessage);
+
+            // webPushEvent with DeviceToken with unknown failure
+            var webPushEventResult_DeviceTokenUnknownFailure = result.FirstOrDefault(r => r.DeviceToken == deviceTokenWithUnknownFailure);
+            Assert.Equal(domain, webPushEventResult_DeviceTokenUnknownFailure.Domain);
+            Assert.Equal(messageId, webPushEventResult_DeviceTokenUnknownFailure.MessageId);
+            Assert.Equal(deviceTokenWithUnknownFailure, webPushEventResult_DeviceTokenUnknownFailure.DeviceToken);
+            Assert.Null(webPushEventResult_DeviceTokenUnknownFailure.PushContactId);
+            Assert.Equal((int)WebPushEventType.DeliveryFailed, webPushEventResult_DeviceTokenUnknownFailure.Type);
+            Assert.Equal((int)WebPushEventSubType.UnknownFailure, webPushEventResult_DeviceTokenUnknownFailure.SubType);
+            Assert.Equal(errorMessageUnknownFailure, webPushEventResult_DeviceTokenUnknownFailure.ErrorMessage);
+        }
+
+        [Fact]
+        public async Task RegisterWebPushEventsAsync_ShouldLogError_ButReturnWebPushEvents_WhenServiceThrowAnException()
+        {
+            // Arrange
+            Fixture fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+            var deviceTokenValid = fixture.Create<string>();
+            var exceptionMessage = "Testing exception";
+
+            var sendMessageResult = new SendMessageResult()
+            {
+                SendMessageTargetResult = new List<SendMessageTargetResult>()
+                {
+                    new SendMessageTargetResult()
+                    {
+                        IsSuccess = true,
+                        IsValidTargetDeviceToken = true,
+                        TargetDeviceToken = deviceTokenValid,
+                        NotSuccessErrorDetails = string.Empty,
+                    }
+                }
+            };
+
+            var mockWebPushEventRepository = new Mock<IWebPushEventRepository>();
+            mockWebPushEventRepository
+                .Setup(mwpr => mwpr.BulkInsertAsync(It.IsAny<IEnumerable<WebPushEvent>>()))
+                .Throws(new Exception(exceptionMessage));
+
+            var mockLogger = new Mock<ILogger<WebPushEventService>>();
+
+            var sut = CreateSut(
+                webPushEventRepository: mockWebPushEventRepository.Object,
+                logger: mockLogger.Object
+            );
+
+            // Act
+            var result = (await sut.RegisterWebPushEventsAsync(domain, messageId, sendMessageResult)).ToList();
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(sendMessageResult.SendMessageTargetResult.Count(), result.Count());
+
+            mockLogger.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Unexpected error while registering WebPushEvents for domain:")),
+                    It.Is<Exception>(e => e.Message == exceptionMessage),
+                    (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()
+                ),
+                Times.Once
+            );
         }
     }
 }
