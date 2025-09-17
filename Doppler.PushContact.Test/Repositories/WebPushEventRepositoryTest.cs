@@ -368,11 +368,71 @@ namespace Doppler.PushContact.Test.Repositories
                 x => x.Log(
                     LogLevel.Error,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((o, t) => o.ToString().Contains("Error summarizing 'WebPushEvents' for domain:")),
+                    It.Is<It.IsAnyType>((o, t) => o.ToString().Contains("Error summarizing billable 'WebPushEvents' for domain:")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception, string>>()),
                 Times.Once
             );
+        }
+
+        [Fact]
+        public async Task BulkInsertAsync_ShouldReturnItemsInsertedQuantity_WhenInsertSucceeds()
+        {
+            var fixture = new Fixture();
+
+            // Arrange
+            var webPushEvent1 = new WebPushEvent
+            {
+                PushContactId = fixture.Create<string>(),
+                MessageId = fixture.Create<Guid>(),
+                Type = fixture.Create<int>(),
+                Date = fixture.Create<DateTime>(),
+            };
+
+            var webPushEvent2 = new WebPushEvent
+            {
+                PushContactId = fixture.Create<string>(),
+                MessageId = fixture.Create<Guid>(),
+                Type = fixture.Create<int>(),
+                Date = fixture.Create<DateTime>(),
+            };
+
+            var webPushEvents = new List<WebPushEvent>() { webPushEvent1, webPushEvent2 };
+
+            _mockCollection.Setup(c => c.InsertManyAsync(
+                It.IsAny<List<BsonDocument>>(),
+                new InsertManyOptions { IsOrdered = false },
+                It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var result = await _repository.BulkInsertAsync(webPushEvents);
+
+            // Assert
+            Assert.True(webPushEvents.Count == result);
+        }
+
+        public static IEnumerable<object[]> GetEmptyWebPushEventsList()
+        {
+            yield return new object[] { null };
+            yield return new object[] { new List<WebPushEvent>() };
+        }
+
+        [Theory]
+        [MemberData(nameof(GetEmptyWebPushEventsList))]
+        public async Task BulkInsertAsync_ShouldReturnZero_WhenWebPushEventsIsNullOrEmpty(List<WebPushEvent> webPushEvents)
+        {
+            _mockCollection.Setup(c => c.InsertManyAsync(
+                It.IsAny<List<BsonDocument>>(),
+                new InsertManyOptions { IsOrdered = false },
+                It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var result = await _repository.BulkInsertAsync(webPushEvents);
+
+            // Assert
+            Assert.True(0 == result);
         }
     }
 }

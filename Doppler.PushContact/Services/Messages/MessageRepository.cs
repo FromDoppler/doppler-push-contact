@@ -1,9 +1,12 @@
 using Doppler.PushContact.ApiModels;
+using Doppler.PushContact.Models.Entities;
+using Doppler.PushContact.Models.Enums;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -56,6 +59,7 @@ namespace Doppler.PushContact.Services.Messages
                 { MessageDocumentProps.SentPropName, sent },
                 { MessageDocumentProps.DeliveredPropName, delivered },
                 { MessageDocumentProps.NotDeliveredPropName, notDelivered },
+                { MessageDocumentProps.BillableSendsPropName, 0 },
                 { MessageDocumentProps.ImageUrlPropName, string.IsNullOrEmpty(imageUrl) ? BsonNull.Value : imageUrl},
                 { MessageDocumentProps.InsertedDatePropName, now }
             };
@@ -72,7 +76,27 @@ namespace Doppler.PushContact.Services.Messages
             }
         }
 
-        public async Task UpdateDeliveriesAsync(Guid messageId, int sent, int delivered, int notDelivered)
+        public async Task RegisterStatisticsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents)
+        {
+            if (webPushEvents == null || !webPushEvents.Any())
+            {
+                return;
+            }
+
+            var sent = webPushEvents.Count();
+            var delivered = webPushEvents.Count(x => x.Type == (int)WebPushEventType.Delivered);
+            var notDelivered = sent - delivered;
+
+            var billableSends = webPushEvents.Count(x =>
+                x.Type == (int)WebPushEventType.Delivered ||
+                (x.Type == (int)WebPushEventType.DeliveryFailed && x.SubType == (int)WebPushEventSubType.InvalidSubcription)
+            );
+
+            await UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered, billableSends);
+        }
+
+        // TODO: redefine as private when the endpoint accessing this is removed (maybe rename to UpdateDeliveriesSafe)
+        public async Task UpdateDeliveriesAsync(Guid messageId, int sent, int delivered, int notDelivered, int billableSends = 0)
         {
             var filterDefinition = Builders<BsonDocument>.Filter
                 .Eq(MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard));
@@ -80,7 +104,8 @@ namespace Doppler.PushContact.Services.Messages
             var updateDefinition = Builders<BsonDocument>.Update
                 .Inc(MessageDocumentProps.SentPropName, sent)
                 .Inc(MessageDocumentProps.DeliveredPropName, delivered)
-                .Inc(MessageDocumentProps.NotDeliveredPropName, notDelivered);
+                .Inc(MessageDocumentProps.NotDeliveredPropName, notDelivered)
+                .Inc(MessageDocumentProps.BillableSendsPropName, billableSends);
 
             try
             {
@@ -97,7 +122,6 @@ namespace Doppler.PushContact.Services.Messages
             var filterBuilder = Builders<BsonDocument>.Filter;
 
             var filter = filterBuilder.Eq(MessageDocumentProps.DomainPropName, domain);
-
             filter &= filterBuilder.Eq(MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard));
 
             try

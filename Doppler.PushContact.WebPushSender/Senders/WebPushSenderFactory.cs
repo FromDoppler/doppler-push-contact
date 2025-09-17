@@ -22,6 +22,7 @@ namespace Doppler.PushContact.WebPushSender.Senders
             var loggerFactory = _serviceProvider.GetRequiredService<ILoggerFactory>();
             var webPushEventRepository = _serviceProvider.GetRequiredService<IWebPushEventRepository>();
             var pushContactRepository = _serviceProvider.GetRequiredService<IPushContactRepository>();
+            var messageRepository = _serviceProvider.GetRequiredService<IMessageRepository>();
 
             return webPushSenderSettings.Value.Type switch
             {
@@ -30,14 +31,16 @@ namespace Doppler.PushContact.WebPushSender.Senders
                     messageQueueSubscriber,
                     loggerFactory.CreateLogger<DefaultWebPushSender>(),
                     webPushEventRepository,
-                    pushContactRepository
+                    pushContactRepository,
+                    messageRepository
                 ),
                 _ => new DefaultWebPushSender(
                     webPushSenderSettings,
                     messageQueueSubscriber,
                     loggerFactory.CreateLogger<DefaultWebPushSender>(),
                     webPushEventRepository,
-                    pushContactRepository
+                    pushContactRepository,
+                    messageRepository
                 ),
             };
         }

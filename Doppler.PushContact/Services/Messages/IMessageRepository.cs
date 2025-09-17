@@ -1,5 +1,7 @@
 using Doppler.PushContact.ApiModels;
+using Doppler.PushContact.Models.Entities;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Doppler.PushContact.Services.Messages
@@ -14,10 +16,11 @@ namespace Doppler.PushContact.Services.Messages
 
         Task<ApiPage<MessageDeliveryResult>> GetMessages(int page, int per_page, DateTimeOffset from, DateTimeOffset to);
 
-        Task UpdateDeliveriesAsync(Guid messageId, int sent, int delivered, int notDelivered);
+        Task UpdateDeliveriesAsync(Guid messageId, int sent, int delivered, int notDelivered, int billableSends = 0);
 
         Task IncrementMessageStats(Guid messageId, int sent, int delivered, int notDelivered);
         Task<string> GetMessageDomainAsync(Guid messageId);
         Task<int> GetMessageSends(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo);
+        Task RegisterStatisticsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents);
     }
 }

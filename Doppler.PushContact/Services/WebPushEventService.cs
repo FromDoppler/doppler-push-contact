@@ -5,6 +5,8 @@ using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services.Messages;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -98,11 +100,50 @@ namespace Doppler.PushContact.Services
 
         public async Task<int> GetWebPushEventConsumed(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo)
         {
-            // TODO: it's due to the differences between Doppler and Firebase implementations. It should be unified.
-            var consumedFromWebPushEvents = await _webPushEventRepository.GetWebPushEventConsumed(domain, dateFrom, dateTo);
-            var consumedFromMessages = await _messageRepository.GetMessageSends(domain, dateFrom, dateTo);
+            return await _webPushEventRepository.GetWebPushEventConsumed(domain, dateFrom, dateTo);
+        }
 
-            return consumedFromWebPushEvents + consumedFromMessages;
+        public async Task<IEnumerable<WebPushEvent>> RegisterWebPushEventsAsync(string domain, Guid messageId, SendMessageResult sendMessageResult)
+        {
+            if (sendMessageResult == null)
+            {
+                return null;
+            }
+
+            var webPushEvents = sendMessageResult.SendMessageTargetResult?
+                .Select(sendResult => new WebPushEvent
+                {
+                    Domain = domain,
+                    MessageId = messageId,
+                    DeviceToken = sendResult.TargetDeviceToken,
+                    Date = DateTime.UtcNow,
+                    Type = sendResult.IsSuccess ? (int)WebPushEventType.Delivered : (int)WebPushEventType.DeliveryFailed,
+                    SubType = sendResult.IsSuccess ? (int)WebPushEventSubType.None :
+                            sendResult.IsValidTargetDeviceToken ? (int)WebPushEventSubType.UnknownFailure : (int)WebPushEventSubType.InvalidSubcription,
+                    ErrorMessage = sendResult.NotSuccessErrorDetails,
+                }
+                );
+
+            if (webPushEvents != null && webPushEvents.Any())
+            {
+                try
+                {
+                    await _webPushEventRepository.BulkInsertAsync(webPushEvents);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Unexpected error while registering WebPushEvents for domain: {domain}, messageId: {messageId}.",
+                        domain,
+                        messageId
+                    );
+                }
+
+                return webPushEvents;
+            }
+
+            return null;
         }
     }
 }

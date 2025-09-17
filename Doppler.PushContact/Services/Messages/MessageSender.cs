@@ -17,6 +17,7 @@ namespace Doppler.PushContact.Services.Messages
         private readonly IPushApiTokenGetter _pushApiTokenGetter;
         private readonly IMessageRepository _messageRepository;
         private readonly IPushContactService _pushContactService;
+        private readonly IWebPushEventService _webPushEventService;
         private readonly ILogger<MessageSender> _logger;
 
         public MessageSender(
@@ -24,6 +25,7 @@ namespace Doppler.PushContact.Services.Messages
             IPushApiTokenGetter pushApiTokenGetter,
             IMessageRepository messageRepository,
             IPushContactService pushContactService,
+            IWebPushEventService webPushEventService,
             ILogger<MessageSender> logger
         )
         {
@@ -31,6 +33,7 @@ namespace Doppler.PushContact.Services.Messages
             _pushApiTokenGetter = pushApiTokenGetter;
             _messageRepository = messageRepository;
             _pushContactService = pushContactService;
+            _webPushEventService = webPushEventService;
             _logger = logger;
         }
 
@@ -176,9 +179,11 @@ namespace Doppler.PushContact.Services.Messages
                     authenticationApiToken
                 );
 
-                await _pushContactService.AddHistoryEventsAndMarkDeletedContactsAsync(webPushDTO.MessageId, sendMessageResult);
+                await _pushContactService.MarkDeletedContactsAsync(webPushDTO.MessageId, sendMessageResult);
 
-                await RegisterStatisticsAsync(webPushDTO.MessageId, sendMessageResult);
+                var webPushEvents = await _webPushEventService.RegisterWebPushEventsAsync(webPushDTO.Domain, webPushDTO.MessageId, sendMessageResult);
+
+                await _messageRepository.RegisterStatisticsAsync(webPushDTO.MessageId, webPushEvents);
             }
             catch (ArgumentException argEx)
             {
@@ -198,15 +203,6 @@ namespace Doppler.PushContact.Services.Messages
                     webPushDTO.MessageId
                 );
             }
-        }
-
-        private async Task RegisterStatisticsAsync(Guid messageId, SendMessageResult sendMessageResult)
-        {
-            var sent = sendMessageResult.SendMessageTargetResult.Count();
-            var delivered = sendMessageResult.SendMessageTargetResult.Count(x => x.IsSuccess);
-            var notDelivered = sent - delivered;
-
-            await _messageRepository.UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered);
         }
     }
 }

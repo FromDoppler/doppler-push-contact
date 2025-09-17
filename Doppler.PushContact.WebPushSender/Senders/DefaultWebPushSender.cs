@@ -15,16 +15,20 @@ namespace Doppler.PushContact.WebPushSender.Senders
     public class DefaultWebPushSender : WebPushSenderBase
     {
         IPushContactRepository _pushContactRepository;
+        IMessageRepository _messageRepository;
+
         public DefaultWebPushSender(
             IOptions<WebPushSenderSettings> webPushSenderSettings,
             IMessageQueueSubscriber messageQueueSubscriber,
             ILogger<DefaultWebPushSender> logger,
             IWebPushEventRepository weshPushEventRepository,
-            IPushContactRepository pushContactRepository
+            IPushContactRepository pushContactRepository,
+            IMessageRepository messageRepository
         )
             : base(webPushSenderSettings, messageQueueSubscriber, logger, weshPushEventRepository)
         {
             _pushContactRepository = pushContactRepository;
+            _messageRepository = messageRepository;
         }
 
         public override async Task HandleMessageAsync(DopplerWebPushDTO message)
@@ -84,6 +88,7 @@ namespace Doppler.PushContact.WebPushSender.Senders
             }
 
             await _weshPushEventRepository.InsertAsync(webPushEvent);
+            await _messageRepository.RegisterStatisticsAsync(message.MessageId, webPushEvent);
         }
     }
 }

@@ -217,7 +217,7 @@ namespace Doppler.PushContact.Controllers
 
                     var sendMessageResult = await _messageSender.SendAsync(message.Title, message.Body, deviceTokens, message.OnClickLink, message.ImageUrl, pushApiToken);
 
-                    await _pushContactService.AddHistoryEventsAndMarkDeletedContactsAsync(messageId, sendMessageResult);
+                    await _pushContactService.MarkDeletedContactsAsync(messageId, sendMessageResult);
 
                     var sent = sendMessageResult.SendMessageTargetResult.Count();
                     var delivered = sendMessageResult.SendMessageTargetResult.Count(x => x.IsSuccess);
@@ -251,7 +251,7 @@ namespace Doppler.PushContact.Controllers
             var sendMessageResult = await _messageSender.SendAsync(message.Title, message.Body, deviceTokens, message.OnClickLink, message.ImageUrl);
 
             var messageId = Guid.NewGuid();
-            await _pushContactService.AddHistoryEventsAndMarkDeletedContactsAsync(messageId, sendMessageResult);
+            await _pushContactService.MarkDeletedContactsAsync(messageId, sendMessageResult);
 
             var sent = sendMessageResult.SendMessageTargetResult.Count();
             var delivered = sendMessageResult.SendMessageTargetResult.Count(x => x.IsSuccess);
@@ -264,44 +264,38 @@ namespace Doppler.PushContact.Controllers
             });
         }
 
+        // TODO: remove unused params: from and to
         [HttpGet]
         [Route("push-contacts/{domain}/messages/{messageId}/details")]
         public async Task<IActionResult> GetMessageDetails([FromRoute] string domain, [FromRoute] Guid messageId, [FromQuery][Required] DateTimeOffset from, [FromQuery][Required] DateTimeOffset to)
         {
-            // obtain web push events summarization
-            var webPushEventsSummarization = await _webPushEventService.GetWebPushEventSummarizationAsync(messageId);
-
-            var messageDetailsResponse = new MessageDetailsResponse()
+            var response = new MessageDetailsResponse()
             {
                 Domain = domain,
                 MessageId = messageId,
-                Sent = webPushEventsSummarization.SentQuantity,
-                Delivered = webPushEventsSummarization.Delivered,
-                NotDelivered = webPushEventsSummarization.NotDelivered,
             };
 
-            // obtain summarized result directly from message
-            var messagedetails = await _messageRepository.GetMessageDetailsAsync(domain, messageId);
-            if (messagedetails != null && messagedetails.Sent > 0)
+            try
             {
-                messageDetailsResponse.Sent += messagedetails.Sent;
-                messageDetailsResponse.Delivered += messagedetails.Delivered;
-                messageDetailsResponse.NotDelivered += messagedetails.NotDelivered;
+                var messagedetails = await _messageRepository.GetMessageDetailsAsync(domain, messageId);
+                if (messagedetails != null && messagedetails.Sent > 0)
+                {
+                    response.Sent = messagedetails.Sent;
+                    response.Delivered = messagedetails.Delivered;
+                    response.NotDelivered = messagedetails.NotDelivered;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred obtaining message details. Domain: {domain} and messageId: {messageId}",
+                    domain,
+                    messageId
+                );
             }
 
-            return Ok(messageDetailsResponse);
-
-            // TODO: this should be removed, because the summarization should be obtained always from Message.
-            //// summarize result from history_events
-            //var messageResult = await _pushContactService.GetDeliveredMessageSummarizationAsync(domain, messageId, from, to);
-            //return Ok(new MessageDetailsResponse
-            //{
-            //    Domain = messageResult.Domain,
-            //    MessageId = messageId,
-            //    Sent = messageResult.SentQuantity + webPushEventsSummarization.SentQuantity,
-            //    Delivered = messageResult.Delivered + webPushEventsSummarization.Delivered,
-            //    NotDelivered = messageResult.NotDelivered + webPushEventsSummarization.NotDelivered,
-            //});
+            return Ok(response);
         }
 
         [Obsolete("This endpoint will be deprecated. It will be replaced by 'push-contacts/visitor-guids'.")]

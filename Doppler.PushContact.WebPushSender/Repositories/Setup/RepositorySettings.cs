@@ -17,5 +17,6 @@ namespace Doppler.PushContact.WebPushSender.Repositories.Setup
         public string WebPushEventCollectionName { get; set; }
 
         public string PushContactsCollectionName { get; set; }
+        public string MessageCollectionName { get; set; }
     }
 }

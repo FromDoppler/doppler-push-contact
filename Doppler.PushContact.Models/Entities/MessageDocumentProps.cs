@@ -1,4 +1,4 @@
-namespace Doppler.PushContact.Services.Messages
+namespace Doppler.PushContact.Models.Entities
 {
     public static class MessageDocumentProps
     {
@@ -23,5 +23,7 @@ namespace Doppler.PushContact.Services.Messages
         public const string InsertedDatePropName = "inserted_date";
 
         public const string ImageUrlPropName = "image_url";
+
+        public const string BillableSendsPropName = "billable_sends";
     }
 }

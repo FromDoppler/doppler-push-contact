@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using System;
 
 namespace Doppler.PushContact.WebPushSender.Repositories.Setup
 {
@@ -32,6 +33,7 @@ namespace Doppler.PushContact.WebPushSender.Repositories.Setup
 
             services.AddScoped<IWebPushEventRepository, WebPushEventRepository>();
             services.AddScoped<IPushContactRepository, PushContactRepository>();
+            services.AddScoped<IMessageRepository, MessageRepository>();
 
             return services;
         }
@@ -60,10 +62,32 @@ namespace Doppler.PushContact.WebPushSender.Repositories.Setup
                     .Ascending(WebPushEventDocumentProps.SubType_PropName)
             );
 
+            var index_Domain_Date_Type = new CreateIndexModel<BsonDocument>(
+                indexKeysDefinitionBuilder
+                    .Ascending(WebPushEventDocumentProps.Domain_PropName)
+                    .Ascending(WebPushEventDocumentProps.Date_PropName)
+                    .Ascending(WebPushEventDocumentProps.Type_PropName)
+            );
+
+            var index_DeviceToken = new CreateIndexModel<BsonDocument>(
+                indexKeysDefinitionBuilder.Ascending(WebPushEventDocumentProps.DeviceToken_PropName)
+            );
+
+            var index_Date_TTL = new CreateIndexModel<BsonDocument>(
+                indexKeysDefinitionBuilder.Ascending(WebPushEventDocumentProps.Date_PropName),
+                new CreateIndexOptions
+                {
+                    ExpireAfter = TimeSpan.FromDays(180)
+                }
+            );
+
             webPushEventCollection.Indexes.CreateMany([
                 indexModelPushContactId,
                 indexModelMessageIdAndType,
                 indexModel_Domain_Date_Type_SubType,
+                index_Domain_Date_Type,
+                index_DeviceToken,
+                index_Date_TTL,
             ]);
         }
     }

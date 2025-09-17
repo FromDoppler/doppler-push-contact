@@ -48,6 +48,7 @@ namespace Doppler.PushContact.WebPushSender.Test.Senders
             var loggerMock = new Mock<ILogger<DefaultWebPushSender>>();
             var webPushEventRepository = new Mock<IWebPushEventRepository>();
             var pushContactRepository = new Mock<IPushContactRepository>();
+            var messageRepository = new Mock<IMessageRepository>();
 
             serviceProviderMock
                 .Setup(sp => sp.GetService(typeof(IMessageQueueSubscriber)))
@@ -64,6 +65,10 @@ namespace Doppler.PushContact.WebPushSender.Test.Senders
             serviceProviderMock
                 .Setup(sp => sp.GetService(typeof(IPushContactRepository)))
                 .Returns(pushContactRepository.Object);
+
+            serviceProviderMock
+                .Setup(sp => sp.GetService(typeof(IMessageRepository)))
+                .Returns(messageRepository.Object);
 
             var webPushSenderSettings = Options.Create(new WebPushSenderSettings
             {
@@ -89,6 +94,7 @@ namespace Doppler.PushContact.WebPushSender.Test.Senders
             var loggerMock = new Mock<ILogger<DefaultWebPushSender>>();
             var webPushEventRepository = new Mock<IWebPushEventRepository>();
             var pushContactRepository = new Mock<IPushContactRepository>();
+            var messageRepository = new Mock<IMessageRepository>();
 
             serviceProviderMock
                 .Setup(sp => sp.GetService(typeof(IMessageQueueSubscriber)))
@@ -105,6 +111,10 @@ namespace Doppler.PushContact.WebPushSender.Test.Senders
             serviceProviderMock
                 .Setup(sp => sp.GetService(typeof(IPushContactRepository)))
                 .Returns(pushContactRepository.Object);
+
+            serviceProviderMock
+                .Setup(sp => sp.GetService(typeof(IMessageRepository)))
+                .Returns(messageRepository.Object);
 
             var webPushSenderSettings = Options.Create(new WebPushSenderSettings
             {
@@ -135,6 +145,7 @@ namespace Doppler.PushContact.WebPushSender.Test.Senders
             var loggerMock = new Mock<ILogger<DefaultWebPushSender>>();
             var webPushEventRepository = new Mock<IWebPushEventRepository>();
             var pushContactRepository = new Mock<IPushContactRepository>();
+            var messageRepository = new Mock<IMessageRepository>();
 
             serviceProviderMock
                 .Setup(sp => sp.GetService(typeof(IMessageQueueSubscriber)))
@@ -151,6 +162,10 @@ namespace Doppler.PushContact.WebPushSender.Test.Senders
             serviceProviderMock
                 .Setup(sp => sp.GetService(typeof(IPushContactRepository)))
                 .Returns(pushContactRepository.Object);
+
+            serviceProviderMock
+                .Setup(sp => sp.GetService(typeof(IMessageRepository)))
+                .Returns(messageRepository.Object);
 
             var webPushSenderSettings = Options.Create(new WebPushSenderSettings
             {

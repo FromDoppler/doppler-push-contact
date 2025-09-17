@@ -23,7 +23,7 @@ namespace Doppler.PushContact.Services
 
         Task AddHistoryEventsAsync(IEnumerable<PushContactHistoryEvent> pushContactHistoryEvents);
 
-        Task AddHistoryEventsAndMarkDeletedContactsAsync(Guid messageId, SendMessageResult sendMessageResult);
+        Task MarkDeletedContactsAsync(Guid messageId, SendMessageResult sendMessageResult);
 
         Task<IEnumerable<string>> GetAllDeviceTokensByDomainAsync(string domain);
 
