@@ -117,6 +117,68 @@ namespace Doppler.PushContact.Services.Messages
             }
         }
 
+        public async Task RegisterEventCount(Guid messageId, WebPushEvent webPushEvent)
+        {
+            var filterDefinition = Builders<BsonDocument>.Filter
+                .Eq(MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard));
+
+            var quantity = 1;
+            UpdateDefinition<BsonDocument> updateDefinition = null;
+            switch (webPushEvent.Type)
+            {
+                case (int)WebPushEventType.Delivered: // register for sent and billable
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.DeliveredPropName, quantity)
+                        .Inc(MessageDocumentProps.SentPropName, quantity)
+                        .Inc(MessageDocumentProps.BillableSendsPropName, quantity);
+                    break;
+                case (int)WebPushEventType.DeliveryFailed: // register for sent
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.NotDeliveredPropName, quantity)
+                        .Inc(MessageDocumentProps.SentPropName, quantity);
+
+                    // when InvalidSubcription register for billable too
+                    if (webPushEvent.SubType == (int)WebPushEventSubType.InvalidSubcription)
+                    {
+                        updateDefinition.Inc(MessageDocumentProps.BillableSendsPropName, quantity);
+                    }
+                    break;
+                case (int)WebPushEventType.ProcessingFailed: // register for sent
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.NotDeliveredPropName, quantity)
+                        .Inc(MessageDocumentProps.SentPropName, quantity);
+                    break;
+                case (int)WebPushEventType.DeliveryFailedButRetry: // register for sent
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.NotDeliveredPropName, quantity)
+                        .Inc(MessageDocumentProps.SentPropName, quantity);
+                    break;
+                case (int)WebPushEventType.Received:
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.ReceivedPropName, quantity);
+                    break;
+                case (int)WebPushEventType.Clicked:
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.ClicksPropName, quantity);
+                    break;
+                default:
+                    _logger.LogError($"Event type being registered is not valid for message with {nameof(messageId)} {messageId}");
+                    break;
+            }
+
+            try
+            {
+                if (updateDefinition != null)
+                {
+                    await Messages.UpdateOneAsync(filterDefinition, updateDefinition);
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, $"Error registering click/receive event in message with {nameof(messageId)} {messageId}");
+            }
+        }
+
         public async Task<MessageDetails> GetMessageDetailsAsync(string domain, Guid messageId)
         {
             var filterBuilder = Builders<BsonDocument>.Filter;

@@ -22,5 +22,6 @@ namespace Doppler.PushContact.Services.Messages
         Task<string> GetMessageDomainAsync(Guid messageId);
         Task<int> GetMessageSends(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo);
         Task RegisterStatisticsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents);
+        Task RegisterEventCount(Guid messageId, WebPushEvent webPushEvent);
     }
 }

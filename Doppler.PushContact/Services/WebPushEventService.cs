@@ -81,6 +81,8 @@ namespace Doppler.PushContact.Services
                     Type = (int)type,
                     Domain = contactDomain,
                 };
+
+                await _messageRepository.RegisterEventCount(messageId, webPushEvent);
                 await _webPushEventRepository.InsertAsync(webPushEvent, cancellationToken);
             }
             catch (Exception ex)
