@@ -142,7 +142,7 @@ namespace Doppler.PushContact.Services.Messages
                     // when InvalidSubcription register for billable too
                     if (webPushEvent.SubType == (int)WebPushEventSubType.InvalidSubcription)
                     {
-                        updateDefinition.Inc(MessageDocumentProps.BillableSendsPropName, quantity);
+                        updateDefinition = updateDefinition.Inc(MessageDocumentProps.BillableSendsPropName, quantity);
                     }
                     break;
                 case (int)WebPushEventType.ProcessingFailed: // register for sent
