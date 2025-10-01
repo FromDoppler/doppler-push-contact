@@ -1,13 +1,16 @@
 using AutoFixture;
+using Doppler.PushContact.Controllers;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Models;
+using Doppler.PushContact.Models.PushContactApiResponses;
 using Doppler.PushContact.Services;
 using Doppler.PushContact.Services.Messages;
 using Doppler.PushContact.Test.Controllers.Utils;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Net;
@@ -1034,6 +1037,145 @@ namespace Doppler.PushContact.Test.Controllers
             Assert.NotNull(result);
             Assert.Equal(domain, result.Domain);
             Assert.Equal(expectedConsumed, result.Consumed);
+        }
+
+        [Fact]
+        public async Task GetMessageStats_should_return_ok_with_message_stats()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+
+            var messageDetailsWithStats = new MessageDetails()
+            {
+                MessageId = messageId,
+                Domain = domain,
+                Sent = 10,
+                Delivered = 9,
+                NotDelivered = 1,
+                BillableSends = 10,
+                Received = 7,
+                Clicks = 2,
+            };
+
+            var domainServiceMock = new Mock<IDomainService>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+
+            var messageServiceMock = new Mock<IMessageService>();
+            messageServiceMock
+                .Setup(mr => mr.GetMessageStatsAsync(domain, messageId))
+                .ReturnsAsync(messageDetailsWithStats);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(domainServiceMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var from = DateTime.UtcNow.AddDays(-1);
+            var to = DateTime.UtcNow;
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{domain}/messages/{messageId}/stats?from={from}&to={to}")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.EnsureSuccessStatusCode(); // Check if the status code is 2xx
+
+            var result = await response.Content.ReadFromJsonAsync<MessageDetailsResponse>();
+
+            Assert.Equal(domain, result.Domain);
+            Assert.Equal(messageId, result.MessageId);
+            Assert.Equal(messageDetailsWithStats.Sent, result.Sent);
+            Assert.Equal(messageDetailsWithStats.Delivered, result.Delivered);
+            Assert.Equal(messageDetailsWithStats.NotDelivered, result.NotDelivered);
+            Assert.Equal(messageDetailsWithStats.BillableSends, result.BillableSends);
+            Assert.Equal(messageDetailsWithStats.Clicks, result.Clicks);
+            Assert.Equal(messageDetailsWithStats.Received, result.Received);
+        }
+
+        [Fact]
+        public async Task GetMessageStats_should_return_ok_but_stats_in_zero_when_service_throws_exception()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+
+            var exceptionMessage = "testing exception";
+
+            var messageDetailsWithStatsEmpty = new MessageDetails()
+            {
+                MessageId = messageId,
+                Domain = domain,
+                Sent = 0,
+                Delivered = 0,
+                NotDelivered = 0,
+                BillableSends = 0,
+                Clicks = 0,
+                Received = 0,
+            };
+
+            var loggerMock = new Mock<ILogger<DomainController>>();
+            var domainServiceMock = new Mock<IDomainService>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+
+            var messageServiceMock = new Mock<IMessageService>();
+            messageServiceMock
+                .Setup(mr => mr.GetMessageStatsAsync(domain, messageId))
+                .ThrowsAsync(new Exception(exceptionMessage));
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(domainServiceMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var from = DateTime.UtcNow.AddDays(-1);
+            var to = DateTime.UtcNow;
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{domain}/messages/{messageId}/stats?from={from}&to={to}")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.EnsureSuccessStatusCode(); // Check if the status code is 2xx
+
+            var result = await response.Content.ReadFromJsonAsync<MessageDetailsResponse>();
+
+            Assert.Equal(domain, result.Domain);
+            Assert.Equal(messageId, result.MessageId);
+            Assert.Equal(messageDetailsWithStatsEmpty.Sent, result.Sent);
+            Assert.Equal(messageDetailsWithStatsEmpty.Delivered, result.Delivered);
+            Assert.Equal(messageDetailsWithStatsEmpty.NotDelivered, result.NotDelivered);
+
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("An unexpected error occurred obtaining message stats.")),
+                    It.Is<Exception>(e => e.Message == exceptionMessage),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
         }
     }
 }
