@@ -2,10 +2,13 @@ using Doppler.PushContact.DopplerSecurity;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Models;
+using Doppler.PushContact.Models.PushContactApiResponses;
 using Doppler.PushContact.Services;
+using Doppler.PushContact.Services.Messages;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
@@ -18,11 +21,20 @@ namespace Doppler.PushContact.Controllers
     {
         private readonly IDomainService _domainService;
         private readonly IWebPushEventService _webPushEventService;
+        private readonly IMessageService _messageService;
+        private readonly ILogger<DomainController> _logger;
 
-        public DomainController(IDomainService domainService, IWebPushEventService webPushEventService)
+        public DomainController(
+            IDomainService domainService,
+            IWebPushEventService webPushEventService,
+            IMessageService messageService,
+            ILogger<DomainController> logger
+        )
         {
             _domainService = domainService;
             _webPushEventService = webPushEventService;
+            _messageService = messageService;
+            _logger = logger;
         }
 
         // TODO: analyze separating into two methods (PUT/POST) because using PUT, and not all fields may be provided,
@@ -192,6 +204,42 @@ namespace Doppler.PushContact.Controllers
                     new { error = "Unexpected error summarizing consumed web push. Try again." }
                 );
             }
+        }
+
+        [HttpGet]
+        [Route("domains/{domain}/messages/{messageId}/stats")]
+        public async Task<ActionResult<MessageDetailsResponse>> GetMessageStats([FromRoute] string domain, [FromRoute] Guid messageId, [FromQuery][Required] DateTimeOffset from, [FromQuery][Required] DateTimeOffset to)
+        {
+            var response = new MessageDetailsResponse()
+            {
+                Domain = domain,
+                MessageId = messageId,
+            };
+
+            try
+            {
+                var messageStats = await _messageService.GetMessageStatsAsync(domain, messageId);
+                if (messageStats != null && messageStats.Sent > 0)
+                {
+                    response.Sent = messageStats.Sent;
+                    response.Delivered = messageStats.Delivered;
+                    response.NotDelivered = messageStats.NotDelivered;
+                    response.BillableSends = messageStats.BillableSends;
+                    response.Clicks = messageStats.Clicks;
+                    response.Received = messageStats.Received;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred obtaining message stats. Domain: {domain} and messageId: {messageId}",
+                    domain,
+                    messageId
+                );
+            }
+
+            return Ok(response);
         }
     }
 }
