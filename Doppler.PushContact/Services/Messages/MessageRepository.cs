@@ -60,6 +60,8 @@ namespace Doppler.PushContact.Services.Messages
                 { MessageDocumentProps.DeliveredPropName, delivered },
                 { MessageDocumentProps.NotDeliveredPropName, notDelivered },
                 { MessageDocumentProps.BillableSendsPropName, 0 },
+                { MessageDocumentProps.ReceivedPropName, 0 },
+                { MessageDocumentProps.ClicksPropName, 0 },
                 { MessageDocumentProps.ImageUrlPropName, string.IsNullOrEmpty(imageUrl) ? BsonNull.Value : imageUrl},
                 { MessageDocumentProps.InsertedDatePropName, now }
             };
