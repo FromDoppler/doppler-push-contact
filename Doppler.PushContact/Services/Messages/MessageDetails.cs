@@ -21,5 +21,8 @@ namespace Doppler.PushContact.Services.Messages
         public int NotDelivered { get; set; }
 
         public string ImageUrl { get; set; }
+        public int BillableSends { get; set; }
+        public int Clicks { get; set; }
+        public int Received { get; set; }
     }
 }

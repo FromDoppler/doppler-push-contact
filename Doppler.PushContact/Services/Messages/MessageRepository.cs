@@ -204,6 +204,9 @@ namespace Doppler.PushContact.Services.Messages
                     Sent = message.GetValue(MessageDocumentProps.SentPropName).AsInt32,
                     Delivered = message.GetValue(MessageDocumentProps.DeliveredPropName).AsInt32,
                     NotDelivered = message.GetValue(MessageDocumentProps.NotDeliveredPropName).AsInt32,
+                    BillableSends = message.GetValue(MessageDocumentProps.BillableSendsPropName, 0).ToInt32(),
+                    Clicks = message.GetValue(MessageDocumentProps.ClicksPropName, 0).ToInt32(),
+                    Received = message.GetValue(MessageDocumentProps.ReceivedPropName, 0).ToInt32(),
                 };
 
                 if (message.TryGetValue(MessageDocumentProps.OnClickLinkPropName, out BsonValue onClickLinkValue))
