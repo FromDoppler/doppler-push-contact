@@ -218,7 +218,7 @@ namespace Doppler.PushContact.Controllers
 
             try
             {
-                var messageStats = await _messageService.GetMessageStatsAsync(domain, messageId);
+                var messageStats = await _messageService.GetMessageStatsAsync(domain, messageId, from, to);
                 if (messageStats != null && messageStats.Sent > 0)
                 {
                     response.Sent = messageStats.Sent;

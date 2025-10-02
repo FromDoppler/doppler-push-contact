@@ -181,12 +181,18 @@ namespace Doppler.PushContact.Services.Messages
             }
         }
 
-        public async Task<MessageDetails> GetMessageDetailsAsync(string domain, Guid messageId)
+        public async Task<MessageDetails> GetMessageDetailsAsync(string domain, Guid messageId, DateTimeOffset? dateFrom = null, DateTimeOffset? dateTo = null)
         {
             var filterBuilder = Builders<BsonDocument>.Filter;
-
             var filter = filterBuilder.Eq(MessageDocumentProps.DomainPropName, domain);
             filter &= filterBuilder.Eq(MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard));
+
+            if (dateFrom.HasValue && dateTo.HasValue)
+            {
+                var from = new BsonDateTime(dateFrom.Value.UtcDateTime);
+                var to = new BsonDateTime(dateTo.Value.UtcDateTime);
+                filter &= filterBuilder.Gte(MessageDocumentProps.InsertedDatePropName, from) & filterBuilder.Lte(MessageDocumentProps.InsertedDatePropName, to);
+            }
 
             try
             {

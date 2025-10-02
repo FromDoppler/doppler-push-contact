@@ -3549,7 +3549,7 @@ namespace Doppler.PushContact.Test.Controllers
 
             var messageRepositoryMock = new Mock<IMessageRepository>();
             messageRepositoryMock
-                .Setup(mr => mr.GetMessageDetailsAsync(domain, messageId))
+                .Setup(mr => mr.GetMessageDetailsAsync(domain, messageId, It.IsAny<DateTimeOffset?>(), It.IsAny<DateTimeOffset?>()))
                 .ReturnsAsync(messageDetailsWithStats);
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -3624,7 +3624,7 @@ namespace Doppler.PushContact.Test.Controllers
 
             var messageRepositoryMock = new Mock<IMessageRepository>();
             messageRepositoryMock
-                .Setup(mr => mr.GetMessageDetailsAsync(domain, messageId))
+                .Setup(mr => mr.GetMessageDetailsAsync(domain, messageId, It.IsAny<DateTimeOffset?>(), It.IsAny<DateTimeOffset?>()))
                 .ReturnsAsync(messageDetailsWithStats);
 
             var messageDeliveryResults = new MessageDeliveryResult()
@@ -3695,7 +3695,7 @@ namespace Doppler.PushContact.Test.Controllers
 
             var messageRepositoryMock = new Mock<IMessageRepository>();
             messageRepositoryMock
-                .Setup(mr => mr.GetMessageDetailsAsync(domain, messageId))
+                .Setup(mr => mr.GetMessageDetailsAsync(domain, messageId, It.IsAny<DateTimeOffset?>(), It.IsAny<DateTimeOffset?>()))
                 .ReturnsAsync(messageDetailsWithStats);
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -3758,7 +3758,7 @@ namespace Doppler.PushContact.Test.Controllers
 
             var messageRepositoryMock = new Mock<IMessageRepository>();
             messageRepositoryMock
-                .Setup(mr => mr.GetMessageDetailsAsync(domain, messageId))
+                .Setup(mr => mr.GetMessageDetailsAsync(domain, messageId, It.IsAny<DateTimeOffset?>(), It.IsAny<DateTimeOffset?>()))
                 .ThrowsAsync(new Exception(exceptionMessage));
 
             var client = _factory.WithWebHostBuilder(builder =>

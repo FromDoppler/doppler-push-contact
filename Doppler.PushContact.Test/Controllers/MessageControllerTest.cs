@@ -153,7 +153,7 @@ namespace Doppler.PushContact.Test.Controllers
             var messageRepositoryMock = new Mock<IMessageRepository>();
 
             messageRepositoryMock
-                .Setup(x => x.GetMessageDetailsAsync(It.IsAny<string>(), It.IsAny<Guid>()))
+                .Setup(x => x.GetMessageDetailsAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<DateTimeOffset?>(), It.IsAny<DateTimeOffset?>()))
                 .ThrowsAsync(new Exception());
 
             var client = _factory.WithWebHostBuilder(builder =>

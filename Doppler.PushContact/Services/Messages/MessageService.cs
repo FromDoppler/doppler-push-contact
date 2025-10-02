@@ -15,9 +15,9 @@ namespace Doppler.PushContact.Services.Messages
             _logger = logger;
         }
 
-        public async Task<MessageDetails> GetMessageStatsAsync(string domain, Guid messageId)
+        public async Task<MessageDetails> GetMessageStatsAsync(string domain, Guid messageId, DateTimeOffset dateFrom, DateTimeOffset dateTo)
         {
-            return await _messageRepository.GetMessageDetailsAsync(domain, messageId);
+            return await _messageRepository.GetMessageDetailsAsync(domain, messageId, dateFrom, dateTo);
         }
     }
 }

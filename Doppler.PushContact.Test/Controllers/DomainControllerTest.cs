@@ -1065,7 +1065,7 @@ namespace Doppler.PushContact.Test.Controllers
 
             var messageServiceMock = new Mock<IMessageService>();
             messageServiceMock
-                .Setup(mr => mr.GetMessageStatsAsync(domain, messageId))
+                .Setup(mr => mr.GetMessageStatsAsync(domain, messageId, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
                 .ReturnsAsync(messageDetailsWithStats);
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -1132,7 +1132,7 @@ namespace Doppler.PushContact.Test.Controllers
 
             var messageServiceMock = new Mock<IMessageService>();
             messageServiceMock
-                .Setup(mr => mr.GetMessageStatsAsync(domain, messageId))
+                .Setup(mr => mr.GetMessageStatsAsync(domain, messageId, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
                 .ThrowsAsync(new Exception(exceptionMessage));
 
             var client = _factory.WithWebHostBuilder(builder =>
