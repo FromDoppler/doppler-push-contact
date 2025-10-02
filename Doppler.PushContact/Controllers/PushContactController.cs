@@ -264,7 +264,7 @@ namespace Doppler.PushContact.Controllers
             });
         }
 
-        // TODO: remove unused params: from and to
+        [Obsolete("This endpoint is deprecated. It will be replaced by 'domains/{domain}/messages/{messageId}/stats'.")]
         [HttpGet]
         [Route("push-contacts/{domain}/messages/{messageId}/details")]
         public async Task<IActionResult> GetMessageDetails([FromRoute] string domain, [FromRoute] Guid messageId, [FromQuery][Required] DateTimeOffset from, [FromQuery][Required] DateTimeOffset to)

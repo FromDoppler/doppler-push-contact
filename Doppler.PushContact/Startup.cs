@@ -47,6 +47,7 @@ namespace Doppler.PushContact
             services.AddScoped<IPushContactRepository, PushContactRepository>();
             services.AddScoped<IDomainRepository, DomainRepository>();
             services.AddScoped<IWebPushEventService, WebPushEventService>();
+            services.AddScoped<IMessageService, MessageService>();
             services.AddSingleton<IBackgroundQueue, BackgroundQueue>();
             services.AddHostedService<QueueBackgroundService>();
             services.AddControllers();

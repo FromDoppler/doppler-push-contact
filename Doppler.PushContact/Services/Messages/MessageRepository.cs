@@ -60,6 +60,8 @@ namespace Doppler.PushContact.Services.Messages
                 { MessageDocumentProps.DeliveredPropName, delivered },
                 { MessageDocumentProps.NotDeliveredPropName, notDelivered },
                 { MessageDocumentProps.BillableSendsPropName, 0 },
+                { MessageDocumentProps.ReceivedPropName, 0 },
+                { MessageDocumentProps.ClicksPropName, 0 },
                 { MessageDocumentProps.ImageUrlPropName, string.IsNullOrEmpty(imageUrl) ? BsonNull.Value : imageUrl},
                 { MessageDocumentProps.InsertedDatePropName, now }
             };
@@ -117,12 +119,80 @@ namespace Doppler.PushContact.Services.Messages
             }
         }
 
-        public async Task<MessageDetails> GetMessageDetailsAsync(string domain, Guid messageId)
+        public async Task RegisterEventCount(Guid messageId, WebPushEvent webPushEvent)
+        {
+            var filterDefinition = Builders<BsonDocument>.Filter
+                .Eq(MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard));
+
+            var quantity = 1;
+            UpdateDefinition<BsonDocument> updateDefinition = null;
+            switch (webPushEvent.Type)
+            {
+                case (int)WebPushEventType.Delivered: // register for sent and billable
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.DeliveredPropName, quantity)
+                        .Inc(MessageDocumentProps.SentPropName, quantity)
+                        .Inc(MessageDocumentProps.BillableSendsPropName, quantity);
+                    break;
+                case (int)WebPushEventType.DeliveryFailed: // register for sent
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.NotDeliveredPropName, quantity)
+                        .Inc(MessageDocumentProps.SentPropName, quantity);
+
+                    // when InvalidSubcription register for billable too
+                    if (webPushEvent.SubType == (int)WebPushEventSubType.InvalidSubcription)
+                    {
+                        updateDefinition = updateDefinition.Inc(MessageDocumentProps.BillableSendsPropName, quantity);
+                    }
+                    break;
+                case (int)WebPushEventType.ProcessingFailed: // register for sent
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.NotDeliveredPropName, quantity)
+                        .Inc(MessageDocumentProps.SentPropName, quantity);
+                    break;
+                case (int)WebPushEventType.DeliveryFailedButRetry: // register for sent
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.NotDeliveredPropName, quantity)
+                        .Inc(MessageDocumentProps.SentPropName, quantity);
+                    break;
+                case (int)WebPushEventType.Received:
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.ReceivedPropName, quantity);
+                    break;
+                case (int)WebPushEventType.Clicked:
+                    updateDefinition = Builders<BsonDocument>.Update
+                        .Inc(MessageDocumentProps.ClicksPropName, quantity);
+                    break;
+                default:
+                    _logger.LogError($"Event type being registered is not valid for message with {nameof(messageId)} {messageId}");
+                    break;
+            }
+
+            try
+            {
+                if (updateDefinition != null)
+                {
+                    await Messages.UpdateOneAsync(filterDefinition, updateDefinition);
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, $"Error registering click/receive event in message with {nameof(messageId)} {messageId}");
+            }
+        }
+
+        public async Task<MessageDetails> GetMessageDetailsAsync(string domain, Guid messageId, DateTimeOffset? dateFrom = null, DateTimeOffset? dateTo = null)
         {
             var filterBuilder = Builders<BsonDocument>.Filter;
-
             var filter = filterBuilder.Eq(MessageDocumentProps.DomainPropName, domain);
             filter &= filterBuilder.Eq(MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard));
+
+            if (dateFrom.HasValue && dateTo.HasValue)
+            {
+                var from = new BsonDateTime(dateFrom.Value.UtcDateTime);
+                var to = new BsonDateTime(dateTo.Value.UtcDateTime);
+                filter &= filterBuilder.Gte(MessageDocumentProps.InsertedDatePropName, from) & filterBuilder.Lte(MessageDocumentProps.InsertedDatePropName, to);
+            }
 
             try
             {
@@ -142,6 +212,9 @@ namespace Doppler.PushContact.Services.Messages
                     Sent = message.GetValue(MessageDocumentProps.SentPropName).AsInt32,
                     Delivered = message.GetValue(MessageDocumentProps.DeliveredPropName).AsInt32,
                     NotDelivered = message.GetValue(MessageDocumentProps.NotDeliveredPropName).AsInt32,
+                    BillableSends = message.GetValue(MessageDocumentProps.BillableSendsPropName, 0).ToInt32(),
+                    Clicks = message.GetValue(MessageDocumentProps.ClicksPropName, 0).ToInt32(),
+                    Received = message.GetValue(MessageDocumentProps.ReceivedPropName, 0).ToInt32(),
                 };
 
                 if (message.TryGetValue(MessageDocumentProps.OnClickLinkPropName, out BsonValue onClickLinkValue))

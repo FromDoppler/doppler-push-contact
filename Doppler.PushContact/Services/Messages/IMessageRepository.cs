@@ -10,7 +10,7 @@ namespace Doppler.PushContact.Services.Messages
     {
         Task AddAsync(Guid messageId, string domain, string title, string body, string onClickLink, int sent, int delivered, int notDelivered, string imageUrl);
 
-        Task<MessageDetails> GetMessageDetailsAsync(string domain, Guid messageId);
+        Task<MessageDetails> GetMessageDetailsAsync(string domain, Guid messageId, DateTimeOffset? dateFrom = null, DateTimeOffset? dateTo = null);
 
         Task<MessageDetails> GetMessageDetailsByMessageIdAsync(Guid messageId);
 
@@ -22,5 +22,6 @@ namespace Doppler.PushContact.Services.Messages
         Task<string> GetMessageDomainAsync(Guid messageId);
         Task<int> GetMessageSends(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo);
         Task RegisterStatisticsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents);
+        Task RegisterEventCount(Guid messageId, WebPushEvent webPushEvent);
     }
 }

@@ -1,18 +1,20 @@
-using Doppler.PushContact.Services.Messages;
+using AutoFixture;
+using Doppler.PushContact.Models.Entities;
+using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.Services;
+using Doppler.PushContact.Services.Messages;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
-using Microsoft.Extensions.Logging;
-using AutoFixture;
-using MongoDB.Bson;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Threading;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
-using MongoDB.Bson.Serialization;
-using Doppler.PushContact.Models.Entities;
 
 namespace Doppler.PushContact.Test.Services.Messages
 {
@@ -429,6 +431,128 @@ namespace Doppler.PushContact.Test.Services.Messages
                     null,
                     It.IsAny<CancellationToken>()
                 ),
+                Times.Once);
+        }
+
+        [Theory]
+        [InlineData(WebPushEventType.Delivered, WebPushEventSubType.None,
+            new[] { MessageDocumentProps.DeliveredPropName, MessageDocumentProps.SentPropName, MessageDocumentProps.BillableSendsPropName })]
+        [InlineData(WebPushEventType.Received, WebPushEventSubType.None,
+            new[] { MessageDocumentProps.ReceivedPropName })]
+        [InlineData(WebPushEventType.Clicked, WebPushEventSubType.None,
+            new[] { MessageDocumentProps.ClicksPropName })]
+        [InlineData(WebPushEventType.ProcessingFailed, WebPushEventSubType.None,
+            new[] { MessageDocumentProps.NotDeliveredPropName, MessageDocumentProps.SentPropName })]
+        [InlineData(WebPushEventType.DeliveryFailedButRetry, WebPushEventSubType.None,
+            new[] { MessageDocumentProps.NotDeliveredPropName, MessageDocumentProps.SentPropName })]
+        [InlineData(WebPushEventType.DeliveryFailed, WebPushEventSubType.None,
+            new[] { MessageDocumentProps.NotDeliveredPropName, MessageDocumentProps.SentPropName })]
+        [InlineData(WebPushEventType.DeliveryFailed, WebPushEventSubType.InvalidSubcription,
+            new[] { MessageDocumentProps.NotDeliveredPropName, MessageDocumentProps.SentPropName, MessageDocumentProps.BillableSendsPropName })]
+        public async Task RegisterEventCount_ShouldUpdateExpectedFields(WebPushEventType type, WebPushEventSubType subtype, string[] expectedFieldsToUpdate)
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+
+            var sut = CreateSut(collectionMock.Object);
+
+            var webPushEvent = new WebPushEvent { Type = (int)type, SubType = (int)subtype };
+
+            // Act
+            await sut.RegisterEventCount(messageId, webPushEvent);
+
+            // Assert
+            collectionMock.Verify(x => x.UpdateOneAsync(
+                It.Is<FilterDefinition<BsonDocument>>(f => // filter definition
+                    f.Render(
+                        BsonSerializer.SerializerRegistry.GetSerializer<BsonDocument>(),
+                        BsonSerializer.SerializerRegistry
+                    ).ToString().Contains(messageId.ToString())
+                ),
+                It.Is<UpdateDefinition<BsonDocument>>(u => // update definition
+                    expectedFieldsToUpdate.All(field =>
+                        u.Render(
+                            BsonSerializer.SerializerRegistry.GetSerializer<BsonDocument>(),
+                            BsonSerializer.SerializerRegistry
+                        ).ToString().Contains(field))
+                ),
+                It.IsAny<UpdateOptions>(),  // options parameter
+                It.IsAny<CancellationToken>()), // cancelation token parameter
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task RegisterEventCount_ShouldNotUpdate_WhenTypeIsInvalid()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
+
+            var invalidEvent = new WebPushEvent { Type = 999 }; // invalid type
+
+            // Act
+            await sut.RegisterEventCount(messageId, invalidEvent);
+
+            // Assert
+            collectionMock.Verify(c =>
+                c.UpdateOneAsync(
+                    It.IsAny<FilterDefinition<BsonDocument>>(),
+                    It.IsAny<UpdateDefinition<BsonDocument>>(),
+                    null,
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Event type being registered is not valid for message with")),
+                    null,
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task RegisterEventCount_ShouldLogError_WhenUpdateThrows()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+
+            collectionMock.Setup(c =>
+                c.UpdateOneAsync(
+                    It.IsAny<FilterDefinition<BsonDocument>>(),
+                    It.IsAny<UpdateDefinition<BsonDocument>>(),
+                    null,
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("Update failed on testing"));
+
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
+
+            var evt = new WebPushEvent { Type = (int)WebPushEventType.Received };
+
+            // Act
+            await sut.RegisterEventCount(messageId, evt);
+
+            // Assert
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Error registering")),
+                    It.IsAny<Exception>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
                 Times.Once);
         }
     }
