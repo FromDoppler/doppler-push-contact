@@ -1,6 +1,7 @@
 using Doppler.PushContact.Models.DTOs;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Doppler.PushContact.Services.Messages
@@ -32,8 +33,33 @@ namespace Doppler.PushContact.Services.Messages
                 0,
                 0,
                 0,
-                message.ImageUrl
+                message.ImageUrl,
+                SanitizeActions(message.Actions)
             );
+        }
+
+        private List<MessageActionDTO> SanitizeActions(List<MessageActionDTO> actions)
+        {
+            var sanitizedActions = new List<MessageActionDTO>();
+            if (actions != null)
+            {
+                var index = 1;
+                foreach (var action in actions)
+                {
+                    var messageActionDto = new MessageActionDTO()
+                    {
+                        Action = string.IsNullOrEmpty(action.Action) ? $"action{index}" : action.Action,
+                        Title = string.IsNullOrEmpty(action.Title) ? $"title{index}" : action.Title,
+                        Icon = action.Icon,
+                        Link = action.Link,
+                    };
+
+                    sanitizedActions.Add(messageActionDto);
+                    index++;
+                }
+            }
+
+            return sanitizedActions;
         }
     }
 }

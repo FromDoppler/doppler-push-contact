@@ -1,3 +1,5 @@
+using Doppler.PushContact.Models.Models;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace Doppler.PushContact.Models
@@ -13,5 +15,7 @@ namespace Doppler.PushContact.Models
         public string OnClickLink { get; set; }
 
         public string ImageUrl { get; set; }
+
+        public List<MessageAction> Actions { get; set; }
     }
 }

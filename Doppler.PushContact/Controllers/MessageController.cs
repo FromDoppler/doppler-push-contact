@@ -247,6 +247,7 @@ namespace Doppler.PushContact.Controllers
                 Body = messageBody.Message.Body,
                 OnClickLink = messageBody.Message.OnClickLink,
                 ImageUrl = messageBody.Message.ImageUrl,
+                Actions = MapActions(messageBody.Message.Actions),
             };
             await _messageService.AddMessageAsync(messageDto);
 
@@ -301,6 +302,30 @@ namespace Doppler.PushContact.Controllers
             {
                 MessageId = messageId
             });
+        }
+
+        private List<MessageActionDTO> MapActions(List<MessageAction> actions)
+        {
+            var result = new List<MessageActionDTO>();
+            if (actions == null)
+            {
+                return result;
+            }
+
+            foreach (var action in actions)
+            {
+                var dto = new MessageActionDTO()
+                {
+                    Action = action.Action,
+                    Title = action.Title,
+                    Icon = action.Icon,
+                    Link = action.Link,
+                };
+
+                result.Add(dto);
+            }
+
+            return result;
         }
     }
 }
