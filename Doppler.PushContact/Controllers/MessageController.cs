@@ -25,6 +25,7 @@ namespace Doppler.PushContact.Controllers
         private readonly IMessageRepository _messageRepository;
         private readonly IPushContactService _pushContactService;
         private readonly IWebPushPublisherService _webPushPublisherService;
+        private readonly IMessageService _messageService;
         private readonly ILogger<MessageController> _logger;
 
         public MessageController(
@@ -32,6 +33,7 @@ namespace Doppler.PushContact.Controllers
             IMessageRepository messageRepository,
             IMessageSender messageSender,
             IWebPushPublisherService webPushPublisherService,
+            IMessageService messageService,
             ILogger<MessageController> logger
         )
         {
@@ -39,6 +41,7 @@ namespace Doppler.PushContact.Controllers
             _messageRepository = messageRepository;
             _messageSender = messageSender;
             _webPushPublisherService = webPushPublisherService;
+            _messageService = messageService;
             _logger = logger;
         }
 
@@ -236,22 +239,20 @@ namespace Doppler.PushContact.Controllers
                 return UnprocessableEntity(argExc.Message);
             }
 
-            var messageId = Guid.NewGuid();
-
-            await _messageRepository.AddAsync(
-                messageId, messageBody.Domain,
-                messageBody.Message.Title,
-                messageBody.Message.Body,
-                messageBody.Message.OnClickLink,
-                0,
-                0,
-                0,
-                messageBody.Message.ImageUrl
-            );
+            var messageDto = new MessageDTO()
+            {
+                MessageId = Guid.NewGuid(),
+                Domain = messageBody.Domain,
+                Title = messageBody.Message.Title,
+                Body = messageBody.Message.Body,
+                OnClickLink = messageBody.Message.OnClickLink,
+                ImageUrl = messageBody.Message.ImageUrl,
+            };
+            await _messageService.AddMessageAsync(messageDto);
 
             return Ok(new MessageResult
             {
-                MessageId = messageId
+                MessageId = messageDto.MessageId,
             });
         }
 
