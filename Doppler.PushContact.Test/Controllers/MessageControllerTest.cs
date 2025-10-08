@@ -397,7 +397,8 @@ namespace Doppler.PushContact.Test.Controllers
                 qSent,
                 qDelivery,
                 qNotDelivery,
-                It.IsAny<string>()
+                It.IsAny<string>(),
+                null
             ), Times.Once());
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 

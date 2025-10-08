@@ -1,4 +1,5 @@
 using Doppler.PushContact.ApiModels;
+using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
 using System;
 using System.Collections.Generic;
@@ -8,7 +9,7 @@ namespace Doppler.PushContact.Services.Messages
 {
     public interface IMessageRepository
     {
-        Task AddAsync(Guid messageId, string domain, string title, string body, string onClickLink, int sent, int delivered, int notDelivered, string imageUrl);
+        Task AddAsync(Guid messageId, string domain, string title, string body, string onClickLink, int sent, int delivered, int notDelivered, string imageUrl, List<MessageActionDTO> actions = null);
 
         Task<MessageDetails> GetMessageDetailsAsync(string domain, Guid messageId, DateTimeOffset? dateFrom = null, DateTimeOffset? dateTo = null);
 

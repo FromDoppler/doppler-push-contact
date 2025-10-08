@@ -1,4 +1,5 @@
 using Doppler.PushContact.ApiModels;
+using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Models.Enums;
 using Microsoft.Extensions.Logging;
@@ -29,7 +30,18 @@ namespace Doppler.PushContact.Services.Messages
             _logger = logger;
         }
 
-        public async Task AddAsync(Guid messageId, string domain, string title, string body, string onClickLink, int sent, int delivered, int notDelivered, string imageUrl)
+        public async Task AddAsync(
+            Guid messageId,
+            string domain,
+            string title,
+            string body,
+            string onClickLink,
+            int sent,
+            int delivered,
+            int notDelivered,
+            string imageUrl,
+            List<MessageActionDTO> actions = null
+        )
         {
             if (string.IsNullOrEmpty(domain))
             {
@@ -47,6 +59,7 @@ namespace Doppler.PushContact.Services.Messages
             }
 
             var now = DateTime.UtcNow;
+            // TODO: review it. The _id property should be handled automatically by mongodb.
             var key = ObjectId.GenerateNewId(now).ToString();
 
             var messageDocument = new BsonDocument {
@@ -66,6 +79,13 @@ namespace Doppler.PushContact.Services.Messages
                 { MessageDocumentProps.InsertedDatePropName, now }
             };
 
+            // only add "actions" property when it has some action defined
+            if (actions != null && actions.Any())
+            {
+                var bsonActions = MapActions(actions);
+                messageDocument.Add(MessageDocumentProps.ActionsPropName, bsonActions);
+            }
+
             try
             {
                 await Messages.InsertOneAsync(messageDocument);
@@ -76,6 +96,26 @@ namespace Doppler.PushContact.Services.Messages
 
                 throw;
             }
+        }
+
+        private BsonArray MapActions(List<MessageActionDTO> actions)
+        {
+            var bsonActions = new BsonArray();
+
+            foreach (var actionDto in actions)
+            {
+                var bsonAction = new BsonDocument
+                    {
+                        { MessageDocumentProps.Actions_ActionPropName, actionDto.Action },
+                        { MessageDocumentProps.Actions_TitlePropName, actionDto.Title },
+                        { MessageDocumentProps.Actions_IconPropName, string.IsNullOrEmpty(actionDto.Icon) ? BsonNull.Value : actionDto.Icon },
+                        { MessageDocumentProps.Actions_LinkPropName, string.IsNullOrEmpty(actionDto.Link) ? BsonNull.Value : actionDto.Link },
+                    };
+
+                bsonActions.Add(bsonAction);
+            }
+
+            return bsonActions;
         }
 
         public async Task RegisterStatisticsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents)
