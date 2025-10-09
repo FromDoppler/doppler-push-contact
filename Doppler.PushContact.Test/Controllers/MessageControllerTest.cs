@@ -340,14 +340,10 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task CreateMessage_should_create_a_message_with_summarization_fields_equal_cero_and_return_proper_messageId()
+        public async Task CreateMessage_should_create_a_message_OK_and_return_proper_messageId()
         {
             // Arrange
             var fixture = new Fixture();
-
-            var qSent = 0;
-            var qDelivery = 0;
-            var qNotDelivery = 0;
 
             var message = new MessageBody
             {
@@ -362,6 +358,7 @@ namespace Doppler.PushContact.Test.Controllers
             };
 
             var pushContactService = new Mock<IPushContactService>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
             var messageSenderMock = new Mock<IMessageSender>();
             var pushContactRepository = new Mock<IPushContactRepository>();
@@ -371,6 +368,7 @@ namespace Doppler.PushContact.Test.Controllers
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton(pushContactService.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
@@ -388,19 +386,93 @@ namespace Doppler.PushContact.Test.Controllers
             _output.WriteLine(response.GetHeadersAsString());
 
             // Assert
-            messageRepositoryMock.Verify(mock => mock.AddAsync(
-                It.IsAny<Guid>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                qSent,
-                qDelivery,
-                qNotDelivery,
-                It.IsAny<string>(),
-                null
-            ), Times.Once());
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            messageServiceMock.Verify(mock => mock.AddMessageAsync(
+                It.Is<MessageDTO>(dto =>
+                    dto.Domain == message.Domain &&
+                    dto.Title == message.Message.Title &&
+                    dto.Body == message.Message.Body &&
+                    dto.OnClickLink == message.Message.OnClickLink &&
+                    dto.ImageUrl == message.Message.ImageUrl &&
+                    dto.Actions != null && dto.Actions.Count == 0
+                )
+            ), Times.Once());
+
+            var messageResult = await response.Content.ReadFromJsonAsync<MessageResult>();
+            Assert.IsType<Guid>(messageResult.MessageId);
+        }
+
+        [Fact]
+        public async Task CreateMessage_should_create_a_message_with_actions_OK_and_return_proper_messageId()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var action1 = new MessageAction()
+            {
+                Action = fixture.Create<string>(),
+                Title = fixture.Create<string>(),
+                Icon = fixture.Create<string>(),
+                Link = fixture.Create<string>(),
+            };
+
+            var actions = new List<MessageAction>() { action1 };
+
+            var message = new MessageBody
+            {
+                Message = new Message()
+                {
+                    Title = fixture.Create<string>(),
+                    Body = fixture.Create<string>(),
+                    OnClickLink = fixture.Create<string>(),
+                    ImageUrl = fixture.Create<string>(),
+                    Actions = actions,
+                },
+                Domain = fixture.Create<string>()
+            };
+
+            var pushContactService = new Mock<IPushContactService>();
+            var messageServiceMock = new Mock<IMessageService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var pushContactRepository = new Mock<IPushContactRepository>();
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactService.Object);
+                    services.AddSingleton(messageServiceMock.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(pushContactRepository.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"message")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(message)
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            messageServiceMock.Verify(mock => mock.AddMessageAsync(
+                It.Is<MessageDTO>(dto =>
+                    dto.Domain == message.Domain &&
+                    dto.Title == message.Message.Title &&
+                    dto.Body == message.Message.Body &&
+                    dto.OnClickLink == message.Message.OnClickLink &&
+                    dto.ImageUrl == message.Message.ImageUrl &&
+                    dto.Actions != null && dto.Actions.Count == 1
+                )
+            ), Times.Once());
 
             var messageResult = await response.Content.ReadFromJsonAsync<MessageResult>();
             Assert.IsType<Guid>(messageResult.MessageId);
