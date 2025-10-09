@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Doppler.PushContact.Models.DTOs
 {
@@ -14,5 +15,6 @@ namespace Doppler.PushContact.Models.DTOs
 
         public Guid MessageId { get; set; }
         public string Domain { get; set; }
+        public List<MessageActionDTO> Actions { get; set; }
     }
 }
