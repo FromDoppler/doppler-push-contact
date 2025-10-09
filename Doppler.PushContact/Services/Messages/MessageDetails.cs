@@ -1,4 +1,6 @@
+using Doppler.PushContact.Models.Entities;
 using System;
+using System.Collections.Generic;
 
 namespace Doppler.PushContact.Services.Messages
 {
@@ -24,5 +26,7 @@ namespace Doppler.PushContact.Services.Messages
         public int BillableSends { get; set; }
         public int Clicks { get; set; }
         public int Received { get; set; }
+
+        public List<MessageAction> Actions { get; set; }
     }
 }

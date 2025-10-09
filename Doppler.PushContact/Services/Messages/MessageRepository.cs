@@ -280,30 +280,74 @@ namespace Doppler.PushContact.Services.Messages
         public async Task<MessageDetails> GetMessageDetailsByMessageIdAsync(Guid messageId)
         {
             var filterBuilder = Builders<BsonDocument>.Filter;
-
             var filter = filterBuilder.Eq(MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard));
 
             try
             {
-                BsonDocument message = await (await Messages.FindAsync<BsonDocument>(filter)).SingleOrDefaultAsync();
+                var message = await (await Messages.FindAsync<BsonDocument>(filter)).SingleOrDefaultAsync();
 
-                return new MessageDetails
+                if (message == null)
+                {
+                    return null;
+                }
+
+                var messageDetails = new MessageDetails
                 {
                     MessageId = message.GetValue(MessageDocumentProps.MessageIdPropName).AsGuid,
                     Domain = message.GetValue(MessageDocumentProps.DomainPropName).AsString,
                     Title = message.GetValue(MessageDocumentProps.TitlePropName).AsString,
                     Body = message.GetValue(MessageDocumentProps.BodyPropName).AsString,
-                    OnClickLink = message.GetValue(MessageDocumentProps.OnClickLinkPropName) == BsonNull.Value ? null : message.GetValue(MessageDocumentProps.OnClickLinkPropName).AsString,
+                    OnClickLink = message.GetValue(MessageDocumentProps.OnClickLinkPropName) == BsonNull.Value
+                        ? null
+                        : message.GetValue(MessageDocumentProps.OnClickLinkPropName).AsString,
                     Sent = message.GetValue(MessageDocumentProps.SentPropName).AsInt32,
                     Delivered = message.GetValue(MessageDocumentProps.DeliveredPropName).AsInt32,
                     NotDelivered = message.GetValue(MessageDocumentProps.NotDeliveredPropName).AsInt32,
-                    ImageUrl = message.GetValue(MessageDocumentProps.ImageUrlPropName) == BsonNull.Value ? null : message.GetValue(MessageDocumentProps.ImageUrlPropName).AsString
+                    ImageUrl = message.GetValue(MessageDocumentProps.ImageUrlPropName) == BsonNull.Value
+                        ? null
+                        : message.GetValue(MessageDocumentProps.ImageUrlPropName).AsString,
+                    BillableSends = message.GetValue(MessageDocumentProps.BillableSendsPropName, 0).ToInt32(),
+                    Clicks = message.GetValue(MessageDocumentProps.ClicksPropName, 0).ToInt32(),
+                    Received = message.GetValue(MessageDocumentProps.ReceivedPropName, 0).ToInt32(),
                 };
+
+                // Map actions (when exists)
+                if (message.Contains(MessageDocumentProps.ActionsPropName) && message[MessageDocumentProps.ActionsPropName].IsBsonArray)
+                {
+                    var actionsArray = message[MessageDocumentProps.ActionsPropName].AsBsonArray;
+                    var actions = new List<MessageAction>();
+
+                    foreach (var bsonAction in actionsArray)
+                    {
+                        if (bsonAction.IsBsonDocument)
+                        {
+                            var doc = bsonAction.AsBsonDocument;
+                            actions.Add(new MessageAction
+                            {
+                                Action = doc.GetValue(MessageDocumentProps.Actions_ActionPropName, BsonNull.Value).IsBsonNull ?
+                                    null : doc[MessageDocumentProps.Actions_ActionPropName].AsString,
+                                Title = doc.GetValue(MessageDocumentProps.Actions_TitlePropName, BsonNull.Value).IsBsonNull ?
+                                    null : doc[MessageDocumentProps.Actions_TitlePropName].AsString,
+                                Icon = doc.GetValue(MessageDocumentProps.Actions_IconPropName, BsonNull.Value).IsBsonNull ?
+                                    null : doc[MessageDocumentProps.Actions_IconPropName].AsString,
+                                Link = doc.GetValue(MessageDocumentProps.Actions_LinkPropName, BsonNull.Value).IsBsonNull ?
+                                    null : doc[MessageDocumentProps.Actions_LinkPropName].AsString,
+                            });
+                        }
+                    }
+
+                    messageDetails.Actions = actions;
+                }
+                else
+                {
+                    messageDetails.Actions = new List<MessageAction>();
+                }
+
+                return messageDetails;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error getting message with {nameof(messageId)} {messageId}");
-
                 throw;
             }
         }
