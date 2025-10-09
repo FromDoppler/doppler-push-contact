@@ -2,7 +2,6 @@ using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.QueuingService.MessageQueueBroker;
-using Doppler.PushContact.WebPushSender.DTOs;
 using Doppler.PushContact.WebPushSender.Repositories.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -38,6 +37,12 @@ namespace Doppler.PushContact.WebPushSender.Senders
                 _queueName,
                 message.MessageId,
                 message.PushContactId
+            );
+
+            _logger.LogInformation(
+                "Por enviar messageId: {MessageId}, con estas actions: {Actions}...",
+                message.MessageId,
+                JsonConvert.SerializeObject(message.Actions)
             );
 
             WebPushProcessingResultDTO processingResult = await SendWebPush(message);
