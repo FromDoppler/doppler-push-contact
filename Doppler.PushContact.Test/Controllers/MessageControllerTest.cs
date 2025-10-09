@@ -1014,12 +1014,13 @@ namespace Doppler.PushContact.Test.Controllers
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var pushContactRepository = new Mock<IPushContactRepository>();
 
-            messageRepositoryMock
-                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
-                .ReturnsAsync((MessageDetails)null);
+            messageServiceMock
+                .Setup(x => x.GetMessageAsync(messageId))
+                .ReturnsAsync((MessageDTO)null);
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -1027,6 +1028,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
                 });
@@ -1057,7 +1059,7 @@ namespace Doppler.PushContact.Test.Controllers
             var messageId = fixture.Create<Guid>();
             var visitorGuid = fixture.Create<string>();
 
-            var message = fixture.Create<MessageDetails>();
+            var message = fixture.Create<MessageDTO>();
             message.MessageId = messageId;
             message.Title = title;
             message.Body = body;
@@ -1074,11 +1076,12 @@ namespace Doppler.PushContact.Test.Controllers
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var pushContactRepository = new Mock<IPushContactRepository>();
 
-            messageRepositoryMock
-                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+            messageServiceMock
+                .Setup(x => x.GetMessageAsync(messageId))
                 .ReturnsAsync(message);
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -1087,6 +1090,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
                 });
@@ -1131,7 +1135,7 @@ namespace Doppler.PushContact.Test.Controllers
             var messageId = fixture.Create<Guid>();
             var visitorGuid = fixture.Create<string>();
 
-            var message = fixture.Create<MessageDetails>();
+            var message = fixture.Create<MessageDTO>();
             message.MessageId = messageId;
             message.Title = title;
             message.Body = body;
@@ -1148,12 +1152,13 @@ namespace Doppler.PushContact.Test.Controllers
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var pushContactRepository = new Mock<IPushContactRepository>();
             var webPushPublisherServiceMock = new Mock<IWebPushPublisherService>();
 
-            messageRepositoryMock
-                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+            messageServiceMock
+                .Setup(x => x.GetMessageAsync(messageId))
                 .ReturnsAsync(message);
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -1162,6 +1167,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
                     services.AddSingleton(webPushPublisherServiceMock.Object);
@@ -1211,12 +1217,13 @@ namespace Doppler.PushContact.Test.Controllers
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var pushContactRepository = new Mock<IPushContactRepository>();
             var loggerMock = new Mock<ILogger<MessageController>>();
 
-            messageRepositoryMock
-                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+            messageServiceMock
+                .Setup(x => x.GetMessageAsync(messageId))
                 .Throws(testException);
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -1225,6 +1232,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
                     services.AddSingleton(loggerMock.Object);
@@ -1360,12 +1368,13 @@ namespace Doppler.PushContact.Test.Controllers
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var pushContactRepository = new Mock<IPushContactRepository>();
 
-            messageRepositoryMock
-                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
-                .ReturnsAsync((MessageDetails)null);
+            messageServiceMock
+                .Setup(x => x.GetMessageAsync(messageId))
+                .ReturnsAsync((MessageDTO)null);
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -1373,6 +1382,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
                 });
@@ -1399,7 +1409,7 @@ namespace Doppler.PushContact.Test.Controllers
 
             // Arrange
             var messageId = fixture.Create<Guid>();
-            var message = fixture.Create<MessageDetails>();
+            var message = fixture.Create<MessageDTO>();
             message.MessageId = messageId;
 
             FieldsReplacementList fieldsReplacementList = new FieldsReplacementList()
@@ -1410,11 +1420,12 @@ namespace Doppler.PushContact.Test.Controllers
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var pushContactRepository = new Mock<IPushContactRepository>();
 
-            messageRepositoryMock
-                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+            messageServiceMock
+                .Setup(x => x.GetMessageAsync(messageId))
                 .ReturnsAsync(message);
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -1423,6 +1434,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
                 });
@@ -1451,7 +1463,7 @@ namespace Doppler.PushContact.Test.Controllers
             var messageId = fixture.Create<Guid>();
             var visitorGuid = fixture.Create<string>();
 
-            var message = fixture.Create<MessageDetails>();
+            var message = fixture.Create<MessageDTO>();
             message.MessageId = messageId;
 
             var visitorFields1 = new VisitorFields
@@ -1470,12 +1482,13 @@ namespace Doppler.PushContact.Test.Controllers
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var pushContactRepository = new Mock<IPushContactRepository>();
             var webPushPublisherServiceMock = new Mock<IWebPushPublisherService>();
 
-            messageRepositoryMock
-                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+            messageServiceMock
+                .Setup(x => x.GetMessageAsync(messageId))
                 .ReturnsAsync(message);
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -1484,6 +1497,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
                     services.AddSingleton(webPushPublisherServiceMock.Object);
@@ -1540,12 +1554,13 @@ namespace Doppler.PushContact.Test.Controllers
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var pushContactRepository = new Mock<IPushContactRepository>();
             var loggerMock = new Mock<ILogger<MessageController>>();
 
-            messageRepositoryMock
-                .Setup(x => x.GetMessageDetailsByMessageIdAsync(messageId))
+            messageServiceMock
+                .Setup(x => x.GetMessageAsync(messageId))
                 .Throws(testException);
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -1554,6 +1569,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
                     services.AddSingleton(loggerMock.Object);

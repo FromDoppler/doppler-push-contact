@@ -85,7 +85,7 @@ namespace Doppler.PushContact.Controllers
         {
             try
             {
-                var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
+                var message = await _messageService.GetMessageAsync(messageId);
                 if (message == null)
                 {
                     return NotFound($"A Message with messageId: {messageId} doesn't exist.");
@@ -178,7 +178,7 @@ namespace Doppler.PushContact.Controllers
         {
             try
             {
-                var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
+                var message = await _messageService.GetMessageAsync(messageId);
                 if (message == null)
                 {
                     return NotFound($"A Message with messageId: {messageId} doesn't exist.");

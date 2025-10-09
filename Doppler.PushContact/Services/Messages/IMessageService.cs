@@ -7,6 +7,7 @@ namespace Doppler.PushContact.Services.Messages
     public interface IMessageService
     {
         Task<MessageDetails> GetMessageStatsAsync(string domain, Guid messageId, DateTimeOffset dateFrom, DateTimeOffset dateTo);
+        Task<MessageDTO> GetMessageAsync(Guid messageId);
         Task AddMessageAsync(MessageDTO message);
     }
 }

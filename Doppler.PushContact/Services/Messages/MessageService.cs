@@ -22,6 +22,12 @@ namespace Doppler.PushContact.Services.Messages
             return await _messageRepository.GetMessageDetailsAsync(domain, messageId, dateFrom, dateTo);
         }
 
+        public async Task<MessageDTO> GetMessageAsync(Guid messageId)
+        {
+            var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
+            return MapMessageDTO(message);
+        }
+
         public async Task AddMessageAsync(MessageDTO message)
         {
             await _messageRepository.AddAsync(
@@ -60,6 +66,19 @@ namespace Doppler.PushContact.Services.Messages
             }
 
             return sanitizedActions;
+        }
+
+        private MessageDTO MapMessageDTO(MessageDetails message)
+        {
+            return new MessageDTO()
+            {
+                MessageId = message.MessageId,
+                Title = message.Title,
+                Body = message.Body,
+                OnClickLink = message.OnClickLink,
+                ImageUrl = message.ImageUrl,
+                Domain = message.Domain,
+            };
         }
     }
 }
