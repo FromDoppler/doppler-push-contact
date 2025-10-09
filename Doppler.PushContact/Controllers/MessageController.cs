@@ -233,40 +233,60 @@ namespace Doppler.PushContact.Controllers
         {
             try
             {
-                // TODO: analyze remotion of validation for the title and body, it's being doing during model binding with annotations.
-                _messageSender.ValidateMessage(messageBody.Message.Title, messageBody.Message.Body, messageBody.Message.OnClickLink, messageBody.Message.ImageUrl);
-            }
-            catch (ArgumentException argExc)
-            {
-                return UnprocessableEntity(argExc.Message);
-            }
+                var messageDto = new MessageDTO()
+                {
+                    MessageId = Guid.NewGuid(),
+                    Domain = messageBody.Domain,
+                    Title = messageBody.Message.Title,
+                    Body = messageBody.Message.Body,
+                    OnClickLink = messageBody.Message.OnClickLink,
+                    ImageUrl = messageBody.Message.ImageUrl,
+                    Actions = MapActions(messageBody.Message.Actions),
+                };
+                await _messageService.AddMessageAsync(messageDto);
 
-            var messageDto = new MessageDTO()
+                return Ok(new MessageResult
+                {
+                    MessageId = messageDto.MessageId,
+                });
+            }
+            catch (ArgumentException argEx)
             {
-                MessageId = Guid.NewGuid(),
-                Domain = messageBody.Domain,
-                Title = messageBody.Message.Title,
-                Body = messageBody.Message.Body,
-                OnClickLink = messageBody.Message.OnClickLink,
-                ImageUrl = messageBody.Message.ImageUrl,
-                Actions = MapActions(messageBody.Message.Actions),
-            };
-            await _messageService.AddMessageAsync(messageDto);
+                return BadRequest(new { error = argEx.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred adding a message for domain: {domain}.",
+                    messageBody.Domain
+                );
 
-            return Ok(new MessageResult
-            {
-                MessageId = messageDto.MessageId,
-            });
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = $"An unexpected error occurred: {ex.Message}" }
+                );
+            }
         }
 
         [HttpPost]
         [Route("messages/domains/{domain}")]
-        public async Task<IActionResult> EnqueueWebPush([FromRoute] string domain, [FromBody] Message message)
+        public async Task<IActionResult> ProcessWebPushByDomain([FromRoute] string domain, [FromBody] Message message)
         {
-            Guid messageId;
+            var messageId = Guid.NewGuid();
             try
             {
-                messageId = await _messageSender.AddMessageAsync(domain, message.Title, message.Body, message.OnClickLink, message.ImageUrl);
+                var messageDto = new MessageDTO()
+                {
+                    MessageId = messageId,
+                    Domain = domain,
+                    Title = message.Title,
+                    Body = message.Body,
+                    OnClickLink = message.OnClickLink,
+                    ImageUrl = message.ImageUrl,
+                    Actions = MapActions(message.Actions),
+                };
+                await _messageService.AddMessageAsync(messageDto);
             }
             catch (ArgumentException argEx)
             {

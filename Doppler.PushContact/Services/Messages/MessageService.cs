@@ -36,6 +36,9 @@ namespace Doppler.PushContact.Services.Messages
 
         public async Task AddMessageAsync(MessageDTO message)
         {
+            ValidateHttpsUrl(message.OnClickLink, nameof(message.OnClickLink));
+            ValidateHttpsUrl(message.ImageUrl, nameof(message.ImageUrl));
+
             await _messageRepository.AddAsync(
                 message.MessageId,
                 message.Domain,
@@ -48,6 +51,20 @@ namespace Doppler.PushContact.Services.Messages
                 message.ImageUrl,
                 SanitizeActions(message.Actions)
             );
+        }
+
+        // TODO: move to Transversal project
+        private void ValidateHttpsUrl(string url, string paramName)
+        {
+            if (string.IsNullOrEmpty(url))
+            {
+                return;
+            }
+
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var result) || result.Scheme != Uri.UriSchemeHttps)
+            {
+                throw new ArgumentException($"'{paramName}' must be an absolute URL with HTTPS scheme.", paramName);
+            }
         }
 
         private List<MessageActionDTO> SanitizeActions(List<MessageActionDTO> actions)

@@ -479,7 +479,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task CreateMessage_should_return_UnprocessableEntity_error_when_messageSender_throw_an_exception()
+        public async Task CreateMessage_should_return_BadRequest_when_service_throw_argumentexception()
         {
             // Arrange
             var fixture = new Fixture();
@@ -496,12 +496,13 @@ namespace Doppler.PushContact.Test.Controllers
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var pushContactRepository = new Mock<IPushContactRepository>();
 
 
-            messageSenderMock
-                .Setup(x => x.ValidateMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            messageServiceMock
+                .Setup(x => x.AddMessageAsync(It.IsAny<MessageDTO>()))
                 .Throws(new ArgumentException());
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -510,6 +511,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
                 });
@@ -526,7 +528,7 @@ namespace Doppler.PushContact.Test.Controllers
             _output.WriteLine(response.GetHeadersAsString());
 
             // Assert
-            Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
         [Theory]
@@ -626,7 +628,7 @@ namespace Doppler.PushContact.Test.Controllers
         [Theory]
         [InlineData(TestApiUsersData.TOKEN_EMPTY)]
         [InlineData(TestApiUsersData.TOKEN_BROKEN)]
-        public async Task EnqueueWebPush_should_return_unauthorized_when_token_is_not_valid(string token)
+        public async Task ProcessWebPushByDomain_should_return_unauthorized_when_token_is_not_valid(string token)
         {
             // Arrange
             var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
@@ -649,7 +651,7 @@ namespace Doppler.PushContact.Test.Controllers
 
         [Theory]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20010908)]
-        public async Task EnqueueWebPush_should_return_unauthorized_when_token_is_an_expired_superuser_token(string token)
+        public async Task ProcessWebPushByDomain_should_return_unauthorized_when_token_is_an_expired_superuser_token(string token)
         {
             // Arrange
             var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
@@ -671,7 +673,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task EnqueueWebPush_should_return_unauthorized_when_authorization_header_is_not_defined()
+        public async Task ProcessWebPushByDomain_should_return_unauthorized_when_authorization_header_is_not_defined()
         {
             // Arrange
             var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
@@ -693,7 +695,7 @@ namespace Doppler.PushContact.Test.Controllers
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_NOTDEFINED_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_SUPERUSER_FALSE_EXPIRE_20330518)]
         [InlineData(TestApiUsersData.TOKEN_ACCOUNT_123_TEST1_AT_TEST_DOT_COM_EXPIRE_20330518)]
-        public async Task EnqueueWebPush_should_require_a_valid_token_with_isSU_flag(string token)
+        public async Task ProcessWebPushByDomain_should_require_a_valid_token_with_isSU_flag(string token)
         {
             // Arrange
             var client = _factory.CreateClient(new WebApplicationFactoryClientOptions());
@@ -715,7 +717,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task EnqueueWebPush_should_return_BadRequest_when_MessageSender_throws_an_ArgumentException()
+        public async Task ProcessWebPushByDomain_should_return_BadRequest_when_MessageService_throws_an_ArgumentException()
         {
             var fixture = new Fixture();
 
@@ -729,17 +731,12 @@ namespace Doppler.PushContact.Test.Controllers
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var pushContactRepository = new Mock<IPushContactRepository>();
 
-            messageSenderMock
-            .Setup(x => x.AddMessageAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()
-            ))
+            messageServiceMock
+            .Setup(x => x.AddMessageAsync(It.IsAny<MessageDTO>()))
             .Throws<ArgumentException>();
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -748,6 +745,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
                 });
@@ -768,7 +766,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task EnqueueWebPush_should_return_InternalServerError_when_MessageSender_throws_an_Exception()
+        public async Task ProcessWebPushByDomain_should_return_InternalServerError_when_MessageService_throws_an_Exception()
         {
             var fixture = new Fixture();
 
@@ -782,20 +780,15 @@ namespace Doppler.PushContact.Test.Controllers
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var loggerMock = new Mock<ILogger<MessageController>>();
             var pushContactRepository = new Mock<IPushContactRepository>();
 
             var expectedException = new Exception("my exception on testing");
 
-            messageSenderMock
-            .Setup(x => x.AddMessageAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()
-            ))
+            messageServiceMock
+            .Setup(x => x.AddMessageAsync(It.IsAny<MessageDTO>()))
             .Throws(expectedException);
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -804,6 +797,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(loggerMock.Object);
                     services.AddSingleton(pushContactRepository.Object);
@@ -833,7 +827,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task EnqueueWebPush_should_return_Ok_and_the_new_messageId()
+        public async Task ProcessWebPushByDomain_should_return_Ok_and_a_valid_messageId()
         {
             var fixture = new Fixture();
 
@@ -846,22 +840,12 @@ namespace Doppler.PushContact.Test.Controllers
                 Title = title,
                 Body = body,
             };
-            var expectedMessageId = fixture.Create<Guid>();
 
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var webPushPublisherServiceMock = new Mock<IWebPushPublisherService>();
-
-            messageSenderMock
-            .Setup(x => x.AddMessageAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()
-            ))
-            .ReturnsAsync(expectedMessageId);
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -869,6 +853,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(pushContactService.Object);
                     services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(messageSenderMock.Object);
                     services.AddSingleton(webPushPublisherServiceMock.Object);
                 });
@@ -899,7 +884,8 @@ namespace Doppler.PushContact.Test.Controllers
             var responseObject = JsonSerializer.Deserialize<MessageResult>(responseBody, options);
             var messageId = responseObject?.MessageId;
 
-            Assert.Equal(expectedMessageId, messageId);
+            Assert.NotNull(messageId);
+            Assert.True(Guid.TryParse(messageId.ToString(), out _), $"Expected a valid GUID but got '{messageId}'.");
         }
 
         [Theory]
