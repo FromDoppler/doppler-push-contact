@@ -26,12 +26,12 @@ namespace Doppler.PushContact.Services.Messages
         {
             var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
 
-            if (message == null)
+            if (message != null)
             {
-                return null;
+                return MapMessageDTO(message);
             }
 
-            return MapMessageDTO(message);
+            return null;
         }
 
         public async Task AddMessageAsync(MessageDTO message)
