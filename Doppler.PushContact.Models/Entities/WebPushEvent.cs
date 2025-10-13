@@ -29,5 +29,8 @@ namespace Doppler.PushContact.Models.Entities
 
         [BsonElement(WebPushEventDocumentProps.DeviceToken_PropName)]
         public string DeviceToken { get; set; }
+
+        [BsonElement(WebPushEventDocumentProps.EventDescriptor_PropName)]
+        public string EventDescriptor { get; set; }
     }
 }

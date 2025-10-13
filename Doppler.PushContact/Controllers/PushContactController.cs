@@ -478,6 +478,7 @@ namespace Doppler.PushContact.Controllers
                         contactId,
                         messageIdToGuid,
                         type,
+                        eventDescriptor,
                         cancellationToken
                     );
                 }

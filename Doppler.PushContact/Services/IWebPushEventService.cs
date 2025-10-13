@@ -17,6 +17,7 @@ namespace Doppler.PushContact.Services
             string contactId,
             Guid messageId,
             WebPushEventType type,
+            string eventDescriptor,
             CancellationToken cancellationToken
         );
         // TODO: revisar este conteo

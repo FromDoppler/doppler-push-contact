@@ -3905,6 +3905,7 @@ namespace Doppler.PushContact.Test.Controllers
                         contactId,
                         messageId,
                         type,
+                        null,
                         It.IsAny<CancellationToken>()),
                     Times.Once);
             }

@@ -137,7 +137,7 @@ namespace Doppler.PushContact.Test.Services
             );
 
             // Act
-            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, CancellationToken.None);
+            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, null, CancellationToken.None);
 
             // Assert
             Assert.False(result);
@@ -177,7 +177,7 @@ namespace Doppler.PushContact.Test.Services
             );
 
             // Act
-            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, CancellationToken.None);
+            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, null, CancellationToken.None);
 
             // Assert
             Assert.False(result);
@@ -221,7 +221,7 @@ namespace Doppler.PushContact.Test.Services
             );
 
             // Act
-            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, CancellationToken.None);
+            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, null, CancellationToken.None);
 
             // Assert
             Assert.False(result);
@@ -276,7 +276,7 @@ namespace Doppler.PushContact.Test.Services
             );
 
             // Act
-            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, CancellationToken.None);
+            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, null, CancellationToken.None);
 
             // Assert
             Assert.True(result);
