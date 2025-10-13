@@ -440,7 +440,15 @@ namespace Doppler.PushContact.Controllers
             return RegisterWebPushEvent(encryptedContactId, encryptedMessageId, WebPushEventType.Received);
         }
 
-        private IActionResult RegisterWebPushEvent(string encryptedContactId, string encryptedMessageId, WebPushEventType type)
+        [HttpPost]
+        [AllowAnonymous]
+        [Route("push-contacts/{encryptedContactId}/messages/{encryptedMessageId}/actionClick/{actionName}")]
+        public IActionResult RegisterWebPushReceivedEvent([FromRoute] string encryptedContactId, [FromRoute] string encryptedMessageId, [FromRoute] string actionName)
+        {
+            return RegisterWebPushEvent(encryptedContactId, encryptedMessageId, WebPushEventType.ActionClick, actionName);
+        }
+
+        private IActionResult RegisterWebPushEvent(string encryptedContactId, string encryptedMessageId, WebPushEventType type, string eventDescriptor = null)
         {
             string contactId;
             Guid messageIdToGuid;
