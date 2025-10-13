@@ -625,6 +625,72 @@ namespace Doppler.PushContact.Test.Controllers
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
+        [Fact]
+        public async Task CreateMessage_should_return_InternalServerError_when_service_throw_exception()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var message = new MessageBody
+            {
+                Message = new Message()
+                {
+                    Title = fixture.Create<string>(),
+                    Body = fixture.Create<string>()
+                },
+                Domain = fixture.Create<string>()
+            };
+
+            var expectedExceptionMessage = "exception on test";
+
+            var pushContactService = new Mock<IPushContactService>();
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+            var messageServiceMock = new Mock<IMessageService>();
+            var messageSenderMock = new Mock<IMessageSender>();
+            var pushContactRepository = new Mock<IPushContactRepository>();
+            var loggerMock = new Mock<ILogger<MessageController>>();
+
+
+            messageServiceMock
+                .Setup(x => x.AddMessageAsync(It.IsAny<MessageDTO>()))
+                .Throws(new Exception(expectedExceptionMessage));
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(pushContactService.Object);
+                    services.AddSingleton(messageRepositoryMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
+                    services.AddSingleton(messageSenderMock.Object);
+                    services.AddSingleton(pushContactRepository.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"message")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+                Content = JsonContent.Create(message)
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+            _output.WriteLine(response.GetHeadersAsString());
+
+            // Assert
+            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+
+            loggerMock.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains($"An unexpected error occurred adding a message for domain: {message.Domain}")),
+                    It.Is<Exception>(ex => ex.Message == expectedExceptionMessage),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
+        }
+
         [Theory]
         [InlineData(TestApiUsersData.TOKEN_EMPTY)]
         [InlineData(TestApiUsersData.TOKEN_BROKEN)]
