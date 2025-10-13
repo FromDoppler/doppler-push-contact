@@ -89,6 +89,12 @@ namespace Doppler.PushContact.WebPushSender.Senders
                     notificationBody = message.Body,
                     notificationOnClickLink = message.OnClickLink,
                     imageUrl = message.ImageUrl,
+                    actions = message.Actions?.Select(a => new
+                    {
+                        action = a.Action,
+                        title = a.Title,
+                        icon = a.Icon
+                    }).ToList()
                 })
                 .ReceiveJson<SendMessageResponse>();
             }

@@ -25,6 +25,7 @@ namespace Doppler.PushContact.Controllers
         private readonly IMessageRepository _messageRepository;
         private readonly IPushContactService _pushContactService;
         private readonly IWebPushPublisherService _webPushPublisherService;
+        private readonly IMessageService _messageService;
         private readonly ILogger<MessageController> _logger;
 
         public MessageController(
@@ -32,6 +33,7 @@ namespace Doppler.PushContact.Controllers
             IMessageRepository messageRepository,
             IMessageSender messageSender,
             IWebPushPublisherService webPushPublisherService,
+            IMessageService messageService,
             ILogger<MessageController> logger
         )
         {
@@ -39,6 +41,7 @@ namespace Doppler.PushContact.Controllers
             _messageRepository = messageRepository;
             _messageSender = messageSender;
             _webPushPublisherService = webPushPublisherService;
+            _messageService = messageService;
             _logger = logger;
         }
 
@@ -82,7 +85,7 @@ namespace Doppler.PushContact.Controllers
         {
             try
             {
-                var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
+                var message = await _messageService.GetMessageAsync(messageId);
                 if (message == null)
                 {
                     return NotFound($"A Message with messageId: {messageId} doesn't exist.");
@@ -108,6 +111,7 @@ namespace Doppler.PushContact.Controllers
                     OnClickLink = message.OnClickLink,
                     ImageUrl = message.ImageUrl,
                     Domain = message.Domain,
+                    Actions = message.Actions,
                 };
 
                 var visitorsWithReplacements = new FieldsReplacementList()
@@ -175,7 +179,7 @@ namespace Doppler.PushContact.Controllers
         {
             try
             {
-                var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
+                var message = await _messageService.GetMessageAsync(messageId);
                 if (message == null)
                 {
                     return NotFound($"A Message with messageId: {messageId} doesn't exist.");
@@ -197,6 +201,7 @@ namespace Doppler.PushContact.Controllers
                     OnClickLink = message.OnClickLink,
                     ImageUrl = message.ImageUrl,
                     Domain = message.Domain,
+                    Actions = message.Actions,
                 };
 
                 var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
@@ -228,41 +233,60 @@ namespace Doppler.PushContact.Controllers
         {
             try
             {
-                // TODO: analyze remotion of validation for the title and body, it's being doing during model binding with annotations.
-                _messageSender.ValidateMessage(messageBody.Message.Title, messageBody.Message.Body, messageBody.Message.OnClickLink, messageBody.Message.ImageUrl);
+                var messageDto = new MessageDTO()
+                {
+                    MessageId = Guid.NewGuid(),
+                    Domain = messageBody.Domain,
+                    Title = messageBody.Message.Title,
+                    Body = messageBody.Message.Body,
+                    OnClickLink = messageBody.Message.OnClickLink,
+                    ImageUrl = messageBody.Message.ImageUrl,
+                    Actions = MapActions(messageBody.Message.Actions),
+                };
+                await _messageService.AddMessageAsync(messageDto);
+
+                return Ok(new MessageResult
+                {
+                    MessageId = messageDto.MessageId,
+                });
             }
-            catch (ArgumentException argExc)
+            catch (ArgumentException argEx)
             {
-                return UnprocessableEntity(argExc.Message);
+                return BadRequest(new { error = argEx.Message });
             }
-
-            var messageId = Guid.NewGuid();
-
-            await _messageRepository.AddAsync(
-                messageId, messageBody.Domain,
-                messageBody.Message.Title,
-                messageBody.Message.Body,
-                messageBody.Message.OnClickLink,
-                0,
-                0,
-                0,
-                messageBody.Message.ImageUrl
-            );
-
-            return Ok(new MessageResult
+            catch (Exception ex)
             {
-                MessageId = messageId
-            });
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred adding a message for domain: {domain}.",
+                    messageBody.Domain
+                );
+
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = $"An unexpected error occurred: {ex.Message}" }
+                );
+            }
         }
 
         [HttpPost]
         [Route("messages/domains/{domain}")]
-        public async Task<IActionResult> EnqueueWebPush([FromRoute] string domain, [FromBody] Message message)
+        public async Task<IActionResult> ProcessWebPushByDomain([FromRoute] string domain, [FromBody] Message message)
         {
-            Guid messageId;
+            var messageId = Guid.NewGuid();
             try
             {
-                messageId = await _messageSender.AddMessageAsync(domain, message.Title, message.Body, message.OnClickLink, message.ImageUrl);
+                var messageDto = new MessageDTO()
+                {
+                    MessageId = messageId,
+                    Domain = domain,
+                    Title = message.Title,
+                    Body = message.Body,
+                    OnClickLink = message.OnClickLink,
+                    ImageUrl = message.ImageUrl,
+                    Actions = MapActions(message.Actions),
+                };
+                await _messageService.AddMessageAsync(messageDto);
             }
             catch (ArgumentException argEx)
             {
@@ -290,6 +314,7 @@ namespace Doppler.PushContact.Controllers
                 ImageUrl = message.ImageUrl,
                 MessageId = messageId,
                 Domain = domain,
+                Actions = MapActions(message.Actions),
             };
 
             var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
@@ -300,6 +325,30 @@ namespace Doppler.PushContact.Controllers
             {
                 MessageId = messageId
             });
+        }
+
+        private List<MessageActionDTO> MapActions(List<MessageAction> actions)
+        {
+            var result = new List<MessageActionDTO>();
+            if (actions == null)
+            {
+                return result;
+            }
+
+            foreach (var action in actions)
+            {
+                var dto = new MessageActionDTO()
+                {
+                    Action = action.Action,
+                    Title = action.Title,
+                    Icon = action.Icon,
+                    Link = action.Link,
+                };
+
+                result.Add(dto);
+            }
+
+            return result;
         }
     }
 }

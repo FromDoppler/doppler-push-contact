@@ -27,5 +27,11 @@ namespace Doppler.PushContact.Models.Entities
         public const string BillableSendsPropName = "billable_sends";
         public const string ClicksPropName = "clicks";
         public const string ReceivedPropName = "received";
+
+        public const string ActionsPropName = "actions";
+        public const string Actions_ActionPropName = "action";
+        public const string Actions_TitlePropName = "title";
+        public const string Actions_IconPropName = "icon";
+        public const string Actions_LinkPropName = "link";
     }
 }

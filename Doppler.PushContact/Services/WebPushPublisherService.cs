@@ -327,6 +327,7 @@ namespace Doppler.PushContact.Services
                 ClickedEventEndpoint = clickedEventEndpoint,
                 ReceivedEventEndpoint = receivedEventEndpoint,
                 Domain = messageDTO.Domain,
+                Actions = messageDTO.Actions,
             };
 
             string queueName = GetQueueName(subscription.EndPoint);
@@ -455,6 +456,7 @@ namespace Doppler.PushContact.Services
                     ImageUrl = messageDTO.ImageUrl,
                     OnClickLink = messageDTO.OnClickLink,
                     Domain = messageDTO.Domain,
+                    Actions = messageDTO.Actions,
                 };
 
                 _logger.LogDebug($"Message with replaced fields: {JsonSerializer.Serialize(messageWithReplacedFields)}");

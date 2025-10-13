@@ -1,4 +1,5 @@
 using AutoFixture;
+using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.Services;
@@ -553,6 +554,367 @@ namespace Doppler.PushContact.Test.Services.Messages
                     It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Error registering")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        public async Task AddAsync_should_throw_ArgumentException_when_domain_is_null_or_empty(string invalidDomain)
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+                sut.AddAsync(
+                    fixture.Create<Guid>(),
+                    invalidDomain,
+                    "title",
+                    "body",
+                    "https://example.com",
+                    0,
+                    0,
+                    0,
+                    "https://image.com/image.png"
+                ));
+
+            Assert.Contains("domain", ex.Message);
+        }
+
+        [Theory]
+        [InlineData(null, "body")]
+        [InlineData("", "body")]
+        [InlineData("title", null)]
+        [InlineData("title", "")]
+        public async Task AddAsync_should_throw_ArgumentException_when_title_or_body_is_null_or_empty(string title, string body)
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                sut.AddAsync(
+                    fixture.Create<Guid>(),
+                    "domain.com",
+                    title,
+                    body,
+                    "https://example.com",
+                    0,
+                    0,
+                    0,
+                    "https://image.com/image.png"
+                ));
+        }
+
+        [Fact]
+        public async Task AddAsync_should_log_error_and_throw_when_insert_fails()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+
+            collectionMock
+                .Setup(x => x.InsertOneAsync(
+                    It.IsAny<BsonDocument>(),
+                    It.IsAny<InsertOneOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("insert error"));
+
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<Exception>(() =>
+                sut.AddAsync(
+                    messageId,
+                    "domain.com",
+                    "title",
+                    "body",
+                    "https://example.com",
+                    0,
+                    0,
+                    0,
+                    "https://image.com/image.png"
+                ));
+
+            Assert.Equal("insert error", ex.Message);
+
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) =>
+                        v.ToString().Contains($"Error inserting message with messageId {messageId}")),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task AddAsync_should_insert_document_without_actions()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
+
+            // Act
+            await sut.AddAsync(
+                messageId,
+                "domain.com",
+                "title",
+                "body",
+                "https://example.com",
+                1,
+                2,
+                3,
+                "https://image.com/img.png"
+            );
+
+            // Assert
+            collectionMock.Verify(x => x.InsertOneAsync(
+                It.Is<BsonDocument>(d =>
+                    d.Contains(MessageDocumentProps.TitlePropName) &&
+                    d[MessageDocumentProps.TitlePropName] == "title" &&
+                    !d.Contains(MessageDocumentProps.ActionsPropName)), // it has not 'actions' field
+                It.IsAny<InsertOneOptions>(),
+                It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task AddAsync_should_insert_document_with_actions()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
+
+            var actions = new List<MessageActionDTO>
+            {
+                new MessageActionDTO
+                {
+                    Action = "accept",
+                    Title = "Aceptar",
+                    Icon = "https://icon.png",
+                    Link = "https://link.com"
+                }
+            };
+
+            // Act
+            await sut.AddAsync(
+                messageId,
+                "domain.com",
+                "title",
+                "body",
+                "https://example.com",
+                1,
+                2,
+                3,
+                "https://image.com/img.png",
+                actions
+            );
+
+            // Assert
+            collectionMock.Verify(x => x.InsertOneAsync(
+                It.Is<BsonDocument>(d =>
+                    d.Contains(MessageDocumentProps.ActionsPropName) &&
+                    d[MessageDocumentProps.ActionsPropName].AsBsonArray.Count == 1 &&
+                    d[MessageDocumentProps.ActionsPropName][0][MessageDocumentProps.Actions_ActionPropName] == "accept" &&
+                    d[MessageDocumentProps.ActionsPropName][0][MessageDocumentProps.Actions_TitlePropName] == "Aceptar"),
+                It.IsAny<InsertOneOptions>(),
+                It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task GetMessageDetailsByMessageIdAsync_should_return_null_when_message_not_found()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var cursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+
+            cursorMock.SetupSequence(c => c.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false); // no documents found
+
+            collectionMock
+                .Setup(x => x.FindAsync(
+                    It.IsAny<FilterDefinition<BsonDocument>>(),
+                    It.IsAny<FindOptions<BsonDocument, BsonDocument>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(cursorMock.Object);
+
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
+
+            // Act
+            var result = await sut.GetMessageDetailsByMessageIdAsync(messageId);
+
+            // Assert
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public async Task GetMessageDetailsByMessageIdAsync_should_return_message_with_empty_actions()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            // no "actions"
+            var bsonDoc = new BsonDocument
+            {
+                { MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard) },
+                { MessageDocumentProps.DomainPropName, "test.com" },
+                { MessageDocumentProps.TitlePropName, "Title" },
+                { MessageDocumentProps.BodyPropName, "Body" },
+                { MessageDocumentProps.OnClickLinkPropName, "https://click.com" },
+                { MessageDocumentProps.SentPropName, 10 },
+                { MessageDocumentProps.DeliveredPropName, 5 },
+                { MessageDocumentProps.NotDeliveredPropName, 2 },
+                { MessageDocumentProps.ImageUrlPropName, "https://image.com" }
+            };
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var cursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+
+            cursorMock.SetupSequence(c => c.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+            cursorMock.SetupGet(c => c.Current).Returns(new[] { bsonDoc });
+
+            collectionMock
+                .Setup(x => x.FindAsync(
+                    It.IsAny<FilterDefinition<BsonDocument>>(),
+                    It.IsAny<FindOptions<BsonDocument, BsonDocument>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(cursorMock.Object);
+
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
+
+            // Act
+            var result = await sut.GetMessageDetailsByMessageIdAsync(messageId);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Empty(result.Actions);
+        }
+
+        [Fact]
+        public async Task GetMessageDetailsByMessageIdAsync_should_return_message_with_actions()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var bsonDoc = new BsonDocument
+            {
+                { MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard) },
+                { MessageDocumentProps.DomainPropName, "test.com" },
+                { MessageDocumentProps.TitlePropName, "Title" },
+                { MessageDocumentProps.BodyPropName, "Body" },
+                { MessageDocumentProps.OnClickLinkPropName, "https://click.com" },
+                { MessageDocumentProps.SentPropName, 10 },
+                { MessageDocumentProps.DeliveredPropName, 5 },
+                { MessageDocumentProps.NotDeliveredPropName, 2 },
+                { MessageDocumentProps.ImageUrlPropName, "https://image.com" },
+                { MessageDocumentProps.ActionsPropName, new BsonArray
+                    {
+                        new BsonDocument
+                        {
+                            { MessageDocumentProps.Actions_ActionPropName, "Action1" },
+                            { MessageDocumentProps.Actions_TitlePropName, "Title1" },
+                            { MessageDocumentProps.Actions_IconPropName, "https://icon.png" },
+                            { MessageDocumentProps.Actions_LinkPropName, "https://link.com" }
+                        }
+                    }
+                }
+            };
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+            var cursorMock = new Mock<IAsyncCursor<BsonDocument>>();
+
+            cursorMock.SetupSequence(c => c.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+            cursorMock.SetupGet(c => c.Current).Returns(new[] { bsonDoc });
+
+            collectionMock
+                .Setup(x => x.FindAsync(
+                    It.IsAny<FilterDefinition<BsonDocument>>(),
+                    It.IsAny<FindOptions<BsonDocument, BsonDocument>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(cursorMock.Object);
+
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
+
+            // Act
+            var result = await sut.GetMessageDetailsByMessageIdAsync(messageId);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Single(result.Actions);
+            Assert.True(result.Actions[0].Action == "Action1");
+            Assert.True(result.Actions[0].Title == "Title1");
+        }
+
+        [Fact]
+        public async Task GetMessageDetailsByMessageIdAsync_should_log_error_and_throw_when_exception_occurs()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var loggerMock = new Mock<ILogger<MessageRepository>>();
+            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
+
+            var exceptionMessage = "db error";
+
+            collectionMock
+                .Setup(x => x.FindAsync(
+                    It.IsAny<FilterDefinition<BsonDocument>>(),
+                    It.IsAny<FindOptions<BsonDocument, BsonDocument>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception(exceptionMessage));
+
+            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<Exception>(() => sut.GetMessageDetailsByMessageIdAsync(messageId));
+            Assert.Equal(exceptionMessage, exception.Message);
+
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, _) =>
+                        v.ToString().Contains($"Error getting message with messageId {messageId}")),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
                 Times.Once);
         }
     }
