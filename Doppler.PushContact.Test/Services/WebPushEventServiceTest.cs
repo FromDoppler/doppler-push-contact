@@ -283,6 +283,50 @@ namespace Doppler.PushContact.Test.Services
         }
 
         [Fact]
+        public async Task RegisterWebPushEventAsync_ShouldReturnTrueAndSaveEventDescriptor_WhenEventIsSuccessfullyRegistered()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var contactId = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+            var eventType = WebPushEventType.ActionClick;
+
+            var mockPushContactService = new Mock<IPushContactService>();
+            var mockMessageRepository = new Mock<IMessageRepository>();
+            var mockWebPushEventRepository = new Mock<IWebPushEventRepository>();
+            var mockLogger = new Mock<ILogger<WebPushEventService>>();
+
+            mockPushContactService
+                .Setup(service => service.GetPushContactDomainAsync(contactId))
+                .ReturnsAsync("domain");
+
+            mockMessageRepository
+                .Setup(repo => repo.GetMessageDomainAsync(messageId))
+                .ReturnsAsync("domain");
+
+            mockWebPushEventRepository
+                .Setup(repo => repo.IsWebPushEventRegistered(contactId, messageId, eventType))
+                .ReturnsAsync(false);
+
+            mockWebPushEventRepository
+                .Setup(repo => repo.InsertAsync(It.IsAny<WebPushEvent>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            var sut = CreateSut(
+                webPushEventRepository: mockWebPushEventRepository.Object,
+                pushContactService: mockPushContactService.Object,
+                messageRepository: mockMessageRepository.Object,
+                logger: mockLogger.Object
+            );
+
+            // Act
+            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, "action_test", CancellationToken.None);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
         public async Task GetWebPushEventConsumed_ShouldReturnConsumed_Ok()
         {
             // Arrange
