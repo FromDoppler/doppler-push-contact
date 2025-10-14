@@ -443,7 +443,7 @@ namespace Doppler.PushContact.Controllers
         [HttpPost]
         [AllowAnonymous]
         [Route("push-contacts/{encryptedContactId}/messages/{encryptedMessageId}/actionClick/{actionName}")]
-        public IActionResult RegisterWebPushReceivedEvent([FromRoute] string encryptedContactId, [FromRoute] string encryptedMessageId, [FromRoute] string actionName)
+        public IActionResult RegisterWebPushActionClickEvent([FromRoute] string encryptedContactId, [FromRoute] string encryptedMessageId, [FromRoute] string actionName)
         {
             return RegisterWebPushEvent(encryptedContactId, encryptedMessageId, WebPushEventType.ActionClick, actionName);
         }
