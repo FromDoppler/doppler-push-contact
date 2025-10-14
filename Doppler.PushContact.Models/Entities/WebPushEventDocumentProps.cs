@@ -11,5 +11,6 @@ namespace Doppler.PushContact.Models.Entities
         public const string SubType_PropName = "sub_type";
         public const string Domain_PropName = "domain";
         public const string DeviceToken_PropName = "device_token";
+        public const string EventDescriptor_PropName = "event_descriptor";
     }
 }

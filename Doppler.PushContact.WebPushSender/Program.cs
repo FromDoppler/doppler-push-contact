@@ -1,4 +1,5 @@
 using Doppler.PushContact.QueuingService.MessageQueueBroker;
+using Doppler.PushContact.Transversal;
 using Doppler.PushContact.WebPushSender.Logging;
 using Doppler.PushContact.WebPushSender.Repositories.Setup;
 using Doppler.PushContact.WebPushSender.Senders;
@@ -53,6 +54,11 @@ namespace Doppler.PushContact.WebPushSender
 
                     // Register IWebPushSender's
                     services.AddSingleton<IWebPushSender, DefaultWebPushSender>();
+
+                    // Initialize EncryptionHelper
+                    services.Configure<EncryptionSettings>(configuration.GetSection("EncryptionSettings"));
+                    var encryptionSettings = configuration.GetSection("EncryptionSettings").Get<EncryptionSettings>();
+                    EncryptionHelper.Initialize(encryptionSettings.Key, encryptionSettings.IV);
 
                     services.AddMongoDBRepositoryService(configuration);
 

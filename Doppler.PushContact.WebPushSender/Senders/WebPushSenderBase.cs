@@ -1,6 +1,6 @@
 using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.QueuingService.MessageQueueBroker;
-using Doppler.PushContact.WebPushSender.DTOs;
+using Doppler.PushContact.Transversal;
 using Doppler.PushContact.WebPushSender.DTOs.WebPushApi;
 using Doppler.PushContact.WebPushSender.Repositories.Interfaces;
 using Flurl;
@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -26,6 +27,8 @@ namespace Doppler.PushContact.WebPushSender.Senders
         private IDisposable _queueSubscription;
         private readonly string _pushApiUrl;
         protected readonly IWebPushEventRepository _weshPushEventRepository;
+        private readonly string _actionClickEventEndpointPath;
+        private readonly string _pushContactApiUrl;
 
         protected WebPushSenderBase(
             IOptions<WebPushSenderSettings> webPushSenderSettings,
@@ -39,6 +42,8 @@ namespace Doppler.PushContact.WebPushSender.Senders
             _queueName = webPushSenderSettings.Value.QueueName;
             _pushApiUrl = webPushSenderSettings.Value.PushApiUrl;
             _weshPushEventRepository = weshPushEventRepository;
+            _actionClickEventEndpointPath = webPushSenderSettings.Value.ActionClickEventEndpointPath;
+            _pushContactApiUrl = webPushSenderSettings.Value.PushContactApiUrl;
         }
 
         public async Task StartListeningAsync(CancellationToken cancellationToken)
@@ -82,6 +87,7 @@ namespace Doppler.PushContact.WebPushSender.Senders
                             {
                                 clickedEventEndpoint = message.ClickedEventEndpoint,
                                 receivedEventEndpoint = message.ReceivedEventEndpoint,
+                                actionEventEndpoints = GetActionEventEndpoints(message, message.Actions),
                             },
                         },
                     },
@@ -93,7 +99,8 @@ namespace Doppler.PushContact.WebPushSender.Senders
                     {
                         action = a.Action,
                         title = a.Title,
-                        icon = a.Icon
+                        icon = a.Icon,
+                        link = a.Link,
                     }).ToList()
                 })
                 .ReceiveJson<SendMessageResponse>();
@@ -175,6 +182,54 @@ namespace Doppler.PushContact.WebPushSender.Senders
             }
 
             return processingResult;
+        }
+
+        private string GetEndpointToRegisterEvent(string endpointPath, string pushContactId, string messageId, string actionName)
+        {
+            if (string.IsNullOrEmpty(endpointPath) ||
+                string.IsNullOrEmpty(pushContactId) ||
+                string.IsNullOrEmpty(messageId) ||
+                string.IsNullOrEmpty(_pushContactApiUrl)
+            )
+            {
+                return null;
+            }
+
+            var encryptedContactId = EncryptionHelper.Encrypt(pushContactId, useBase64Url: true);
+            var encryptedMessageId = EncryptionHelper.Encrypt(messageId, useBase64Url: true);
+
+            var endpointResult = endpointPath
+                .Replace("[pushContactApiUrl]", _pushContactApiUrl)
+                .Replace("[encryptedContactId]", encryptedContactId)
+                .Replace("[encryptedMessageId]", encryptedMessageId);
+
+            if (!string.IsNullOrEmpty(actionName))
+            {
+                endpointResult = endpointResult.Replace("[actionName]", actionName);
+            }
+
+            return endpointResult;
+        }
+
+        private Dictionary<string, string> GetActionEventEndpoints(DopplerWebPushDTO webPushDTO, List<MessageActionDTO> messageActions)
+        {
+            var actionEventEndpoints = new Dictionary<string, string>();
+
+            if (messageActions != null)
+            {
+                foreach (var action in messageActions)
+                {
+                    var actionEventEndpoint = GetEndpointToRegisterEvent(
+                        _actionClickEventEndpointPath,
+                        webPushDTO.PushContactId,
+                        webPushDTO.MessageId.ToString(),
+                        action.Action
+                    );
+                    actionEventEndpoints.Add(action.Action, actionEventEndpoint);
+                }
+            }
+
+            return actionEventEndpoints;
         }
     }
 }

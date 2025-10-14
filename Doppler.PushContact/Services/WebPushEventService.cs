@@ -55,6 +55,7 @@ namespace Doppler.PushContact.Services
             string contactId,
             Guid messageId,
             WebPushEventType type,
+            string eventDescriptor,
             CancellationToken cancellationToken
         )
         {
@@ -81,6 +82,11 @@ namespace Doppler.PushContact.Services
                     Type = (int)type,
                     Domain = contactDomain,
                 };
+
+                if (!string.IsNullOrEmpty(eventDescriptor))
+                {
+                    webPushEvent.EventDescriptor = eventDescriptor;
+                }
 
                 await _messageRepository.RegisterEventCount(messageId, webPushEvent);
                 await _webPushEventRepository.InsertAsync(webPushEvent, cancellationToken);

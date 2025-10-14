@@ -8,6 +8,7 @@ namespace Doppler.PushContact.Models.Enums
         ProcessingFailed = 3,
         DeliveryFailed = 4,
         DeliveryFailedButRetry = 5,
+        ActionClick = 6,
     }
 
     public enum WebPushEventSubType
