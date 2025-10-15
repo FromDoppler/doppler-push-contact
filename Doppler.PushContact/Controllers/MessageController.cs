@@ -306,15 +306,17 @@ namespace Doppler.PushContact.Controllers
                 );
             }
 
+            // TODO: it obtains the message previously created. Maybe when AddMessageAsync should return the message instead messageId.
+            var createdMessage = await _messageService.GetMessageAsync(messageId);
             var webPushDTO = new WebPushDTO()
             {
-                Title = message.Title,
-                Body = message.Body,
-                OnClickLink = message.OnClickLink,
-                ImageUrl = message.ImageUrl,
                 MessageId = messageId,
+                Title = createdMessage.Title,
+                Body = createdMessage.Body,
+                OnClickLink = createdMessage.OnClickLink,
+                ImageUrl = createdMessage.ImageUrl,
                 Domain = domain,
-                Actions = MapActions(message.Actions),
+                Actions = createdMessage.Actions,
             };
 
             var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
