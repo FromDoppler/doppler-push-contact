@@ -513,7 +513,7 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             loggerMock.Verify(
                 x => x.Log(
-                    LogLevel.Error,
+                    LogLevel.Warning,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Event type being registered is not valid for message with")),
                     null,
