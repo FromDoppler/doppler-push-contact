@@ -907,11 +907,19 @@ namespace Doppler.PushContact.Test.Controllers
                 Body = body,
             };
 
+            var newMessageDto = new MessageDTO()
+            {
+                Title = title,
+                Body = body,
+            };
+
             var pushContactService = new Mock<IPushContactService>();
             var messageRepositoryMock = new Mock<IMessageRepository>();
             var messageServiceMock = new Mock<IMessageService>();
             var messageSenderMock = new Mock<IMessageSender>();
             var webPushPublisherServiceMock = new Mock<IWebPushPublisherService>();
+
+            messageServiceMock.Setup(ms => ms.GetMessageAsync(It.IsAny<Guid>())).ReturnsAsync(newMessageDto);
 
             var client = _factory.WithWebHostBuilder(builder =>
             {

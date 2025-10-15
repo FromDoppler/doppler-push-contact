@@ -2,7 +2,6 @@ using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.QueuingService.MessageQueueBroker;
-using Doppler.PushContact.WebPushSender.DTOs;
 using Doppler.PushContact.WebPushSender.Repositories.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
