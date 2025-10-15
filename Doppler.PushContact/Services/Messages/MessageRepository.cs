@@ -204,7 +204,7 @@ namespace Doppler.PushContact.Services.Messages
                         .Inc(MessageDocumentProps.ClicksPropName, quantity);
                     break;
                 default:
-                    _logger.LogError($"Event type being registered is not valid for message with {nameof(messageId)} {messageId}");
+                    _logger.LogWarning($"Event type being registered is not valid for message with {nameof(messageId)} {messageId}");
                     break;
             }
 

@@ -312,6 +312,7 @@ namespace Doppler.PushContact.Services
             CancellationToken cancellationToken
         )
         {
+            // TODO: move endpoint generation to sender-side (just as actionclick endpoint)
             var clickedEventEndpoint = SanityzeEndpointToRegisterEvent(_clickedEventEndpointPath, pushContactId, messageDTO.MessageId.ToString());
             var receivedEventEndpoint = SanityzeEndpointToRegisterEvent(_receivedEventEndpointPath, pushContactId, messageDTO.MessageId.ToString());
 
