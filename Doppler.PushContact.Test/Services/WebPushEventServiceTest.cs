@@ -470,6 +470,42 @@ namespace Doppler.PushContact.Test.Services
         }
 
         [Fact]
+        public async Task RegisterWebPushEventsAsync_ShouldNotCallToRepository_WhenIndicateRegisterOnlyFailed_ButFailedEventsListIsEmpty()
+        {
+            // Arrange
+            Fixture fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+
+            var webPushEvents = new List<WebPushEvent>()
+            {
+                new WebPushEvent()
+                {
+                    Date = DateTime.UtcNow,
+                    Domain = domain,
+                    MessageId = messageId,
+                    Type = (int)WebPushEventType.Delivered,
+                    SubType = (int)WebPushEventSubType.None,
+                },
+            };
+
+            var registerOnlyFailed = true;
+
+            var mockWebPushEventRepository = new Mock<IWebPushEventRepository>();
+
+            var sut = CreateSut(
+                webPushEventRepository: mockWebPushEventRepository.Object
+            );
+
+            // Act
+            await sut.RegisterWebPushEventsAsync(messageId, webPushEvents, registerOnlyFailed);
+
+            // Assert
+            mockWebPushEventRepository.Verify(x => x.BulkInsertAsync(It.IsAny<IEnumerable<WebPushEvent>>()), Times.Never);
+        }
+
+
+        [Fact]
         public async Task RegisterWebPushEventsAsync_ShouldLogError_WhenRepositoryThrowAnException()
         {
             // Arrange
