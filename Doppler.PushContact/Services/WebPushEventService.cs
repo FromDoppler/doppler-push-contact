@@ -111,47 +111,38 @@ namespace Doppler.PushContact.Services
             return await _webPushEventRepository.GetWebPushEventConsumed(domain, dateFrom, dateTo);
         }
 
-        public async Task<IEnumerable<WebPushEvent>> RegisterWebPushEventsAsync(string domain, Guid messageId, SendMessageResult sendMessageResult)
+        public async Task RegisterWebPushEventsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents, bool registerOnlyFailed)
         {
-            if (sendMessageResult == null)
+            if (webPushEvents == null || !webPushEvents.Any())
             {
-                return null;
+                return;
             }
 
-            var webPushEvents = sendMessageResult.SendMessageTargetResult?
-                .Select(sendResult => new WebPushEvent
+            var eventsToRegister = webPushEvents;
+            if (registerOnlyFailed)
+            {
+                eventsToRegister = webPushEvents
+                    .Where(e => e.Type == (int)WebPushEventType.DeliveryFailed)
+                    .ToList();
+
+                if (eventsToRegister == null || !eventsToRegister.Any())
                 {
-                    Domain = domain,
-                    MessageId = messageId,
-                    DeviceToken = sendResult.TargetDeviceToken,
-                    Date = DateTime.UtcNow,
-                    Type = sendResult.IsSuccess ? (int)WebPushEventType.Delivered : (int)WebPushEventType.DeliveryFailed,
-                    SubType = sendResult.IsSuccess ? (int)WebPushEventSubType.None :
-                            sendResult.IsValidTargetDeviceToken ? (int)WebPushEventSubType.UnknownFailure : (int)WebPushEventSubType.InvalidSubcription,
-                    ErrorMessage = sendResult.NotSuccessErrorDetails,
+                    return;
                 }
+            }
+
+            try
+            {
+                await _webPushEventRepository.BulkInsertAsync(eventsToRegister);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Unexpected error while registering WebPushEvents for messageId: {messageId}.",
+                    messageId
                 );
-
-            if (webPushEvents != null && webPushEvents.Any())
-            {
-                try
-                {
-                    await _webPushEventRepository.BulkInsertAsync(webPushEvents);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(
-                        ex,
-                        "Unexpected error while registering WebPushEvents for domain: {domain}, messageId: {messageId}.",
-                        domain,
-                        messageId
-                    );
-                }
-
-                return webPushEvents;
             }
-
-            return null;
         }
     }
 }
