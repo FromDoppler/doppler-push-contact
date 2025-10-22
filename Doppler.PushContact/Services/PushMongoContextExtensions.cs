@@ -1,9 +1,9 @@
 using Doppler.PushContact.Models.Entities;
-using Doppler.PushContact.Services.Messages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using System;
 
 namespace Doppler.PushContact.Services
 {
@@ -102,6 +102,44 @@ namespace Doppler.PushContact.Services
                         new CreateIndexOptions { Unique = false }
                     );
                     messages.Indexes.CreateOne(domainAndInsertedDateIndex);
+
+                    // messageStats indexes
+                    var messageStatsCollection = database.GetCollection<BsonDocument>(pushMongoContextSettings.MessageStatsCollectionName);
+
+                    var indexModel_Domain_MessageId_Date_forMessageStats = new CreateIndexModel<BsonDocument>(
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending(MessageStatsDocumentProps.Domain_PropName)
+                            .Ascending(MessageStatsDocumentProps.MessageId_PropName)
+                            .Ascending(MessageStatsDocumentProps.Date_PropName),
+                        new CreateIndexOptions { Unique = true }
+                    );
+
+                    var indexModel_Domain_Date_forMessageStats = new CreateIndexModel<BsonDocument>(
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending(MessageStatsDocumentProps.Domain_PropName)
+                            .Ascending(MessageStatsDocumentProps.Date_PropName)
+                    );
+
+                    var indexModel_MessageId_Date_forMessageStats = new CreateIndexModel<BsonDocument>(
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending(MessageStatsDocumentProps.MessageId_PropName)
+                            .Ascending(MessageStatsDocumentProps.Date_PropName)
+                    );
+
+                    var index_Date_TTL_forMessageStats = new CreateIndexModel<BsonDocument>(
+                        Builders<BsonDocument>.IndexKeys.Ascending(MessageStatsDocumentProps.Date_PropName),
+                        new CreateIndexOptions
+                        {
+                            ExpireAfter = TimeSpan.FromDays(360) // 1 year
+                        }
+                    );
+
+                    messageStatsCollection.Indexes.CreateMany([
+                        indexModel_Domain_MessageId_Date_forMessageStats,
+                        indexModel_Domain_Date_forMessageStats,
+                        indexModel_MessageId_Date_forMessageStats,
+                        index_Date_TTL_forMessageStats,
+                    ]);
 
                     return mongoClient;
                 });
