@@ -67,7 +67,7 @@ namespace Doppler.PushContact.Transversal
                 BillableSends = events.Count(x =>
                     x.Type == (int)WebPushEventType.Delivered ||
                     (x.Type == (int)WebPushEventType.DeliveryFailed &&
-                     x.SubType == (int)WebPushEventSubType.InvalidSubcription))
+                    x.SubType == (int)WebPushEventSubType.InvalidSubcription))
             };
         }
 
