@@ -15,37 +15,60 @@ namespace Doppler.PushContact.Transversal
                 return null;
             }
 
-            // group by domain + messageId + truncated hour
-            var groupedStats = webPushEvents
+            return webPushEvents
                 .GroupBy(e => new
                 {
                     e.Domain,
                     e.MessageId,
                     Date = TruncateToHour(e.Date)
                 })
-                .Select(g => new MessageStats
-                {
-                    Domain = g.Key.Domain,
-                    MessageId = g.Key.MessageId,
-                    Date = g.Key.Date,
-
-                    Sent = g.Count(),
-                    Delivered = g.Count(x => x.Type == (int)WebPushEventType.Delivered),
-                    Received = g.Count(x => x.Type == (int)WebPushEventType.Received),
-                    Click = g.Count(x => x.Type == (int)WebPushEventType.Clicked),
-                    ActionClick = g.Count(x => x.Type == (int)WebPushEventType.ActionClick),
-
-                    NotDelivered = g.Count(x =>
-                        x.Type == (int)WebPushEventType.DeliveryFailed ||
-                        x.Type == (int)WebPushEventType.ProcessingFailed),
-
-                    BillableSends = g.Count(x =>
-                        x.Type == (int)WebPushEventType.Delivered ||
-                        (x.Type == (int)WebPushEventType.DeliveryFailed && x.SubType == (int)WebPushEventSubType.InvalidSubcription))
-                })
+                .Select(g => MapGroupToMessageStats(g.Key.Domain, g.Key.MessageId, g.Key.Date, g))
                 .ToList();
+        }
 
-            return groupedStats;
+        public static MessageStats MapSingleWebPushEventToMessageStats(WebPushEvent webPushEvent)
+        {
+            if (webPushEvent == null)
+            {
+                return null;
+            }
+
+            return MapGroupToMessageStats(
+                webPushEvent.Domain,
+                webPushEvent.MessageId,
+                TruncateToHour(webPushEvent.Date),
+                [webPushEvent]
+            );
+        }
+
+        private static MessageStats MapGroupToMessageStats(
+            string domain,
+            Guid messageId,
+            DateTime date,
+            IEnumerable<WebPushEvent> events
+        )
+        {
+            return new MessageStats
+            {
+                Domain = domain,
+                MessageId = messageId,
+                Date = date,
+
+                Sent = events.Count(),
+                Delivered = events.Count(x => x.Type == (int)WebPushEventType.Delivered),
+                Received = events.Count(x => x.Type == (int)WebPushEventType.Received),
+                Click = events.Count(x => x.Type == (int)WebPushEventType.Clicked),
+                ActionClick = events.Count(x => x.Type == (int)WebPushEventType.ActionClick),
+
+                NotDelivered = events.Count(x =>
+                    x.Type == (int)WebPushEventType.DeliveryFailed ||
+                    x.Type == (int)WebPushEventType.ProcessingFailed),
+
+                BillableSends = events.Count(x =>
+                    x.Type == (int)WebPushEventType.Delivered ||
+                    (x.Type == (int)WebPushEventType.DeliveryFailed &&
+                     x.SubType == (int)WebPushEventSubType.InvalidSubcription))
+            };
         }
 
         private static DateTime TruncateToHour(DateTime date)
