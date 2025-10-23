@@ -22,6 +22,6 @@ namespace Doppler.PushContact.Services
         );
         // TODO: revisar este conteo
         Task<int> GetWebPushEventConsumed(string domain, DateTimeOffset dateFrom, DateTimeOffset dateTo);
-        Task<IEnumerable<WebPushEvent>> RegisterWebPushEventsAsync(string domain, Guid messageId, SendMessageResult sendMessageResult);
+        Task RegisterWebPushEventsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents, bool registerOnlyFailed);
     }
 }

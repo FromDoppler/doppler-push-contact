@@ -1,4 +1,6 @@
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Entities;
+using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.Services.Messages.ExternalContracts;
 using Flurl;
 using Flurl.Http;
@@ -18,6 +20,7 @@ namespace Doppler.PushContact.Services.Messages
         private readonly IMessageRepository _messageRepository;
         private readonly IPushContactService _pushContactService;
         private readonly IWebPushEventService _webPushEventService;
+        private readonly IMessageStatsService _messageStatsService;
         private readonly ILogger<MessageSender> _logger;
 
         public MessageSender(
@@ -26,6 +29,7 @@ namespace Doppler.PushContact.Services.Messages
             IMessageRepository messageRepository,
             IPushContactService pushContactService,
             IWebPushEventService webPushEventService,
+            IMessageStatsService messageStatsService,
             ILogger<MessageSender> logger
         )
         {
@@ -34,6 +38,7 @@ namespace Doppler.PushContact.Services.Messages
             _messageRepository = messageRepository;
             _pushContactService = pushContactService;
             _webPushEventService = webPushEventService;
+            _messageStatsService = messageStatsService;
             _logger = logger;
         }
 
@@ -182,9 +187,12 @@ namespace Doppler.PushContact.Services.Messages
 
                 await _pushContactService.MarkDeletedContactsAsync(webPushDTO.MessageId, sendMessageResult);
 
-                var webPushEvents = await _webPushEventService.RegisterWebPushEventsAsync(webPushDTO.Domain, webPushDTO.MessageId, sendMessageResult);
+                var webPushEvents = MapWebPushEventsFromFirebaseResult(webPushDTO.Domain, webPushDTO.MessageId, sendMessageResult);
+                await _webPushEventService.RegisterWebPushEventsAsync(webPushDTO.MessageId, webPushEvents, false);
 
+                // TODO: the stats in Message should be removed?
                 await _messageRepository.RegisterStatisticsAsync(webPushDTO.MessageId, webPushEvents);
+                await _messageStatsService.RegisterMessageStatsAsync(webPushEvents);
             }
             catch (ArgumentException argEx)
             {
@@ -204,6 +212,29 @@ namespace Doppler.PushContact.Services.Messages
                     webPushDTO.MessageId
                 );
             }
+        }
+
+        private IEnumerable<WebPushEvent> MapWebPushEventsFromFirebaseResult(string domain, Guid messageId, SendMessageResult sendMessageResult)
+        {
+            if (sendMessageResult?.SendMessageTargetResult == null)
+            {
+                return Enumerable.Empty<WebPushEvent>();
+            }
+
+            return sendMessageResult.SendMessageTargetResult.Select(sendResult => new WebPushEvent
+            {
+                Domain = domain,
+                MessageId = messageId,
+                DeviceToken = sendResult.TargetDeviceToken,
+                Date = DateTime.UtcNow,
+                Type = sendResult.IsSuccess ? (int)WebPushEventType.Delivered : (int)WebPushEventType.DeliveryFailed,
+                SubType = sendResult.IsSuccess
+                    ? (int)WebPushEventSubType.None
+                    : sendResult.IsValidTargetDeviceToken
+                        ? (int)WebPushEventSubType.UnknownFailure
+                        : (int)WebPushEventSubType.InvalidSubcription,
+                ErrorMessage = sendResult.NotSuccessErrorDetails,
+            });
         }
     }
 }

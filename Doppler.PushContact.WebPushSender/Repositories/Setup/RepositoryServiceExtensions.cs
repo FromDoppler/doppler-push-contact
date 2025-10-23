@@ -77,7 +77,7 @@ namespace Doppler.PushContact.WebPushSender.Repositories.Setup
                 indexKeysDefinitionBuilder.Ascending(WebPushEventDocumentProps.Date_PropName),
                 new CreateIndexOptions
                 {
-                    ExpireAfter = TimeSpan.FromDays(180)
+                    ExpireAfter = TimeSpan.FromDays(30)
                 }
             );
 
