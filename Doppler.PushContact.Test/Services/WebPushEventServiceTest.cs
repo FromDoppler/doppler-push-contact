@@ -22,12 +22,14 @@ namespace Doppler.PushContact.Test.Services
             IWebPushEventRepository webPushEventRepository = null,
             IPushContactService pushContactService = null,
             IMessageRepository messageRepository = null,
+            IMessageStatsRepository messageStatsRepository = null,
             ILogger<WebPushEventService> logger = null)
         {
             return new WebPushEventService(
                 webPushEventRepository ?? Mock.Of<IWebPushEventRepository>(),
                 pushContactService ?? Mock.Of<IPushContactService>(),
                 messageRepository ?? Mock.Of<IMessageRepository>(),
+                messageStatsRepository ?? Mock.Of<IMessageStatsRepository>(),
                 logger ?? Mock.Of<ILogger<WebPushEventService>>()
             );
         }

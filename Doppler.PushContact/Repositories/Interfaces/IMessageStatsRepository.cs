@@ -7,5 +7,6 @@ namespace Doppler.PushContact.Repositories.Interfaces
     public interface IMessageStatsRepository
     {
         Task BulkUpsertStatsAsync(IEnumerable<MessageStats> stats);
+        Task UpsertMessageStatsAsync(MessageStats messageStats);
     }
 }
