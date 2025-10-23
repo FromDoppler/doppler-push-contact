@@ -2,6 +2,7 @@ using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.QueuingService.MessageQueueBroker;
+using Doppler.PushContact.Transversal;
 using Doppler.PushContact.WebPushSender.Repositories.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,7 @@ namespace Doppler.PushContact.WebPushSender.Senders
     {
         IPushContactRepository _pushContactRepository;
         IMessageRepository _messageRepository;
+        IMessageStatsRepository _messageStatsRepository;
 
         public DefaultWebPushSender(
             IOptions<WebPushSenderSettings> webPushSenderSettings,
@@ -22,12 +24,14 @@ namespace Doppler.PushContact.WebPushSender.Senders
             ILogger<DefaultWebPushSender> logger,
             IWebPushEventRepository weshPushEventRepository,
             IPushContactRepository pushContactRepository,
-            IMessageRepository messageRepository
+            IMessageRepository messageRepository,
+            IMessageStatsRepository messageStatsRepository
         )
             : base(webPushSenderSettings, messageQueueSubscriber, logger, weshPushEventRepository)
         {
             _pushContactRepository = pushContactRepository;
             _messageRepository = messageRepository;
+            _messageStatsRepository = messageStatsRepository;
         }
 
         public override async Task HandleMessageAsync(DopplerWebPushDTO message)
@@ -88,6 +92,9 @@ namespace Doppler.PushContact.WebPushSender.Senders
 
             await _weshPushEventRepository.InsertAsync(webPushEvent);
             await _messageRepository.RegisterStatisticsAsync(message.MessageId, webPushEvent);
+
+            var messageStats = WebPushEventsMapper.MapSingleWebPushEventToMessageStats(webPushEvent);
+            await _messageStatsRepository.UpsertMessageStatsAsync(messageStats);
         }
     }
 }
