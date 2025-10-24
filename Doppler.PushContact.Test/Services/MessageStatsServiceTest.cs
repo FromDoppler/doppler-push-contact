@@ -119,7 +119,7 @@ namespace Doppler.PushContact.Test.Services
                     list.First().Domain == domain &&
                     list.First().MessageId == messageId &&
                     list.First().Date == hourTruncated &&
-                    list.First().Sent == 4 &&
+                    list.First().Sent == 2 &&
                     list.First().Delivered == 1 &&
                     list.First().NotDelivered == 1 &&
                     list.First().BillableSends == 2 &&
@@ -174,7 +174,7 @@ namespace Doppler.PushContact.Test.Services
                         x.Domain == "a.com" &&
                         x.MessageId == messageId1 &&
                         x.Date == truncatedFirstHour &&
-                        x.Sent == 2 &&
+                        x.Sent == 1 &&
                         x.Delivered == 1 &&
                         x.Received == 1 &&
                         x.Click == 0 &&
@@ -187,7 +187,7 @@ namespace Doppler.PushContact.Test.Services
                         x.Domain == "a.com" &&
                         x.MessageId == messageId1 &&
                         x.Date == truncatedNextHour &&
-                        x.Sent == 1 &&
+                        x.Sent == 0 &&
                         x.Delivered == 0 &&
                         x.Received == 0 &&
                         x.Click == 1 &&

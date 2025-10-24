@@ -224,5 +224,85 @@ namespace Doppler.PushContact.Test.Repositories
             Assert.Contains($"\"{MessageStatsDocumentProps.BillableSends_PropName}\" : 9", renderedUpdate.ToString());
             Assert.Contains($"\"{MessageStatsDocumentProps.ActionClick_PropName}\" : 4", renderedUpdate.ToString());
         }
+
+        [Fact]
+        public async Task UpsertMessageStatsAsync_ShouldThrowArgumentNullException_WhenMessageStatsIsNull()
+        {
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentNullException>(() => _repository.UpsertMessageStatsAsync(null!));
+        }
+
+        [Fact]
+        public async Task UpsertMessageStatsAsync_ShouldCallUpdateOneAsync_WithUpsertTrue()
+        {
+            // Arrange
+            var stat = new MessageStats
+            {
+                Domain = "example.com",
+                MessageId = Guid.NewGuid(),
+                Date = DateTime.UtcNow,
+                Sent = 1,
+                Delivered = 2,
+                NotDelivered = 3,
+                Click = 4,
+                Received = 5,
+                BillableSends = 6,
+                ActionClick = 7
+            };
+
+            // Capturar los valores que recibe la llamada al mock
+            FilterDefinition<MessageStats> capturedFilter = null!;
+            UpdateDefinition<MessageStats> capturedUpdate = null!;
+            UpdateOptions capturedOptions = null!;
+
+            _mockCollection
+                .Setup(c => c.UpdateOneAsync(
+                    It.IsAny<FilterDefinition<MessageStats>>(),
+                    It.IsAny<UpdateDefinition<MessageStats>>(),
+                    It.IsAny<UpdateOptions>(),
+                    default))
+                .Callback<FilterDefinition<MessageStats>, UpdateDefinition<MessageStats>, UpdateOptions, CancellationToken>(
+                    (filter, update, options, _) =>
+                    {
+                        capturedFilter = filter;
+                        capturedUpdate = update;
+                        capturedOptions = options;
+                    })
+                .ReturnsAsync((UpdateResult)null!);
+
+            // Act
+            await _repository.UpsertMessageStatsAsync(stat);
+
+            // Assert
+            _mockCollection.Verify(c => c.UpdateOneAsync(
+                It.IsAny<FilterDefinition<MessageStats>>(),
+                It.IsAny<UpdateDefinition<MessageStats>>(),
+                It.IsAny<UpdateOptions>(),
+                default), Times.Once);
+
+            Assert.True(capturedOptions.IsUpsert);
+
+            // Verificamos que el filtro incluya los 3 campos esperados
+            var renderedFilter = capturedFilter.Render(
+                BsonSerializer.SerializerRegistry.GetSerializer<MessageStats>(),
+                BsonSerializer.SerializerRegistry);
+
+            Assert.Contains("example.com", renderedFilter.ToString());
+            Assert.Contains(stat.MessageId.ToString(), renderedFilter.ToString());
+            Assert.Contains(stat.Date.ToUniversalTime().ToString("s"), renderedFilter.ToString());
+
+            // Verificamos que haya increments en los campos
+            var renderedUpdate = capturedUpdate.Render(
+                BsonSerializer.SerializerRegistry.GetSerializer<MessageStats>(),
+                BsonSerializer.SerializerRegistry);
+
+            Assert.Contains($"\"{MessageStatsDocumentProps.Sent_PropName}\" : 1", renderedUpdate.ToString());
+            Assert.Contains($"\"{MessageStatsDocumentProps.Delivered_PropName}\" : 2", renderedUpdate.ToString());
+            Assert.Contains($"\"{MessageStatsDocumentProps.NotDelivered_PropName}\" : 3", renderedUpdate.ToString());
+            Assert.Contains($"\"{MessageStatsDocumentProps.Click_PropName}\" : 4", renderedUpdate.ToString());
+            Assert.Contains($"\"{MessageStatsDocumentProps.Received_PropName}\" : 5", renderedUpdate.ToString());
+            Assert.Contains($"\"{MessageStatsDocumentProps.BillableSends_PropName}\" : 6", renderedUpdate.ToString());
+            Assert.Contains($"\"{MessageStatsDocumentProps.ActionClick_PropName}\" : 7", renderedUpdate.ToString());
+        }
     }
 }

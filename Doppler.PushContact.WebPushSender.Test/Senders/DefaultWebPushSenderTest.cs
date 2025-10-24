@@ -33,6 +33,7 @@ namespace Doppler.PushContact.WebPushSender.Test.Senders
             IWebPushEventRepository webPushEventRepository = null,
             IPushContactRepository pushContactRepository = null,
             IMessageRepository messageRepository = null,
+            IMessageStatsRepository messageStatsRepository = null,
             SendWebPushDelegate sendWebPushDelegate = null
             )
         {
@@ -43,6 +44,7 @@ namespace Doppler.PushContact.WebPushSender.Test.Senders
                 webPushEventRepository ?? Mock.Of<IWebPushEventRepository>(),
                 pushContactRepository ?? Mock.Of<IPushContactRepository>(),
                 messageRepository ?? Mock.Of<IMessageRepository>(),
+                messageStatsRepository ?? Mock.Of<IMessageStatsRepository>(),
                 sendWebPushDelegate ?? Mock.Of<SendWebPushDelegate>()
             );
         }

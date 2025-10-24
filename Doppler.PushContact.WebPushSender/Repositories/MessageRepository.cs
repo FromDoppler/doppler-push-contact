@@ -1,5 +1,6 @@
 using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Models.Enums;
+using Doppler.PushContact.Transversal;
 using Doppler.PushContact.WebPushSender.Repositories.Interfaces;
 using Doppler.PushContact.WebPushSender.Repositories.Setup;
 using Microsoft.Extensions.Logging;
@@ -28,7 +29,7 @@ namespace Doppler.PushContact.WebPushSender.Repositories
 
         public async Task RegisterStatisticsAsync(Guid messageId, WebPushEvent webPushEvent)
         {
-            var sent = 1;
+            var sent = WebPushEventsHelper.ShouldCountAsSent(webPushEvent.Type) ? 1 : 0;
             var delivered = webPushEvent.Type == (int)WebPushEventType.Delivered ? 1 : 0;
             var notDelivered = sent - delivered;
 

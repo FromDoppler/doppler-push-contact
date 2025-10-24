@@ -3,6 +3,7 @@ using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services.Messages;
+using Doppler.PushContact.Transversal;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -17,18 +18,21 @@ namespace Doppler.PushContact.Services
         private readonly IWebPushEventRepository _webPushEventRepository;
         private readonly IPushContactService _pushContactService;
         private readonly IMessageRepository _messageRepository;
+        private readonly IMessageStatsRepository _messageStatsRepository;
         private readonly ILogger<WebPushEventService> _logger;
 
         public WebPushEventService(
             IWebPushEventRepository webPushEventRepository,
             IPushContactService pushContactService,
             IMessageRepository messageRepository,
+            IMessageStatsRepository messageStatsRepository,
             ILogger<WebPushEventService> logger
         )
         {
             _webPushEventRepository = webPushEventRepository;
             _pushContactService = pushContactService;
             _messageRepository = messageRepository;
+            _messageStatsRepository = messageStatsRepository;
             _logger = logger;
         }
 
@@ -69,10 +73,12 @@ namespace Doppler.PushContact.Services
                     return false;
                 }
 
-                if (await _webPushEventRepository.IsWebPushEventRegistered(contactId, messageId, type))
-                {
-                    return false;
-                }
+                // Consider that this method handles events registered directly from the service worker,
+                // this validation was to avoid abuse by a malicious client.
+                //if (await _webPushEventRepository.IsWebPushEventRegistered(contactId, messageId, type))
+                //{
+                //    return false;
+                //}
 
                 WebPushEvent webPushEvent = new WebPushEvent()
                 {
@@ -90,6 +96,9 @@ namespace Doppler.PushContact.Services
 
                 await _messageRepository.RegisterEventCount(messageId, webPushEvent);
                 await _webPushEventRepository.InsertAsync(webPushEvent, cancellationToken);
+
+                var messageStats = WebPushEventsHelper.MapSingleWebPushEventToMessageStats(webPushEvent);
+                await _messageStatsRepository.UpsertMessageStatsAsync(messageStats);
             }
             catch (Exception ex)
             {
