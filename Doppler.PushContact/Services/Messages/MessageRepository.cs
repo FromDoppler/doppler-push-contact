@@ -172,13 +172,13 @@ namespace Doppler.PushContact.Services.Messages
                 case (int)WebPushEventType.Delivered: // register for sent and billable
                     updateDefinition = Builders<BsonDocument>.Update
                         .Inc(MessageDocumentProps.DeliveredPropName, quantity)
-                        .Inc(MessageDocumentProps.SentPropName, WebPushEventsMapper.ShouldCountAsSent((int)WebPushEventType.Delivered) ? quantity : 0)
+                        .Inc(MessageDocumentProps.SentPropName, WebPushEventsHelper.ShouldCountAsSent((int)WebPushEventType.Delivered) ? quantity : 0)
                         .Inc(MessageDocumentProps.BillableSendsPropName, quantity);
                     break;
                 case (int)WebPushEventType.DeliveryFailed: // register for sent
                     updateDefinition = Builders<BsonDocument>.Update
                         .Inc(MessageDocumentProps.NotDeliveredPropName, quantity)
-                        .Inc(MessageDocumentProps.SentPropName, WebPushEventsMapper.ShouldCountAsSent((int)WebPushEventType.DeliveryFailed) ? quantity : 0);
+                        .Inc(MessageDocumentProps.SentPropName, WebPushEventsHelper.ShouldCountAsSent((int)WebPushEventType.DeliveryFailed) ? quantity : 0);
 
                     // when InvalidSubcription register for billable too
                     if (webPushEvent.SubType == (int)WebPushEventSubType.InvalidSubcription)
@@ -189,12 +189,12 @@ namespace Doppler.PushContact.Services.Messages
                 case (int)WebPushEventType.ProcessingFailed: // TODO: at moment this is counted as sent, but they should be retried
                     updateDefinition = Builders<BsonDocument>.Update
                         .Inc(MessageDocumentProps.NotDeliveredPropName, quantity)
-                        .Inc(MessageDocumentProps.SentPropName, WebPushEventsMapper.ShouldCountAsSent((int)WebPushEventType.ProcessingFailed) ? quantity : 0);
+                        .Inc(MessageDocumentProps.SentPropName, WebPushEventsHelper.ShouldCountAsSent((int)WebPushEventType.ProcessingFailed) ? quantity : 0);
                     break;
                 case (int)WebPushEventType.DeliveryFailedButRetry: // TODO: at moment this is counted as sent, but they should be retried
                     updateDefinition = Builders<BsonDocument>.Update
                         .Inc(MessageDocumentProps.NotDeliveredPropName, quantity)
-                        .Inc(MessageDocumentProps.SentPropName, WebPushEventsMapper.ShouldCountAsSent((int)WebPushEventType.DeliveryFailedButRetry) ? quantity : 0);
+                        .Inc(MessageDocumentProps.SentPropName, WebPushEventsHelper.ShouldCountAsSent((int)WebPushEventType.DeliveryFailedButRetry) ? quantity : 0);
                     break;
                 case (int)WebPushEventType.Received:
                     updateDefinition = Builders<BsonDocument>.Update

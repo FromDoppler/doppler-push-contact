@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace Doppler.PushContact.Transversal
 {
-    public static class WebPushEventsMapper
+    public static class WebPushEventsHelper
     {
         public static List<MessageStats> MapWebPushEventsToMessageStatsGroups(IEnumerable<WebPushEvent> webPushEvents)
         {

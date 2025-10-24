@@ -32,7 +32,7 @@ namespace Doppler.PushContact.Services
             }
 
             // group by domain + messageId + truncated hour
-            var groupedStats = WebPushEventsMapper.MapWebPushEventsToMessageStatsGroups(webPushEvents);
+            var groupedStats = WebPushEventsHelper.MapWebPushEventsToMessageStatsGroups(webPushEvents);
 
             try
             {

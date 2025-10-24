@@ -96,7 +96,7 @@ namespace Doppler.PushContact.Services
                 await _messageRepository.RegisterEventCount(messageId, webPushEvent);
                 await _webPushEventRepository.InsertAsync(webPushEvent, cancellationToken);
 
-                var messageStats = WebPushEventsMapper.MapSingleWebPushEventToMessageStats(webPushEvent);
+                var messageStats = WebPushEventsHelper.MapSingleWebPushEventToMessageStats(webPushEvent);
                 await _messageStatsRepository.UpsertMessageStatsAsync(messageStats);
             }
             catch (Exception ex)

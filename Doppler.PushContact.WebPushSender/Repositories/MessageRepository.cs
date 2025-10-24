@@ -29,7 +29,7 @@ namespace Doppler.PushContact.WebPushSender.Repositories
 
         public async Task RegisterStatisticsAsync(Guid messageId, WebPushEvent webPushEvent)
         {
-            var sent = WebPushEventsMapper.ShouldCountAsSent(webPushEvent.Type) ? 1 : 0;
+            var sent = WebPushEventsHelper.ShouldCountAsSent(webPushEvent.Type) ? 1 : 0;
             var delivered = webPushEvent.Type == (int)WebPushEventType.Delivered ? 1 : 0;
             var notDelivered = sent - delivered;
 
