@@ -54,7 +54,7 @@ namespace Doppler.PushContact.Transversal
                 MessageId = messageId,
                 Date = date,
 
-                Sent = events.Count(),
+                Sent = events.Count(x => ShouldCountAsSent(x.Type)),
                 Delivered = events.Count(x => x.Type == (int)WebPushEventType.Delivered),
                 Received = events.Count(x => x.Type == (int)WebPushEventType.Received),
                 Click = events.Count(x => x.Type == (int)WebPushEventType.Clicked),
@@ -69,6 +69,16 @@ namespace Doppler.PushContact.Transversal
                     (x.Type == (int)WebPushEventType.DeliveryFailed &&
                     x.SubType == (int)WebPushEventSubType.InvalidSubcription))
             };
+        }
+
+        public static bool ShouldCountAsSent(int webPushEventType)
+        {
+            return webPushEventType == (int)WebPushEventType.Delivered ||
+                webPushEventType == (int)WebPushEventType.DeliveryFailed ||
+
+                // TODO: at moment these are counted as sent, but they should be retried
+                webPushEventType == (int)WebPushEventType.DeliveryFailedButRetry ||
+                webPushEventType == (int)WebPushEventType.ProcessingFailed;
         }
 
         private static DateTime TruncateToHour(DateTime date)
