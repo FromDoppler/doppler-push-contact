@@ -6,7 +6,7 @@ using MongoDB.Driver;
 using System;
 using System.Threading.Tasks;
 
-namespace Doppler.PushContact.Repositories
+namespace Doppler.PushContact.WebPushSender.Repositories
 {
     public class MessageStatsRepository : IMessageStatsRepository
     {
