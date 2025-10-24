@@ -73,11 +73,12 @@ namespace Doppler.PushContact.Services
                     return false;
                 }
 
-                // TODO: it isn't allowing register these event types more than once, analize this better.
-                if (await _webPushEventRepository.IsWebPushEventRegistered(contactId, messageId, type))
-                {
-                    return false;
-                }
+                // Consider that this method handles events registered directly from the service worker,
+                // this validation was to avoid abuse by a malicious client.
+                //if (await _webPushEventRepository.IsWebPushEventRegistered(contactId, messageId, type))
+                //{
+                //    return false;
+                //}
 
                 WebPushEvent webPushEvent = new WebPushEvent()
                 {

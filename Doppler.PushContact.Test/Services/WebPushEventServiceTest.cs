@@ -145,7 +145,7 @@ namespace Doppler.PushContact.Test.Services
             Assert.False(result);
         }
 
-        [Fact]
+        [Fact(Skip = "Now, event already registered validation is not being considered.")]
         public async Task RegisterWebPushEventAsync_ShouldReturnFalse_WhenEventIsAlreadyRegistered()
         {
             // Arrange
@@ -207,9 +207,9 @@ namespace Doppler.PushContact.Test.Services
                 .Setup(repo => repo.GetMessageDomainAsync(messageId))
                 .ReturnsAsync("domain");
 
-            mockWebPushEventRepository
-                .Setup(repo => repo.IsWebPushEventRegistered(contactId, messageId, eventType))
-                .ReturnsAsync(false);
+            //mockWebPushEventRepository
+            //    .Setup(repo => repo.IsWebPushEventRegistered(contactId, messageId, eventType))
+            //    .ReturnsAsync(false);
 
             mockWebPushEventRepository
                 .Setup(repo => repo.InsertAsync(It.IsAny<WebPushEvent>(), It.IsAny<CancellationToken>()))
@@ -262,9 +262,9 @@ namespace Doppler.PushContact.Test.Services
                 .Setup(repo => repo.GetMessageDomainAsync(messageId))
                 .ReturnsAsync("domain");
 
-            mockWebPushEventRepository
-                .Setup(repo => repo.IsWebPushEventRegistered(contactId, messageId, eventType))
-                .ReturnsAsync(false);
+            //mockWebPushEventRepository
+            //    .Setup(repo => repo.IsWebPushEventRegistered(contactId, messageId, eventType))
+            //    .ReturnsAsync(false);
 
             mockWebPushEventRepository
                 .Setup(repo => repo.InsertAsync(It.IsAny<WebPushEvent>(), It.IsAny<CancellationToken>()))
@@ -306,9 +306,9 @@ namespace Doppler.PushContact.Test.Services
                 .Setup(repo => repo.GetMessageDomainAsync(messageId))
                 .ReturnsAsync("domain");
 
-            mockWebPushEventRepository
-                .Setup(repo => repo.IsWebPushEventRegistered(contactId, messageId, eventType))
-                .ReturnsAsync(false);
+            //mockWebPushEventRepository
+            //    .Setup(repo => repo.IsWebPushEventRegistered(contactId, messageId, eventType))
+            //    .ReturnsAsync(false);
 
             mockWebPushEventRepository
                 .Setup(repo => repo.InsertAsync(It.IsAny<WebPushEvent>(), It.IsAny<CancellationToken>()))
