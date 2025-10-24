@@ -203,6 +203,9 @@ namespace Doppler.PushContact.Services.Messages
                     updateDefinition = Builders<BsonDocument>.Update
                         .Inc(MessageDocumentProps.ClicksPropName, quantity);
                     break;
+                case (int)WebPushEventType.ActionClick:
+                    // TODO: sumarize actionClick in message
+                    break;
                 default:
                     _logger.LogWarning($"Event type being registered is not valid for message with {nameof(messageId)} {messageId}");
                     break;
