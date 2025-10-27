@@ -1,4 +1,5 @@
 using AutoFixture;
+using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.Repositories.Interfaces;
@@ -210,6 +211,106 @@ namespace Doppler.PushContact.Test.Services
                 )),
                 Times.Once
             );
+        }
+
+        [Fact]
+        public async Task GetMessageStatsAsync_should_log_error_and_return_stats_in_zero_when_repository_throws_exception()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+            var dateFrom = fixture.Create<DateTimeOffset>();
+            var dateTo = fixture.Create<DateTimeOffset>();
+
+            var exceptionMessage = "DB error";
+
+            var mockRepository = new Mock<IMessageStatsRepository>();
+            var mockLogger = new Mock<ILogger<MessageStatsService>>();
+
+            mockRepository
+                .Setup(r => r.GetMessageStatsAsync(domain, messageId, dateFrom, dateTo))
+                .ThrowsAsync(new Exception(exceptionMessage));
+
+            var sut = CreateSut(repository: mockRepository.Object, logger: mockLogger.Object);
+
+            // Act
+            var messageStats = await sut.GetMessageStatsAsync(domain, messageId, dateFrom, dateTo);
+
+            // Assert
+            mockLogger.Verify(
+                x => x.Log(
+                    It.Is<LogLevel>(l => l == LogLevel.Error),
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Error getting MessageStats for domain:")),
+                    It.Is<Exception>(e => e.Message == exceptionMessage),
+                    (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()
+                ),
+                Times.Once
+            );
+
+            Assert.Equal(domain, messageStats.Domain);
+            Assert.Equal(messageId, messageStats.MessageId);
+            Assert.Equal(dateFrom, messageStats.DateFrom);
+            Assert.Equal(dateTo, messageStats.DateTo);
+            Assert.Equal(0, messageStats.Sent);
+            Assert.Equal(0, messageStats.Delivered);
+            Assert.Equal(0, messageStats.NotDelivered);
+            Assert.Equal(0, messageStats.BillableSends);
+            Assert.Equal(0, messageStats.Received);
+            Assert.Equal(0, messageStats.Click);
+            Assert.Equal(0, messageStats.ActionClick);
+        }
+
+        [Fact]
+        public async Task GetMessageStatsAsync_should_return_stats_OK()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+            var dateFrom = fixture.Create<DateTimeOffset>();
+            var dateTo = fixture.Create<DateTimeOffset>();
+
+            var messageStatsDTO = new MessageStatsDTO()
+            {
+                Domain = domain,
+                MessageId = messageId,
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                Sent = 10,
+                Delivered = 7,
+                NotDelivered = 3,
+                BillableSends = 10,
+                Received = 6,
+                Click = 2,
+                ActionClick = 1,
+            };
+
+            var mockRepository = new Mock<IMessageStatsRepository>();
+            var mockLogger = new Mock<ILogger<MessageStatsService>>();
+
+            mockRepository
+                .Setup(r => r.GetMessageStatsAsync(domain, messageId, dateFrom, dateTo))
+                .ReturnsAsync(messageStatsDTO);
+
+            var sut = CreateSut(repository: mockRepository.Object, logger: mockLogger.Object);
+
+            // Act
+            var messageStats = await sut.GetMessageStatsAsync(domain, messageId, dateFrom, dateTo);
+
+            // Assert
+            Assert.Equal(domain, messageStats.Domain);
+            Assert.Equal(messageId, messageStats.MessageId);
+            Assert.Equal(dateFrom, messageStats.DateFrom);
+            Assert.Equal(dateTo, messageStats.DateTo);
+            Assert.Equal(messageStatsDTO.Sent, messageStats.Sent);
+            Assert.Equal(messageStatsDTO.Delivered, messageStats.Delivered);
+            Assert.Equal(messageStatsDTO.NotDelivered, messageStats.NotDelivered);
+            Assert.Equal(messageStatsDTO.BillableSends, messageStats.BillableSends);
+            Assert.Equal(messageStatsDTO.Received, messageStats.Received);
+            Assert.Equal(messageStatsDTO.Click, messageStats.Click);
+            Assert.Equal(messageStatsDTO.ActionClick, messageStats.ActionClick);
         }
     }
 }
