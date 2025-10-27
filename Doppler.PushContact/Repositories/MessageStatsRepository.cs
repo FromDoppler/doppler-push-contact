@@ -1,7 +1,9 @@
+using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Services;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
@@ -73,6 +75,81 @@ namespace Doppler.PushContact.Repositories
                 .Inc(s => s.ActionClick, messageStats.ActionClick);
 
             await MessageStats.UpdateOneAsync(filter, upsertDefinition, new UpdateOptions { IsUpsert = true });
+        }
+
+        public async Task<MessageStatsDTO> GetMessageStatsAsync(
+            string domain,
+            Guid? messageId,
+            DateTimeOffset dateFrom,
+            DateTimeOffset dateTo
+        )
+        {
+            try
+            {
+                var from = new BsonDateTime(dateFrom.UtcDateTime);
+                var to = new BsonDateTime(dateTo.UtcDateTime);
+
+                var filter = new BsonDocument
+                {
+                    { MessageStatsDocumentProps.Date_PropName, new BsonDocument { { "$gte", from }, { "$lte", to } } }
+                };
+
+                if (!string.IsNullOrEmpty(domain))
+                {
+                    filter.Add(MessageStatsDocumentProps.Domain_PropName, domain);
+                }
+
+                if (messageId.HasValue && messageId.Value != Guid.Empty)
+                {
+                    filter.Add(MessageStatsDocumentProps.MessageId_PropName, new BsonBinaryData(messageId.Value, GuidRepresentation.Standard));
+                }
+                
+                var pipeline = MessageStats.Aggregate()
+                    .Match(filter)
+                    .Group(new BsonDocument
+                    {
+                        { "_id", BsonNull.Value },
+                        { "Sent", new BsonDocument("$sum", "$sent") },
+                        { "Delivered", new BsonDocument("$sum", "$delivered") },
+                        { "NotDelivered", new BsonDocument("$sum", "$not_delivered") },
+                        { "Received", new BsonDocument("$sum", "$received") },
+                        { "Click", new BsonDocument("$sum", "$click") },
+                        { "ActionClick", new BsonDocument("$sum", "$action_click") },
+                        { "BillableSends", new BsonDocument("$sum", "$billable_sends") }
+                    })
+                    .Project(new BsonDocument
+                    {
+                        { "_id", 0 },
+                        { "Sent", 1 },
+                        { "Delivered", 1 },
+                        { "NotDelivered", 1 },
+                        { "Received", 1 },
+                        { "Click", 1 },
+                        { "ActionClick", 1 },
+                        { "BillableSends", 1 }
+                    });
+
+                var result = await pipeline.FirstOrDefaultAsync();
+
+                return new MessageStatsDTO
+                {
+                    Domain = domain,
+                    MessageId = messageId ?? Guid.Empty,
+                    DateFrom = dateFrom,
+                    DateTo = dateTo,
+                    Sent = result?["Sent"]?.AsInt32 ?? 0,
+                    Delivered = result?["Delivered"]?.AsInt32 ?? 0,
+                    NotDelivered = result?["NotDelivered"]?.AsInt32 ?? 0,
+                    Received = result?["Received"]?.AsInt32 ?? 0,
+                    Click = result?["Click"]?.AsInt32 ?? 0,
+                    ActionClick = result?["ActionClick"]?.AsInt32 ?? 0,
+                    BillableSends = result?["BillableSends"]?.AsInt32 ?? 0
+                };
+            }
+            catch (Exception)
+            {
+                throw;
+            }
         }
 
         private IMongoCollection<MessageStats> MessageStats
