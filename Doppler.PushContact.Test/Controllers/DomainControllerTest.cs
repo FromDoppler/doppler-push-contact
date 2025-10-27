@@ -141,6 +141,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .Returns(Task.CompletedTask);
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -148,6 +149,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -218,6 +220,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ReturnsAsync(domain);
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -225,6 +228,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -256,6 +260,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ReturnsAsync(domain);
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -263,6 +268,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -295,6 +301,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ReturnsAsync(domain);
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -302,6 +309,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -333,6 +341,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ThrowsAsync(new Exception());
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -340,6 +349,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -421,6 +431,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ReturnsAsync(domain);
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -428,6 +439,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -461,6 +473,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ReturnsAsync(domain);
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -468,6 +481,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -511,6 +525,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ThrowsAsync(new Exception());
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -518,6 +533,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -554,6 +570,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ReturnsAsync(domain);
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -561,6 +578,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -590,6 +608,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ReturnsAsync(domain);
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -597,6 +616,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -627,6 +647,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ReturnsAsync(domain);
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -634,6 +655,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -673,6 +695,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ThrowsAsync(new Exception());
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -680,6 +703,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
 
@@ -774,6 +798,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ReturnsAsync(contactsStats);
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -781,6 +806,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -820,6 +846,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .With(x => x.Name, name)
                 .Create();
 
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
             var domainServiceMock = new Mock<IDomainService>();
 
             domainServiceMock.Setup(x => x.GetByNameAsync(name))
@@ -828,7 +855,7 @@ namespace Doppler.PushContact.Test.Controllers
             domainServiceMock.Setup(x => x.GetDomainContactStatsAsync(name))
                 .ThrowsAsync(new Exception());
 
-            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -836,6 +863,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -870,6 +898,7 @@ namespace Doppler.PushContact.Test.Controllers
                 .ReturnsAsync(domain);
 
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -877,6 +906,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(new Mock<IMessageService>().Object);
                 });
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -958,9 +988,10 @@ namespace Doppler.PushContact.Test.Controllers
 
             var domainServiceMock = new Mock<IDomainService>();
             var messageServiceMock = new Mock<IMessageService>();
-
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
-            webPushEventServiceMock.Setup(x => x.GetWebPushEventConsumed(domain, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
+            messageStatsServiceMock.Setup(x => x.GetMessageStatsAsync(domain, null, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
                 .ThrowsAsync(new Exception());
 
             var client = _factory.WithWebHostBuilder(builder =>
@@ -969,6 +1000,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(messageServiceMock.Object);
                 });
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -986,7 +1018,7 @@ namespace Doppler.PushContact.Test.Controllers
             Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
 
             var content = await response.Content.ReadAsStringAsync();
-            Assert.Contains("Unexpected error summarizing consumed web push", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Unexpected error obtaining consumed. Try again.", content, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -998,14 +1030,22 @@ namespace Doppler.PushContact.Test.Controllers
             var from = DateTime.UtcNow.AddDays(-1);
             var to = DateTime.UtcNow;
 
-            var expectedConsumed = 11;
+            var messageStats = new MessageStatsDTO()
+            {
+                Domain = domain,
+                MessageId = Guid.Empty,
+                DateFrom = from,
+                DateTo = to,
+                BillableSends = 11,
+            };
 
             var domainServiceMock = new Mock<IDomainService>();
             var messageServiceMock = new Mock<IMessageService>();
-
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
-            webPushEventServiceMock.Setup(x => x.GetWebPushEventConsumed(domain, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
-                .ReturnsAsync(expectedConsumed);
+
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
+            messageStatsServiceMock.Setup(x => x.GetMessageStatsAsync(domain, null, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+                .ReturnsAsync(messageStats);
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -1013,6 +1053,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(messageServiceMock.Object);
                 });
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -1036,7 +1077,7 @@ namespace Doppler.PushContact.Test.Controllers
 
             Assert.NotNull(result);
             Assert.Equal(domain, result.Domain);
-            Assert.Equal(expectedConsumed, result.Consumed);
+            Assert.Equal(messageStats.BillableSends, result.Consumed);
         }
 
         [Fact]
@@ -1062,6 +1103,7 @@ namespace Doppler.PushContact.Test.Controllers
 
             var domainServiceMock = new Mock<IDomainService>();
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var messageServiceMock = new Mock<IMessageService>();
             messageServiceMock
@@ -1074,6 +1116,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(messageServiceMock.Object);
                 });
             }).CreateClient(new WebApplicationFactoryClientOptions());
@@ -1129,6 +1172,7 @@ namespace Doppler.PushContact.Test.Controllers
             var loggerMock = new Mock<ILogger<DomainController>>();
             var domainServiceMock = new Mock<IDomainService>();
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
 
             var messageServiceMock = new Mock<IMessageService>();
             messageServiceMock
@@ -1141,6 +1185,7 @@ namespace Doppler.PushContact.Test.Controllers
                 {
                     services.AddSingleton(domainServiceMock.Object);
                     services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
                     services.AddSingleton(messageServiceMock.Object);
                     services.AddSingleton(loggerMock.Object);
                 });

@@ -20,20 +20,21 @@ namespace Doppler.PushContact.Controllers
     public class DomainController : ControllerBase
     {
         private readonly IDomainService _domainService;
-        private readonly IWebPushEventService _webPushEventService;
         private readonly IMessageService _messageService;
+        private readonly IMessageStatsService _messageStatsService;
         private readonly ILogger<DomainController> _logger;
 
         public DomainController(
             IDomainService domainService,
             IWebPushEventService webPushEventService,
             IMessageService messageService,
+            IMessageStatsService messageStatsService,
             ILogger<DomainController> logger
         )
         {
             _domainService = domainService;
-            _webPushEventService = webPushEventService;
             _messageService = messageService;
+            _messageStatsService = messageStatsService;
             _logger = logger;
         }
 
@@ -185,14 +186,14 @@ namespace Doppler.PushContact.Controllers
         {
             try
             {
-                var count = await _webPushEventService.GetWebPushEventConsumed(domain, from, to);
+                var messageStats = await _messageStatsService.GetMessageStatsAsync(domain, null, from, to);
 
                 var response = new PushSendsConsumedResponse
                 {
                     Domain = domain,
                     From = from,
                     To = to,
-                    Consumed = count
+                    Consumed = messageStats.BillableSends,
                 };
 
                 return Ok(response);
@@ -201,7 +202,7 @@ namespace Doppler.PushContact.Controllers
             {
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,
-                    new { error = "Unexpected error summarizing consumed web push. Try again." }
+                    new { error = "Unexpected error obtaining consumed. Try again." }
                 );
             }
         }
