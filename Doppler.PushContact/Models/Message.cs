@@ -16,6 +16,10 @@ namespace Doppler.PushContact.Models
 
         public string ImageUrl { get; set; }
 
+        public string IconUrl { get; set; }
+
+        public bool PreferLargeImage { get; set; }
+
         public List<MessageAction> Actions { get; set; }
     }
 }

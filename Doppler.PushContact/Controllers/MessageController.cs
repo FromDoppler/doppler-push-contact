@@ -241,6 +241,8 @@ namespace Doppler.PushContact.Controllers
                     Body = messageBody.Message.Body,
                     OnClickLink = messageBody.Message.OnClickLink,
                     ImageUrl = messageBody.Message.ImageUrl,
+                    IconUrl = messageBody.Message.IconUrl,
+                    PreferLargeImage = messageBody.Message.PreferLargeImage,
                     Actions = MapActions(messageBody.Message.Actions),
                 };
                 await _messageService.AddMessageAsync(messageDto);
@@ -284,6 +286,8 @@ namespace Doppler.PushContact.Controllers
                     Body = message.Body,
                     OnClickLink = message.OnClickLink,
                     ImageUrl = message.ImageUrl,
+                    IconUrl = message.IconUrl,
+                    PreferLargeImage = message.PreferLargeImage,
                     Actions = MapActions(message.Actions),
                 };
                 await _messageService.AddMessageAsync(messageDto);
