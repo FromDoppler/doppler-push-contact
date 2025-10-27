@@ -1081,7 +1081,7 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task GetMessageStats_should_return_ok_with_message_stats()
+        public async Task GetMessageStats_should_return_ok_with_stats_obtained_from_messageStats()
         {
             // Arrange
             var fixture = new Fixture();
@@ -1147,6 +1147,84 @@ namespace Doppler.PushContact.Test.Controllers
             Assert.Equal(messageStatsDTO.Click, result.Clicks);
             Assert.Equal(messageStatsDTO.Received, result.Received);
             Assert.Equal(messageStatsDTO.ActionClick, result.ActionClick);
+        }
+
+        [Fact]
+        public async Task GetMessageStats_should_return_ok_with_stats_obtained_from_messages_when_messageStats_has_not_information()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+
+            var messageStatsDTO = new MessageStatsDTO()
+            {
+                MessageId = messageId,
+                Domain = domain,
+                Sent = 0,
+            };
+
+            var messageDetails = new MessageDetails()
+            {
+                MessageId = messageId,
+                Domain = domain,
+                Sent = 10,
+                Delivered = 9,
+                NotDelivered = 1,
+                BillableSends = 10,
+                Received = 7,
+                Clicks = 2,
+            };
+
+            var domainServiceMock = new Mock<IDomainService>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
+            var messageServiceMock = new Mock<IMessageService>();
+
+            messageStatsServiceMock
+                .Setup(mr => mr.GetMessageStatsAsync(domain, messageId, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+                .ReturnsAsync(messageStatsDTO);
+
+            messageServiceMock
+                .Setup(mr => mr.GetMessageStatsAsync(domain, messageId, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+                .ReturnsAsync(messageDetails);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(domainServiceMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var from = DateTime.UtcNow.AddDays(-1);
+            var to = DateTime.UtcNow;
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{domain}/messages/{messageId}/stats?from={from}&to={to}")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.EnsureSuccessStatusCode(); // Check if the status code is 2xx
+
+            var result = await response.Content.ReadFromJsonAsync<MessageDetailsResponse>();
+
+            Assert.Equal(domain, result.Domain);
+            Assert.Equal(messageId, result.MessageId);
+            Assert.Equal(messageDetails.Sent, result.Sent);
+            Assert.Equal(messageDetails.Delivered, result.Delivered);
+            Assert.Equal(messageDetails.NotDelivered, result.NotDelivered);
+            Assert.Equal(messageDetails.BillableSends, result.BillableSends);
+            Assert.Equal(messageDetails.Clicks, result.Clicks);
+            Assert.Equal(messageDetails.Received, result.Received);
         }
 
         [Fact]

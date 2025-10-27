@@ -219,6 +219,7 @@ namespace Doppler.PushContact.Controllers
 
             try
             {
+                // obtain stats from MessageStats
                 var messageStats = await _messageStatsService.GetMessageStatsAsync(domain, messageId, from, to);
                 if (messageStats != null && messageStats.Sent > 0)
                 {
@@ -229,6 +230,21 @@ namespace Doppler.PushContact.Controllers
                     response.Clicks = messageStats.Click;
                     response.Received = messageStats.Received;
                     response.ActionClick = messageStats.ActionClick;
+                }
+                else
+                {
+                    // obtain stats from Messages
+                    var statsObtainedFromMessage = await _messageService.GetMessageStatsAsync(domain, messageId, from, to);
+
+                    if (statsObtainedFromMessage != null)
+                    {
+                        response.Sent = statsObtainedFromMessage.Sent;
+                        response.Delivered = statsObtainedFromMessage.Delivered;
+                        response.NotDelivered = statsObtainedFromMessage.NotDelivered;
+                        response.BillableSends = statsObtainedFromMessage.BillableSends;
+                        response.Clicks = statsObtainedFromMessage.Clicks;
+                        response.Received = statsObtainedFromMessage.Received;
+                    }
                 }
             }
             catch (Exception ex)
