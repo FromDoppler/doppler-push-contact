@@ -1089,7 +1089,7 @@ namespace Doppler.PushContact.Test.Controllers
             var domain = fixture.Create<string>();
             var messageId = fixture.Create<Guid>();
 
-            var messageDetailsWithStats = new MessageDetails()
+            var messageStatsDTO = new MessageStatsDTO()
             {
                 MessageId = messageId,
                 Domain = domain,
@@ -1098,17 +1098,18 @@ namespace Doppler.PushContact.Test.Controllers
                 NotDelivered = 1,
                 BillableSends = 10,
                 Received = 7,
-                Clicks = 2,
+                Click = 2,
+                ActionClick = 3,
             };
 
             var domainServiceMock = new Mock<IDomainService>();
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
             var messageStatsServiceMock = new Mock<IMessageStatsService>();
-
             var messageServiceMock = new Mock<IMessageService>();
-            messageServiceMock
+
+            messageStatsServiceMock
                 .Setup(mr => mr.GetMessageStatsAsync(domain, messageId, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
-                .ReturnsAsync(messageDetailsWithStats);
+                .ReturnsAsync(messageStatsDTO);
 
             var client = _factory.WithWebHostBuilder(builder =>
             {
@@ -1139,12 +1140,13 @@ namespace Doppler.PushContact.Test.Controllers
 
             Assert.Equal(domain, result.Domain);
             Assert.Equal(messageId, result.MessageId);
-            Assert.Equal(messageDetailsWithStats.Sent, result.Sent);
-            Assert.Equal(messageDetailsWithStats.Delivered, result.Delivered);
-            Assert.Equal(messageDetailsWithStats.NotDelivered, result.NotDelivered);
-            Assert.Equal(messageDetailsWithStats.BillableSends, result.BillableSends);
-            Assert.Equal(messageDetailsWithStats.Clicks, result.Clicks);
-            Assert.Equal(messageDetailsWithStats.Received, result.Received);
+            Assert.Equal(messageStatsDTO.Sent, result.Sent);
+            Assert.Equal(messageStatsDTO.Delivered, result.Delivered);
+            Assert.Equal(messageStatsDTO.NotDelivered, result.NotDelivered);
+            Assert.Equal(messageStatsDTO.BillableSends, result.BillableSends);
+            Assert.Equal(messageStatsDTO.Click, result.Clicks);
+            Assert.Equal(messageStatsDTO.Received, result.Received);
+            Assert.Equal(messageStatsDTO.ActionClick, result.ActionClick);
         }
 
         [Fact]
@@ -1173,9 +1175,9 @@ namespace Doppler.PushContact.Test.Controllers
             var domainServiceMock = new Mock<IDomainService>();
             var webPushEventServiceMock = new Mock<IWebPushEventService>();
             var messageStatsServiceMock = new Mock<IMessageStatsService>();
-
             var messageServiceMock = new Mock<IMessageService>();
-            messageServiceMock
+
+            messageStatsServiceMock
                 .Setup(mr => mr.GetMessageStatsAsync(domain, messageId, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
                 .ThrowsAsync(new Exception(exceptionMessage));
 
@@ -1209,9 +1211,13 @@ namespace Doppler.PushContact.Test.Controllers
 
             Assert.Equal(domain, result.Domain);
             Assert.Equal(messageId, result.MessageId);
-            Assert.Equal(messageDetailsWithStatsEmpty.Sent, result.Sent);
-            Assert.Equal(messageDetailsWithStatsEmpty.Delivered, result.Delivered);
-            Assert.Equal(messageDetailsWithStatsEmpty.NotDelivered, result.NotDelivered);
+            Assert.Equal(0, result.Sent);
+            Assert.Equal(0, result.Delivered);
+            Assert.Equal(0, result.NotDelivered);
+            Assert.Equal(0, result.BillableSends);
+            Assert.Equal(0, result.Clicks);
+            Assert.Equal(0, result.Received);
+            Assert.Equal(0, result.ActionClick);
 
             loggerMock.Verify(
                 x => x.Log(

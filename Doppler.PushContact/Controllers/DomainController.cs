@@ -219,15 +219,16 @@ namespace Doppler.PushContact.Controllers
 
             try
             {
-                var messageStats = await _messageService.GetMessageStatsAsync(domain, messageId, from, to);
+                var messageStats = await _messageStatsService.GetMessageStatsAsync(domain, messageId, from, to);
                 if (messageStats != null && messageStats.Sent > 0)
                 {
                     response.Sent = messageStats.Sent;
                     response.Delivered = messageStats.Delivered;
                     response.NotDelivered = messageStats.NotDelivered;
                     response.BillableSends = messageStats.BillableSends;
-                    response.Clicks = messageStats.Clicks;
+                    response.Clicks = messageStats.Click;
                     response.Received = messageStats.Received;
+                    response.ActionClick = messageStats.ActionClick;
                 }
             }
             catch (Exception ex)
