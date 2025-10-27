@@ -103,7 +103,7 @@ namespace Doppler.PushContact.Repositories
                 {
                     filter.Add(MessageStatsDocumentProps.MessageId_PropName, new BsonBinaryData(messageId.Value, GuidRepresentation.Standard));
                 }
-                
+
                 var pipeline = MessageStats.Aggregate()
                     .Match(filter)
                     .Group(new BsonDocument
