@@ -11,8 +11,8 @@ const endDate = new Date(); // hasta ahora
 const pipeline = [
   {
     $match: {
-      inserted_date: { $gte: startDate, $lte: endDate }
-    }
+      inserted_date: { $gte: startDate, $lte: endDate },
+    },
   },
   {
     // Redondeamos la fecha a la hora
@@ -20,10 +20,10 @@ const pipeline = [
       truncated_date: {
         $dateTrunc: {
           date: "$inserted_date",
-          unit: "hour"
-        }
-      }
-    }
+          unit: "hour",
+        },
+      },
+    },
   },
   {
     // Preparamos la estructura para MessageStats
@@ -38,9 +38,9 @@ const pipeline = [
       billable_sends: 1,
       received: 1,
       click: "$clicks", // el nombre en Messages es diferente a MessageStats
-      action_click: { $literal: 0 } // no existe en Messages
-    }
-  }
+      action_click: { $literal: 0 }, // no existe en Messages
+    },
+  },
 ];
 
 // Ejecutar la agregación y bulk insert
@@ -49,9 +49,9 @@ const cursor = sourceCollection.aggregate(pipeline, { allowDiskUse: true });
 const bulkOps = [];
 let count = 0;
 
-cursor.forEach(doc => {
+cursor.forEach((doc) => {
   bulkOps.push({
-    insertOne: { document: doc }
+    insertOne: { document: doc },
   });
 
   count++;
