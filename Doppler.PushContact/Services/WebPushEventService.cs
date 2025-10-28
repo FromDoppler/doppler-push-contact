@@ -55,7 +55,7 @@ namespace Doppler.PushContact.Services
             }
         }
 
-        public async Task<bool> RegisterWebPushEventAsync(
+        public async Task<bool> RegisterWebPushUserInteractionAsync(
             string contactId,
             Guid messageId,
             WebPushEventType type,

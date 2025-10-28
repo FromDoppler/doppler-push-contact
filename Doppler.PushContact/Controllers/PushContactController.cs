@@ -474,7 +474,7 @@ namespace Doppler.PushContact.Controllers
             {
                 try
                 {
-                    await _webPushEventService.RegisterWebPushEventAsync(
+                    await _webPushEventService.RegisterWebPushUserInteractionAsync(
                         contactId,
                         messageIdToGuid,
                         type,

@@ -3965,7 +3965,7 @@ namespace Doppler.PushContact.Test.Controllers
             if (expectedStatusCode == HttpStatusCode.Accepted)
             {
                 webPushEventServiceMock.Verify(
-                    x => x.RegisterWebPushEventAsync(
+                    x => x.RegisterWebPushUserInteractionAsync(
                         contactId,
                         messageId,
                         type,
