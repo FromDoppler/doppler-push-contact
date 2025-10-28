@@ -6,6 +6,6 @@ namespace Doppler.PushContact.WebPushSender.Repositories.Interfaces
 {
     public interface IMessageRepository
     {
-        Task RegisterStatisticsAsync(Guid messageId, WebPushEvent webPushEvent);
+        Task RegisterShippingStatisticsAsync(Guid messageId, WebPushEvent webPushEvent);
     }
 }

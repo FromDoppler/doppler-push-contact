@@ -27,7 +27,7 @@ namespace Doppler.PushContact.WebPushSender.Repositories
             _logger = logger;
         }
 
-        public async Task RegisterStatisticsAsync(Guid messageId, WebPushEvent webPushEvent)
+        public async Task RegisterShippingStatisticsAsync(Guid messageId, WebPushEvent webPushEvent)
         {
             var delivered = WebPushEventsHelper.GetDeliveredCount([webPushEvent]);
             var notDelivered = WebPushEventsHelper.GetNotDeliveredCount([webPushEvent]);
