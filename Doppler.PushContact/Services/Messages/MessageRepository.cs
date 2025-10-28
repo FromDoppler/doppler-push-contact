@@ -126,14 +126,10 @@ namespace Doppler.PushContact.Services.Messages
                 return;
             }
 
-            var sent = webPushEvents.Count();
-            var delivered = webPushEvents.Count(x => x.Type == (int)WebPushEventType.Delivered);
-            var notDelivered = sent - delivered;
-
-            var billableSends = webPushEvents.Count(x =>
-                x.Type == (int)WebPushEventType.Delivered ||
-                (x.Type == (int)WebPushEventType.DeliveryFailed && x.SubType == (int)WebPushEventSubType.InvalidSubcription)
-            );
+            var delivered = WebPushEventsHelper.GetDeliveredCount(webPushEvents);
+            var notDelivered = WebPushEventsHelper.GetNotDeliveredCount(webPushEvents);
+            var sent = delivered + notDelivered;
+            var billableSends = WebPushEventsHelper.GetBillableSendsCount(webPushEvents);
 
             await UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered, billableSends);
         }
