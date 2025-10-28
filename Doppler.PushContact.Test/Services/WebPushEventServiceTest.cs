@@ -110,7 +110,7 @@ namespace Doppler.PushContact.Test.Services
         }
 
         [Fact]
-        public async Task RegisterWebPushEventAsync_ShouldReturnFalse_WhenDomainsAreDifferent()
+        public async Task RegisterWebPushUserInteractionAsync_ShouldReturnFalse_WhenDomainsAreDifferent()
         {
             // Arrange
             var fixture = new Fixture();
@@ -139,14 +139,14 @@ namespace Doppler.PushContact.Test.Services
             );
 
             // Act
-            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, null, CancellationToken.None);
+            var result = await sut.RegisterWebPushUserInteractionAsync(contactId, messageId, eventType, null, CancellationToken.None);
 
             // Assert
             Assert.False(result);
         }
 
         [Fact(Skip = "Now, event already registered validation is not being considered.")]
-        public async Task RegisterWebPushEventAsync_ShouldReturnFalse_WhenEventIsAlreadyRegistered()
+        public async Task RegisterWebPushUserInteractionAsync_ShouldReturnFalse_WhenEventIsAlreadyRegistered()
         {
             // Arrange
             var fixture = new Fixture();
@@ -179,14 +179,14 @@ namespace Doppler.PushContact.Test.Services
             );
 
             // Act
-            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, null, CancellationToken.None);
+            var result = await sut.RegisterWebPushUserInteractionAsync(contactId, messageId, eventType, null, CancellationToken.None);
 
             // Assert
             Assert.False(result);
         }
 
         [Fact]
-        public async Task RegisterWebPushEventAsync_ShouldReturnFalse_WhenInsertionFails()
+        public async Task RegisterWebPushUserInteractionAsync_ShouldReturnFalse_WhenInsertionFails()
         {
             // Arrange
             var fixture = new Fixture();
@@ -223,7 +223,7 @@ namespace Doppler.PushContact.Test.Services
             );
 
             // Act
-            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, null, CancellationToken.None);
+            var result = await sut.RegisterWebPushUserInteractionAsync(contactId, messageId, eventType, null, CancellationToken.None);
 
             // Assert
             Assert.False(result);
@@ -241,7 +241,7 @@ namespace Doppler.PushContact.Test.Services
         }
 
         [Fact]
-        public async Task RegisterWebPushEventAsync_ShouldReturnTrue_WhenEventIsSuccessfullyRegistered()
+        public async Task RegisterWebPushUserInteractionAsync_ShouldReturnTrue_WhenEventIsSuccessfullyRegistered()
         {
             // Arrange
             var fixture = new Fixture();
@@ -278,14 +278,14 @@ namespace Doppler.PushContact.Test.Services
             );
 
             // Act
-            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, null, CancellationToken.None);
+            var result = await sut.RegisterWebPushUserInteractionAsync(contactId, messageId, eventType, null, CancellationToken.None);
 
             // Assert
             Assert.True(result);
         }
 
         [Fact]
-        public async Task RegisterWebPushEventAsync_ShouldReturnTrueAndSaveEventDescriptor_WhenEventIsSuccessfullyRegistered()
+        public async Task RegisterWebPushUserInteractionAsync_ShouldReturnTrueAndSaveEventDescriptor_WhenEventIsSuccessfullyRegistered()
         {
             // Arrange
             var fixture = new Fixture();
@@ -322,7 +322,7 @@ namespace Doppler.PushContact.Test.Services
             );
 
             // Act
-            var result = await sut.RegisterWebPushEventAsync(contactId, messageId, eventType, "action_test", CancellationToken.None);
+            var result = await sut.RegisterWebPushUserInteractionAsync(contactId, messageId, eventType, "action_test", CancellationToken.None);
 
             // Assert
             Assert.True(result);

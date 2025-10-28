@@ -13,7 +13,7 @@ namespace Doppler.PushContact.Services
     {
         // TODO: revisar este conteo
         Task<WebPushEventSummarizationDTO> GetWebPushEventSummarizationAsync(Guid messageId);
-        Task<bool> RegisterWebPushEventAsync(
+        Task<bool> RegisterWebPushUserInteractionAsync(
             string contactId,
             Guid messageId,
             WebPushEventType type,

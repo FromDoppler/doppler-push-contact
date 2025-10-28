@@ -48,38 +48,43 @@ namespace Doppler.PushContact.Transversal
             IEnumerable<WebPushEvent> events
         )
         {
+            var deliveredCount = GetDeliveredCount(events);
+            var notDeliveredCount = GetNotDeliveredCount(events);
+
             return new MessageStats
             {
                 Domain = domain,
                 MessageId = messageId,
                 Date = date,
 
-                Sent = events.Count(x => ShouldCountAsSent(x.Type)),
-                Delivered = events.Count(x => x.Type == (int)WebPushEventType.Delivered),
+                // ensure: Sent = Delivered + NotDelivered
+                Sent = deliveredCount + notDeliveredCount,
+                Delivered = deliveredCount,
+                NotDelivered = notDeliveredCount,
+                BillableSends = GetBillableSendsCount(events),
+
                 Received = events.Count(x => x.Type == (int)WebPushEventType.Received),
                 Click = events.Count(x => x.Type == (int)WebPushEventType.Clicked),
                 ActionClick = events.Count(x => x.Type == (int)WebPushEventType.ActionClick),
-
-                NotDelivered = events.Count(x =>
-                    x.Type == (int)WebPushEventType.DeliveryFailed ||
-                    x.Type == (int)WebPushEventType.ProcessingFailed),
-
-                BillableSends = events.Count(x =>
-                    x.Type == (int)WebPushEventType.Delivered ||
-                    (x.Type == (int)WebPushEventType.DeliveryFailed &&
-                    x.SubType == (int)WebPushEventSubType.InvalidSubcription))
             };
         }
 
-        public static bool ShouldCountAsSent(int webPushEventType)
-        {
-            return webPushEventType == (int)WebPushEventType.Delivered ||
-                webPushEventType == (int)WebPushEventType.DeliveryFailed ||
+        public static int GetDeliveredCount(IEnumerable<WebPushEvent> events) =>
+            events?.Count(x => x.Type == (int)WebPushEventType.Delivered) ?? 0;
 
-                // TODO: at moment these are counted as sent, but they should be retried
-                webPushEventType == (int)WebPushEventType.DeliveryFailedButRetry ||
-                webPushEventType == (int)WebPushEventType.ProcessingFailed;
-        }
+        public static int GetNotDeliveredCount(IEnumerable<WebPushEvent> events) =>
+            events?.Count(x =>
+                x.Type == (int)WebPushEventType.DeliveryFailed ||
+                x.Type == (int)WebPushEventType.ProcessingFailed ||
+                x.Type == (int)WebPushEventType.DeliveryFailedButRetry
+            ) ?? 0;
+
+        public static int GetBillableSendsCount(IEnumerable<WebPushEvent> events) =>
+            events?.Count(x =>
+                x.Type == (int)WebPushEventType.Delivered ||
+                (x.Type == (int)WebPushEventType.DeliveryFailed &&
+                x.SubType == (int)WebPushEventSubType.InvalidSubcription)
+            ) ?? 0;
 
         private static DateTime TruncateToHour(DateTime date)
         {

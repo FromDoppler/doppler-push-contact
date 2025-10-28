@@ -105,6 +105,12 @@ namespace Doppler.PushContact.Test.Services
                     Type = (int)WebPushEventType.DeliveryFailed,
                     SubType = (int)WebPushEventSubType.InvalidSubcription
                 },
+                new WebPushEvent {
+                    Domain = domain,
+                    MessageId = messageId,
+                    Date = date.AddMinutes(20),
+                    Type = (int)WebPushEventType.DeliveryFailedButRetry,
+                },
             };
 
             var mockRepository = new Mock<IMessageStatsRepository>();
@@ -116,13 +122,13 @@ namespace Doppler.PushContact.Test.Services
             // Assert
             mockRepository.Verify(r =>
                 r.BulkUpsertStatsAsync(It.Is<IEnumerable<MessageStats>>(list =>
-                    list.Count() == 1 &&
+                    list.Count() == 1 && // 1 group (messageStats document)
                     list.First().Domain == domain &&
                     list.First().MessageId == messageId &&
                     list.First().Date == hourTruncated &&
-                    list.First().Sent == 2 &&
+                    list.First().Sent == 3 &&
                     list.First().Delivered == 1 &&
-                    list.First().NotDelivered == 1 &&
+                    list.First().NotDelivered == 2 &&
                     list.First().BillableSends == 2 &&
                     list.First().Received == 1 &&
                     list.First().Click == 1 &&
@@ -153,7 +159,8 @@ namespace Doppler.PushContact.Test.Services
 
                 // --- Group 3: domain B, messageId2, first hour ---
                 new WebPushEvent { Domain = "b.com", MessageId = messageId2, Date = firstHour.AddMinutes(20), Type = (int)WebPushEventType.Delivered },
-                new WebPushEvent { Domain = "b.com", MessageId = messageId2, Date = firstHour.AddMinutes(40), Type = (int)WebPushEventType.DeliveryFailed }
+                new WebPushEvent { Domain = "b.com", MessageId = messageId2, Date = firstHour.AddMinutes(40), Type = (int)WebPushEventType.DeliveryFailed },
+                new WebPushEvent { Domain = "b.com", MessageId = messageId2, Date = firstHour.AddMinutes(45), Type = (int)WebPushEventType.DeliveryFailedButRetry },
             };
 
             var truncatedFirstHour = new DateTime(firstHour.Year, firstHour.Month, firstHour.Day, firstHour.Hour, 0, 0, DateTimeKind.Utc);
@@ -201,11 +208,11 @@ namespace Doppler.PushContact.Test.Services
                         x.Domain == "b.com" &&
                         x.MessageId == messageId2 &&
                         x.Date == truncatedFirstHour &&
-                        x.Sent == 2 &&
+                        x.Sent == 3 &&
                         x.Delivered == 1 &&
                         x.Received == 0 &&
                         x.Click == 0 &&
-                        x.NotDelivered == 1 &&
+                        x.NotDelivered == 2 &&
                         x.BillableSends == 1
                     )
                 )),

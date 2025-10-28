@@ -421,7 +421,7 @@ namespace Doppler.PushContact.Test.Services.Messages
             // Assert
             // verify that none the involved services were called
             mockPushApiTokenGetter.Verify(x => x.GetTokenAsync(), Times.Never);
-            mockMessageRepository.Verify(x => x.RegisterStatisticsAsync(It.IsAny<Guid>(), It.IsAny<IEnumerable<WebPushEvent>>()), Times.Never);
+            mockMessageRepository.Verify(x => x.RegisterShippingStatisticsAsync(It.IsAny<Guid>(), It.IsAny<IEnumerable<WebPushEvent>>()), Times.Never);
             mockPushContactService.Verify(x => x.MarkDeletedContactsAsync(It.IsAny<Guid>(), It.IsAny<SendMessageResult>()), Times.Never);
             mockWebPushEventService.Verify(x => x.RegisterWebPushEventsAsync(It.IsAny<Guid>(), It.IsAny<IEnumerable<WebPushEvent>>(), It.IsAny<bool>()), Times.Never);
             mockMessageStatsService.Verify(x => x.RegisterMessageStatsAsync(It.IsAny<IEnumerable<WebPushEvent>>()), Times.Never);
@@ -543,7 +543,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                 .WithVerb(HttpMethod.Post)
                 .Times(1);
             mockPushContactService.Verify(x => x.MarkDeletedContactsAsync(webPushDTO.MessageId, It.IsAny<SendMessageResult>()), Times.Once);
-            mockMessageRepository.Verify(x => x.RegisterStatisticsAsync(webPushDTO.MessageId, It.IsAny<IEnumerable<WebPushEvent>>()), Times.Once);
+            mockMessageRepository.Verify(x => x.RegisterShippingStatisticsAsync(webPushDTO.MessageId, It.IsAny<IEnumerable<WebPushEvent>>()), Times.Once);
             mockWebPushEventService.Verify(x => x.RegisterWebPushEventsAsync(webPushDTO.MessageId, It.IsAny<IEnumerable<WebPushEvent>>(), false), Times.Once);
         }
 

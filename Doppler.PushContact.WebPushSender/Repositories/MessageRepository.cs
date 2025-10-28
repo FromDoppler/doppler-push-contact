@@ -27,15 +27,12 @@ namespace Doppler.PushContact.WebPushSender.Repositories
             _logger = logger;
         }
 
-        public async Task RegisterStatisticsAsync(Guid messageId, WebPushEvent webPushEvent)
+        public async Task RegisterShippingStatisticsAsync(Guid messageId, WebPushEvent webPushEvent)
         {
-            var sent = WebPushEventsHelper.ShouldCountAsSent(webPushEvent.Type) ? 1 : 0;
-            var delivered = webPushEvent.Type == (int)WebPushEventType.Delivered ? 1 : 0;
-            var notDelivered = sent - delivered;
-
-            var billableSends =
-                webPushEvent.Type == (int)WebPushEventType.Delivered ||
-                (webPushEvent.Type == (int)WebPushEventType.DeliveryFailed && webPushEvent.SubType == (int)WebPushEventSubType.InvalidSubcription) ? 1 : 0;
+            var delivered = WebPushEventsHelper.GetDeliveredCount([webPushEvent]);
+            var notDelivered = WebPushEventsHelper.GetNotDeliveredCount([webPushEvent]);
+            var sent = delivered + notDelivered;
+            var billableSends = WebPushEventsHelper.GetBillableSendsCount([webPushEvent]);
 
             await UpdateDeliveriesSafe(messageId, sent, delivered, notDelivered, billableSends);
         }

@@ -55,7 +55,7 @@ namespace Doppler.PushContact.Services
             }
         }
 
-        public async Task<bool> RegisterWebPushEventAsync(
+        public async Task<bool> RegisterWebPushUserInteractionAsync(
             string contactId,
             Guid messageId,
             WebPushEventType type,
@@ -94,7 +94,7 @@ namespace Doppler.PushContact.Services
                     webPushEvent.EventDescriptor = eventDescriptor;
                 }
 
-                await _messageRepository.RegisterEventCount(messageId, webPushEvent);
+                await _messageRepository.RegisterUserInteractionStats(messageId, webPushEvent);
                 await _webPushEventRepository.InsertAsync(webPushEvent, cancellationToken);
 
                 var messageStats = WebPushEventsHelper.MapSingleWebPushEventToMessageStats(webPushEvent);

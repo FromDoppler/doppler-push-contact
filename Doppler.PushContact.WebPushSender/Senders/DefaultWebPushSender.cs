@@ -91,7 +91,7 @@ namespace Doppler.PushContact.WebPushSender.Senders
             }
 
             await _weshPushEventRepository.InsertAsync(webPushEvent);
-            await _messageRepository.RegisterStatisticsAsync(message.MessageId, webPushEvent);
+            await _messageRepository.RegisterShippingStatisticsAsync(message.MessageId, webPushEvent);
 
             var messageStats = WebPushEventsHelper.MapSingleWebPushEventToMessageStats(webPushEvent);
             await _messageStatsRepository.UpsertMessageStatsAsync(messageStats);
