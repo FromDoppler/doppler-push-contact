@@ -436,21 +436,10 @@ namespace Doppler.PushContact.Test.Services.Messages
         }
 
         [Theory]
-        [InlineData(WebPushEventType.Delivered, WebPushEventSubType.None,
-            new[] { MessageDocumentProps.DeliveredPropName, MessageDocumentProps.SentPropName, MessageDocumentProps.BillableSendsPropName })]
-        [InlineData(WebPushEventType.Received, WebPushEventSubType.None,
-            new[] { MessageDocumentProps.ReceivedPropName })]
-        [InlineData(WebPushEventType.Clicked, WebPushEventSubType.None,
-            new[] { MessageDocumentProps.ClicksPropName })]
-        [InlineData(WebPushEventType.ProcessingFailed, WebPushEventSubType.None,
-            new[] { MessageDocumentProps.NotDeliveredPropName, MessageDocumentProps.SentPropName })]
-        [InlineData(WebPushEventType.DeliveryFailedButRetry, WebPushEventSubType.None,
-            new[] { MessageDocumentProps.NotDeliveredPropName, MessageDocumentProps.SentPropName })]
-        [InlineData(WebPushEventType.DeliveryFailed, WebPushEventSubType.None,
-            new[] { MessageDocumentProps.NotDeliveredPropName, MessageDocumentProps.SentPropName })]
-        [InlineData(WebPushEventType.DeliveryFailed, WebPushEventSubType.InvalidSubcription,
-            new[] { MessageDocumentProps.NotDeliveredPropName, MessageDocumentProps.SentPropName, MessageDocumentProps.BillableSendsPropName })]
-        public async Task RegisterEventCount_ShouldUpdateExpectedFields(WebPushEventType type, WebPushEventSubType subtype, string[] expectedFieldsToUpdate)
+        [InlineData(WebPushEventType.Received, new[] { MessageDocumentProps.ReceivedPropName })]
+        [InlineData(WebPushEventType.Clicked, new[] { MessageDocumentProps.ClicksPropName })]
+        [InlineData(WebPushEventType.ActionClick, null )]
+        public async Task RegisterUserInteractionStats_ShouldUpdateExpectedFields(WebPushEventType type, string[] expectedFieldsToUpdate)
         {
             // Arrange
             var fixture = new Fixture();
@@ -460,12 +449,18 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var sut = CreateSut(collectionMock.Object);
 
-            var webPushEvent = new WebPushEvent { Type = (int)type, SubType = (int)subtype };
+            var webPushEvent = new WebPushEvent { Type = (int)type };
 
             // Act
-            await sut.RegisterEventCount(messageId, webPushEvent);
+            await sut.RegisterUserInteractionStats(messageId, webPushEvent);
 
             // Assert
+            var timesToVerify = Times.Once;
+            if (type == WebPushEventType.ActionClick) // ActionClick is not being summarized at moment
+            {
+                timesToVerify = Times.Never;
+            }
+
             collectionMock.Verify(x => x.UpdateOneAsync(
                 It.Is<FilterDefinition<BsonDocument>>(f => // filter definition
                     f.Render(
@@ -482,11 +477,15 @@ namespace Doppler.PushContact.Test.Services.Messages
                 ),
                 It.IsAny<UpdateOptions>(),  // options parameter
                 It.IsAny<CancellationToken>()), // cancelation token parameter
-                Times.Once);
+                timesToVerify);
         }
 
-        [Fact]
-        public async Task RegisterEventCount_ShouldNotUpdate_WhenTypeIsInvalid()
+        [Theory]
+        [InlineData(WebPushEventType.Delivered)]
+        [InlineData(WebPushEventType.ProcessingFailed)]
+        [InlineData(WebPushEventType.DeliveryFailedButRetry)]
+        [InlineData(WebPushEventType.DeliveryFailed)]
+        public async Task RegisterUserInteractionStats_ShouldNotUpdate_WhenTypeIsInvalid(WebPushEventType type)
         {
             // Arrange
             var fixture = new Fixture();
@@ -497,10 +496,10 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var sut = CreateSut(collectionMock.Object, loggerMock.Object);
 
-            var invalidEvent = new WebPushEvent { Type = 999 }; // invalid type
+            var invalidEvent = new WebPushEvent { Type = (int)type }; // invalid type
 
             // Act
-            await sut.RegisterEventCount(messageId, invalidEvent);
+            await sut.RegisterUserInteractionStats(messageId, invalidEvent);
 
             // Assert
             collectionMock.Verify(c =>
@@ -515,14 +514,14 @@ namespace Doppler.PushContact.Test.Services.Messages
                 x => x.Log(
                     LogLevel.Warning,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Event type being registered is not valid for message with")),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Event being registered doesn't correspond to user interaction for message with")),
                     null,
                     It.IsAny<Func<It.IsAnyType, Exception, string>>()),
                 Times.Once);
         }
 
         [Fact]
-        public async Task RegisterEventCount_ShouldLogError_WhenUpdateThrows()
+        public async Task RegisterUserInteractionStats_ShouldLogError_WhenUpdateThrows()
         {
             // Arrange
             var fixture = new Fixture();
@@ -544,7 +543,7 @@ namespace Doppler.PushContact.Test.Services.Messages
             var evt = new WebPushEvent { Type = (int)WebPushEventType.Received };
 
             // Act
-            await sut.RegisterEventCount(messageId, evt);
+            await sut.RegisterUserInteractionStats(messageId, evt);
 
             // Assert
             loggerMock.Verify(
