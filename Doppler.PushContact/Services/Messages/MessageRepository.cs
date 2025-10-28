@@ -119,7 +119,7 @@ namespace Doppler.PushContact.Services.Messages
             return bsonActions;
         }
 
-        public async Task RegisterStatisticsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents)
+        public async Task RegisterShippingStatisticsAsync(Guid messageId, IEnumerable<WebPushEvent> webPushEvents)
         {
             if (webPushEvents == null || !webPushEvents.Any())
             {

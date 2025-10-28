@@ -376,7 +376,7 @@ namespace Doppler.PushContact.Test.Services.Messages
 
         [Theory]
         [MemberData(nameof(GetEmptyWebPushEventsList))]
-        public async Task RegisterStatisticsAsync_ShouldReturnWithoutInvokeDB_WhenWebPushEventsIsEmpty(List<WebPushEvent> webPushEvents)
+        public async Task RegisterShippingStatisticsAsync_ShouldReturnWithoutInvokeDB_WhenWebPushEventsIsEmpty(List<WebPushEvent> webPushEvents)
         {
             // Arrange
             Fixture fixture = new Fixture();
@@ -387,7 +387,7 @@ namespace Doppler.PushContact.Test.Services.Messages
             var sut = CreateSut(collectionMock.Object);
 
             // Act
-            await sut.RegisterStatisticsAsync(messageId, webPushEvents);
+            await sut.RegisterShippingStatisticsAsync(messageId, webPushEvents);
 
             // Assert
             collectionMock.Verify(c =>
@@ -401,7 +401,7 @@ namespace Doppler.PushContact.Test.Services.Messages
         }
 
         [Fact]
-        public async Task RegisterStatisticsAsync_ShouldReturnTrue_WhenInsertSucceeds()
+        public async Task RegisterShippingStatisticsAsync_ShouldReturnTrue_WhenInsertSucceeds()
         {
             // Arrange
             Fixture fixture = new Fixture();
@@ -422,7 +422,7 @@ namespace Doppler.PushContact.Test.Services.Messages
             var sut = CreateSut(collectionMock.Object);
 
             // Act
-            await sut.RegisterStatisticsAsync(messageId, webPushEvents);
+            await sut.RegisterShippingStatisticsAsync(messageId, webPushEvents);
 
             // Assert
             collectionMock.Verify(c =>

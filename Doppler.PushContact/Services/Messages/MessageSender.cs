@@ -191,7 +191,7 @@ namespace Doppler.PushContact.Services.Messages
                 await _webPushEventService.RegisterWebPushEventsAsync(webPushDTO.MessageId, webPushEvents, false);
 
                 // TODO: the stats in Message should be removed?
-                await _messageRepository.RegisterStatisticsAsync(webPushDTO.MessageId, webPushEvents);
+                await _messageRepository.RegisterShippingStatisticsAsync(webPushDTO.MessageId, webPushEvents);
                 await _messageStatsService.RegisterMessageStatsAsync(webPushEvents);
             }
             catch (ArgumentException argEx)
