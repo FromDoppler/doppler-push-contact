@@ -3,6 +3,7 @@ using Doppler.PushContact.Models.Entities;
 using Doppler.PushContact.Repositories;
 using Doppler.PushContact.Services;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
@@ -303,6 +304,140 @@ namespace Doppler.PushContact.Test.Repositories
             Assert.Contains($"\"{MessageStatsDocumentProps.Received_PropName}\" : 5", renderedUpdate.ToString());
             Assert.Contains($"\"{MessageStatsDocumentProps.BillableSends_PropName}\" : 6", renderedUpdate.ToString());
             Assert.Contains($"\"{MessageStatsDocumentProps.ActionClick_PropName}\" : 7", renderedUpdate.ToString());
+        }
+
+        [Fact]
+        public async Task GetMessageStatsAsync_ShouldThrowException_WhenMongoThrows()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+            var dateFrom = DateTimeOffset.UtcNow.AddDays(-1);
+            var dateTo = DateTimeOffset.UtcNow;
+
+            var mockAsyncCursor = new Mock<IAsyncCursor<BsonDocument>>();
+
+            _mockCollection
+                .Setup(c => c.AggregateAsync(It.IsAny<PipelineDefinition<MessageStats, BsonDocument>>(),
+                    It.IsAny<AggregateOptions>(), default))
+                .Throws(new MongoException("Simulated failure"));
+
+            // Act & Assert
+            await Assert.ThrowsAsync<MongoException>(() =>
+                _repository.GetMessageStatsAsync(domain, messageId, dateFrom, dateTo));
+        }
+
+        [Theory]
+        [InlineData(null, null)] // sin domain ni messageId
+        [InlineData("example.com", null)] // con domain sin messageId
+        [InlineData(null, "00000000-0000-0000-0000-000000000001")] // sin domain con messageId
+        [InlineData("example.com", "00000000-0000-0000-0000-000000000002")] // ambos presentes
+        public async Task GetMessageStatsAsync_ShouldReturnAggregatedStats_WhenSuccess(string domain, string messageIdString)
+        {
+            // Arrange
+            var messageId = string.IsNullOrEmpty(messageIdString)
+                ? (Guid?)null
+                : Guid.Parse(messageIdString);
+
+            var dateFrom = DateTimeOffset.UtcNow.AddDays(-1);
+            var dateTo = DateTimeOffset.UtcNow;
+
+            var aggregateResult = new BsonDocument
+            {
+                { "Sent", 10 },
+                { "Delivered", 8 },
+                { "NotDelivered", 2 },
+                { "Received", 7 },
+                { "Click", 3 },
+                { "ActionClick", 1 },
+                { "BillableSends", 9 }
+            };
+
+            var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
+            mockCursor.SetupSequence(c => c.MoveNext(It.IsAny<CancellationToken>()))
+                .Returns(true)
+                .Returns(false);
+            mockCursor.SetupSequence(_ => _.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .Returns(Task.FromResult(true))
+                .Returns(Task.FromResult(false));
+            mockCursor.Setup(_ => _.Current).Returns(new[] { aggregateResult });
+
+            _mockCollection
+                .Setup(c => c.AggregateAsync(It.IsAny<PipelineDefinition<MessageStats, BsonDocument>>(),
+                    It.IsAny<AggregateOptions>(), default))
+                .ReturnsAsync(mockCursor.Object);
+
+            // Act
+            var result = await _repository.GetMessageStatsAsync(domain, messageId, dateFrom, dateTo);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(domain, result.Domain);
+            Assert.Equal(messageId ?? Guid.Empty, result.MessageId);
+            Assert.Equal(dateFrom, result.DateFrom);
+            Assert.Equal(dateTo, result.DateTo);
+            Assert.Equal(10, result.Sent);
+            Assert.Equal(8, result.Delivered);
+            Assert.Equal(2, result.NotDelivered);
+            Assert.Equal(7, result.Received);
+            Assert.Equal(3, result.Click);
+            Assert.Equal(1, result.ActionClick);
+            Assert.Equal(9, result.BillableSends);
+
+            _mockCollection.Verify(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<MessageStats, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                default), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetMessageStatsAsync_ShouldReturnZeros_WhenNoResultsFound()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+
+            var dateFrom = DateTimeOffset.UtcNow.AddDays(-1);
+            var dateTo = DateTimeOffset.UtcNow;
+
+            // empty cursor (without results)
+            var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
+            mockCursor.SetupSequence(c => c.MoveNext(It.IsAny<CancellationToken>()))
+                .Returns(true)
+                .Returns(false);
+            mockCursor.SetupSequence(_ => _.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .Returns(Task.FromResult(true))
+                .Returns(Task.FromResult(false));
+            mockCursor.Setup(_ => _.Current).Returns(Array.Empty<BsonDocument>());
+
+            _mockCollection
+                .Setup(c => c.AggregateAsync(It.IsAny<PipelineDefinition<MessageStats, BsonDocument>>(),
+                    It.IsAny<AggregateOptions>(), default))
+                .ReturnsAsync(mockCursor.Object);
+
+            // Act
+            var result = await _repository.GetMessageStatsAsync(domain, messageId, dateFrom, dateTo);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(domain, result.Domain);
+            Assert.Equal(messageId, result.MessageId);
+            Assert.Equal(dateFrom, result.DateFrom);
+            Assert.Equal(dateTo, result.DateTo);
+            Assert.Equal(0, result.Sent);
+            Assert.Equal(0, result.Delivered);
+            Assert.Equal(0, result.NotDelivered);
+            Assert.Equal(0, result.Received);
+            Assert.Equal(0, result.Click);
+            Assert.Equal(0, result.ActionClick);
+            Assert.Equal(0, result.BillableSends);
+
+            _mockCollection.Verify(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<MessageStats, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                default), Times.Once);
         }
     }
 }

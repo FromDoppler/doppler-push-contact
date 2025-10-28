@@ -20,20 +20,21 @@ namespace Doppler.PushContact.Controllers
     public class DomainController : ControllerBase
     {
         private readonly IDomainService _domainService;
-        private readonly IWebPushEventService _webPushEventService;
         private readonly IMessageService _messageService;
+        private readonly IMessageStatsService _messageStatsService;
         private readonly ILogger<DomainController> _logger;
 
         public DomainController(
             IDomainService domainService,
             IWebPushEventService webPushEventService,
             IMessageService messageService,
+            IMessageStatsService messageStatsService,
             ILogger<DomainController> logger
         )
         {
             _domainService = domainService;
-            _webPushEventService = webPushEventService;
             _messageService = messageService;
+            _messageStatsService = messageStatsService;
             _logger = logger;
         }
 
@@ -185,14 +186,14 @@ namespace Doppler.PushContact.Controllers
         {
             try
             {
-                var count = await _webPushEventService.GetWebPushEventConsumed(domain, from, to);
+                var messageStats = await _messageStatsService.GetMessageStatsAsync(domain, null, from, to);
 
                 var response = new PushSendsConsumedResponse
                 {
                     Domain = domain,
                     From = from,
                     To = to,
-                    Consumed = count
+                    Consumed = messageStats.BillableSends,
                 };
 
                 return Ok(response);
@@ -201,7 +202,7 @@ namespace Doppler.PushContact.Controllers
             {
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,
-                    new { error = "Unexpected error summarizing consumed web push. Try again." }
+                    new { error = "Unexpected error obtaining consumed. Try again." }
                 );
             }
         }
@@ -218,15 +219,32 @@ namespace Doppler.PushContact.Controllers
 
             try
             {
-                var messageStats = await _messageService.GetMessageStatsAsync(domain, messageId, from, to);
+                // obtain stats from MessageStats
+                var messageStats = await _messageStatsService.GetMessageStatsAsync(domain, messageId, from, to);
                 if (messageStats != null && messageStats.Sent > 0)
                 {
                     response.Sent = messageStats.Sent;
                     response.Delivered = messageStats.Delivered;
                     response.NotDelivered = messageStats.NotDelivered;
                     response.BillableSends = messageStats.BillableSends;
-                    response.Clicks = messageStats.Clicks;
+                    response.Clicks = messageStats.Click;
                     response.Received = messageStats.Received;
+                    response.ActionClick = messageStats.ActionClick;
+                }
+                else
+                {
+                    // obtain stats from Messages
+                    var statsObtainedFromMessage = await _messageService.GetMessageStatsAsync(domain, messageId, from, to);
+
+                    if (statsObtainedFromMessage != null)
+                    {
+                        response.Sent = statsObtainedFromMessage.Sent;
+                        response.Delivered = statsObtainedFromMessage.Delivered;
+                        response.NotDelivered = statsObtainedFromMessage.NotDelivered;
+                        response.BillableSends = statsObtainedFromMessage.BillableSends;
+                        response.Clicks = statsObtainedFromMessage.Clicks;
+                        response.Received = statsObtainedFromMessage.Received;
+                    }
                 }
             }
             catch (Exception ex)
