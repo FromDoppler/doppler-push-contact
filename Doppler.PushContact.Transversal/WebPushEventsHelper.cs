@@ -83,7 +83,7 @@ namespace Doppler.PushContact.Transversal
             events?.Count(x =>
                 x.Type == (int)WebPushEventType.Delivered ||
                 (x.Type == (int)WebPushEventType.DeliveryFailed &&
-                 x.SubType == (int)WebPushEventSubType.InvalidSubcription)
+                x.SubType == (int)WebPushEventSubType.InvalidSubcription)
             ) ?? 0;
 
         private static DateTime TruncateToHour(DateTime date)

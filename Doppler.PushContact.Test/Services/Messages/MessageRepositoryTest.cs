@@ -438,7 +438,7 @@ namespace Doppler.PushContact.Test.Services.Messages
         [Theory]
         [InlineData(WebPushEventType.Received, new[] { MessageDocumentProps.ReceivedPropName })]
         [InlineData(WebPushEventType.Clicked, new[] { MessageDocumentProps.ClicksPropName })]
-        [InlineData(WebPushEventType.ActionClick, null )]
+        [InlineData(WebPushEventType.ActionClick, null)]
         public async Task RegisterUserInteractionStats_ShouldUpdateExpectedFields(WebPushEventType type, string[] expectedFieldsToUpdate)
         {
             // Arrange
