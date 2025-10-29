@@ -209,7 +209,12 @@ namespace Doppler.PushContact.Controllers
 
         [HttpGet]
         [Route("domains/{domain}/messages/{messageId}/stats")]
-        public async Task<ActionResult<MessageDetailsResponse>> GetMessageStats([FromRoute] string domain, [FromRoute] Guid messageId, [FromQuery][Required] DateTimeOffset from, [FromQuery][Required] DateTimeOffset to)
+        public async Task<ActionResult<MessageDetailsResponse>> GetMessageStats(
+            [FromRoute] string domain,
+            [FromRoute] Guid messageId,
+            [FromQuery][Required] DateTimeOffset from,
+            [FromQuery][Required] DateTimeOffset to
+        )
         {
             var response = new MessageDetailsResponse()
             {
@@ -219,22 +224,29 @@ namespace Doppler.PushContact.Controllers
 
             try
             {
-                // obtain stats from MessageStats
-                var messageStats = await _messageStatsService.GetMessageStatsAsync(domain, messageId, from, to);
-                if (messageStats != null && messageStats.Sent > 0)
+                // TTL messageStats = 360 days
+                var messageStatsRetentionLimit = DateTimeOffset.UtcNow.AddDays(-360);
+
+                if (from >= messageStatsRetentionLimit)
                 {
-                    response.Sent = messageStats.Sent;
-                    response.Delivered = messageStats.Delivered;
-                    response.NotDelivered = messageStats.NotDelivered;
-                    response.BillableSends = messageStats.BillableSends;
-                    response.Clicks = messageStats.Click;
-                    response.Received = messageStats.Received;
-                    response.ActionClick = messageStats.ActionClick;
+                    // obtain stats from MessageStats
+                    MessageStatsDTO messageStats = await _messageStatsService.GetMessageStatsAsync(domain, messageId, from, to);
+
+                    if (messageStats != null)
+                    {
+                        response.Sent = messageStats.Sent;
+                        response.Delivered = messageStats.Delivered;
+                        response.NotDelivered = messageStats.NotDelivered;
+                        response.BillableSends = messageStats.BillableSends;
+                        response.Clicks = messageStats.Click;
+                        response.Received = messageStats.Received;
+                        response.ActionClick = messageStats.ActionClick;
+                    }
                 }
                 else
                 {
                     // obtain stats from Messages
-                    var statsObtainedFromMessage = await _messageService.GetMessageStatsAsync(domain, messageId, from, to);
+                    MessageDetails statsObtainedFromMessage = await _messageService.GetMessageStatsAsync(domain, messageId, from, to);
 
                     if (statsObtainedFromMessage != null)
                     {
