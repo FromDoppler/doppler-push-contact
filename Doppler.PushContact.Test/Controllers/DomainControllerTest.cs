@@ -1081,13 +1081,17 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task GetMessageStats_should_return_ok_with_stats_obtained_from_messageStats()
+        public async Task GetMessageStats_should_return_ok_with_stats_obtained_from_messageStats_when_fromdate_is_lower_than_retentiondays()
         {
             // Arrange
             var fixture = new Fixture();
 
             var domain = fixture.Create<string>();
             var messageId = fixture.Create<Guid>();
+
+            // from is lower than MessageStatsRetentionDays (360 days)
+            var from = DateTime.UtcNow.AddDays(-1);
+            var to = DateTime.UtcNow;
 
             var messageStatsDTO = new MessageStatsDTO()
             {
@@ -1122,9 +1126,6 @@ namespace Doppler.PushContact.Test.Controllers
                 });
             }).CreateClient(new WebApplicationFactoryClientOptions());
 
-            var from = DateTime.UtcNow.AddDays(-1);
-            var to = DateTime.UtcNow;
-
             var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{domain}/messages/{messageId}/stats?from={from}&to={to}")
             {
                 Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } },
@@ -1150,13 +1151,17 @@ namespace Doppler.PushContact.Test.Controllers
         }
 
         [Fact]
-        public async Task GetMessageStats_should_return_ok_with_stats_obtained_from_messages_when_messageStats_has_not_information()
+        public async Task GetMessageStats_should_return_ok_with_stats_obtained_from_messages_when_fromdate_is_greater_than_retentiondays()
         {
             // Arrange
             var fixture = new Fixture();
 
             var domain = fixture.Create<string>();
             var messageId = fixture.Create<Guid>();
+
+            // from is greater than MessageStatsRetentionDays (360 days)
+            var from = DateTime.UtcNow.AddDays(-720);
+            var to = DateTime.UtcNow;
 
             var messageStatsDTO = new MessageStatsDTO()
             {
@@ -1200,9 +1205,6 @@ namespace Doppler.PushContact.Test.Controllers
                     services.AddSingleton(messageServiceMock.Object);
                 });
             }).CreateClient(new WebApplicationFactoryClientOptions());
-
-            var from = DateTime.UtcNow.AddDays(-1);
-            var to = DateTime.UtcNow;
 
             var request = new HttpRequestMessage(HttpMethod.Get, $"domains/{domain}/messages/{messageId}/stats?from={from}&to={to}")
             {

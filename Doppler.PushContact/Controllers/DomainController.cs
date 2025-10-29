@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
@@ -23,19 +24,22 @@ namespace Doppler.PushContact.Controllers
         private readonly IMessageService _messageService;
         private readonly IMessageStatsService _messageStatsService;
         private readonly ILogger<DomainController> _logger;
+        private readonly int _messageStatsRetentionDays;
 
         public DomainController(
             IDomainService domainService,
             IWebPushEventService webPushEventService,
             IMessageService messageService,
             IMessageStatsService messageStatsService,
-            ILogger<DomainController> logger
+            ILogger<DomainController> logger,
+            IOptions<BusinessLogicSettings> settings
         )
         {
             _domainService = domainService;
             _messageService = messageService;
             _messageStatsService = messageStatsService;
             _logger = logger;
+            _messageStatsRetentionDays = settings.Value.MessageStatsRetentionDays;
         }
 
         // TODO: analyze separating into two methods (PUT/POST) because using PUT, and not all fields may be provided,
@@ -209,7 +213,12 @@ namespace Doppler.PushContact.Controllers
 
         [HttpGet]
         [Route("domains/{domain}/messages/{messageId}/stats")]
-        public async Task<ActionResult<MessageDetailsResponse>> GetMessageStats([FromRoute] string domain, [FromRoute] Guid messageId, [FromQuery][Required] DateTimeOffset from, [FromQuery][Required] DateTimeOffset to)
+        public async Task<ActionResult<MessageDetailsResponse>> GetMessageStats(
+            [FromRoute] string domain,
+            [FromRoute] Guid messageId,
+            [FromQuery][Required] DateTimeOffset from,
+            [FromQuery][Required] DateTimeOffset to
+        )
         {
             var response = new MessageDetailsResponse()
             {
@@ -219,22 +228,28 @@ namespace Doppler.PushContact.Controllers
 
             try
             {
-                // obtain stats from MessageStats
-                var messageStats = await _messageStatsService.GetMessageStatsAsync(domain, messageId, from, to);
-                if (messageStats != null && messageStats.Sent > 0)
+                var messageStatsRetentionLimit = DateTimeOffset.UtcNow.AddDays(-_messageStatsRetentionDays);
+
+                if (from >= messageStatsRetentionLimit)
                 {
-                    response.Sent = messageStats.Sent;
-                    response.Delivered = messageStats.Delivered;
-                    response.NotDelivered = messageStats.NotDelivered;
-                    response.BillableSends = messageStats.BillableSends;
-                    response.Clicks = messageStats.Click;
-                    response.Received = messageStats.Received;
-                    response.ActionClick = messageStats.ActionClick;
+                    // obtain stats from MessageStats
+                    MessageStatsDTO messageStats = await _messageStatsService.GetMessageStatsAsync(domain, messageId, from, to);
+
+                    if (messageStats != null)
+                    {
+                        response.Sent = messageStats.Sent;
+                        response.Delivered = messageStats.Delivered;
+                        response.NotDelivered = messageStats.NotDelivered;
+                        response.BillableSends = messageStats.BillableSends;
+                        response.Clicks = messageStats.Click;
+                        response.Received = messageStats.Received;
+                        response.ActionClick = messageStats.ActionClick;
+                    }
                 }
                 else
                 {
                     // obtain stats from Messages
-                    var statsObtainedFromMessage = await _messageService.GetMessageStatsAsync(domain, messageId, from, to);
+                    MessageDetails statsObtainedFromMessage = await _messageService.GetMessageStatsAsync(domain, messageId, from, to);
 
                     if (statsObtainedFromMessage != null)
                     {
