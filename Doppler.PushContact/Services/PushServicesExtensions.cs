@@ -18,6 +18,8 @@ namespace Doppler.PushContact.Services
 
             services.Configure<WebPushPublisherSettings>(configuration.GetSection(nameof(WebPushPublisherSettings)));
 
+            services.Configure<BusinessLogicSettings>(configuration.GetSection(nameof(BusinessLogicSettings)));
+
             return services;
         }
     }

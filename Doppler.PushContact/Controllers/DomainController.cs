@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
@@ -23,19 +24,22 @@ namespace Doppler.PushContact.Controllers
         private readonly IMessageService _messageService;
         private readonly IMessageStatsService _messageStatsService;
         private readonly ILogger<DomainController> _logger;
+        private readonly int _messageStatsRetentionDays;
 
         public DomainController(
             IDomainService domainService,
             IWebPushEventService webPushEventService,
             IMessageService messageService,
             IMessageStatsService messageStatsService,
-            ILogger<DomainController> logger
+            ILogger<DomainController> logger,
+            IOptions<BusinessLogicSettings> settings
         )
         {
             _domainService = domainService;
             _messageService = messageService;
             _messageStatsService = messageStatsService;
             _logger = logger;
+            _messageStatsRetentionDays = settings.Value.MessageStatsRetentionDays;
         }
 
         // TODO: analyze separating into two methods (PUT/POST) because using PUT, and not all fields may be provided,
@@ -224,8 +228,7 @@ namespace Doppler.PushContact.Controllers
 
             try
             {
-                // TTL messageStats = 360 days
-                var messageStatsRetentionLimit = DateTimeOffset.UtcNow.AddDays(-360);
+                var messageStatsRetentionLimit = DateTimeOffset.UtcNow.AddDays(-_messageStatsRetentionDays);
 
                 if (from >= messageStatsRetentionLimit)
                 {
