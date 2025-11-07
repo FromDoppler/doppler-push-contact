@@ -51,7 +51,7 @@ sequenceDiagram
   participant MongoDb
   participant PushApi
 DopplerUser->>+Doppler: send push notification to specific domain
-Doppler->>+PushContactApi: POST /push-contacts/{domain}/message
+Doppler->>+PushContactApi: POST /messages/domains/{domain}
 PushContactApi-x+PushContactApiWorker: send async
 PushContactApi-->>-Doppler: messageId
 Doppler-->>-DopplerUser: shipment in progress!

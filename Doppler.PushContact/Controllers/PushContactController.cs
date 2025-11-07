@@ -193,54 +193,6 @@ namespace Doppler.PushContact.Controllers
             return Ok();
         }
 
-        [Obsolete("This endpoint is not being used. It was replaced by 'messages/domains/{domain}'.")]
-        [HttpPost]
-        [Route("push-contacts/{domain}/message")]
-        public async Task<IActionResult> Message([FromRoute] string domain, [FromBody] Message message)
-        {
-            var messageId = Guid.NewGuid();
-
-            await _messageRepository.AddAsync(messageId, domain, message.Title, message.Body, message.OnClickLink, 0, 0, 0, message.ImageUrl);
-
-            string pushApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
-
-            _backgroundQueue.QueueBackgroundQueueItem(async (cancellationToken) =>
-            {
-                try
-                {
-                    var deviceTokens = await _pushContactService.GetAllDeviceTokensByDomainAsync(domain);
-
-                    if (!deviceTokens.Any())
-                    {
-                        return;
-                    }
-
-                    var sendMessageResult = await _messageSender.SendAsync(message.Title, message.Body, deviceTokens, message.OnClickLink, message.ImageUrl, pushApiToken);
-
-                    await _pushContactService.MarkDeletedContactsAsync(messageId, sendMessageResult);
-
-                    var sent = sendMessageResult.SendMessageTargetResult.Count();
-                    var delivered = sendMessageResult.SendMessageTargetResult.Count(x => x.IsSuccess);
-                    var notDelivered = sent - delivered;
-
-                    await _messageRepository.UpdateDeliveriesAsync(messageId, sent, delivered, notDelivered);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(
-                        ex,
-                        "An unexpected error occurred processing/sending a message with messageId: {messageId}.",
-                        messageId
-                    );
-                }
-            });
-
-            return Accepted(new MessageResult()
-            {
-                MessageId = messageId
-            });
-        }
-
         [Obsolete("This endpoint is replaced by 'messages/{messageId}/visitors/{visitorGuid}/send'.")]
         [HttpPost]
         [Route("push-contacts/{domain}/{visitorGuid}/message")]
