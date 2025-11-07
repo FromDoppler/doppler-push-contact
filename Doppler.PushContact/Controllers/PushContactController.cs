@@ -193,40 +193,6 @@ namespace Doppler.PushContact.Controllers
             return Ok();
         }
 
-        [Obsolete("This endpoint is deprecated. It will be replaced by 'domains/{domain}/messages/{messageId}/stats'.")]
-        [HttpGet]
-        [Route("push-contacts/{domain}/messages/{messageId}/details")]
-        public async Task<IActionResult> GetMessageDetails([FromRoute] string domain, [FromRoute] Guid messageId, [FromQuery][Required] DateTimeOffset from, [FromQuery][Required] DateTimeOffset to)
-        {
-            var response = new MessageDetailsResponse()
-            {
-                Domain = domain,
-                MessageId = messageId,
-            };
-
-            try
-            {
-                var messagedetails = await _messageRepository.GetMessageDetailsAsync(domain, messageId);
-                if (messagedetails != null && messagedetails.Sent > 0)
-                {
-                    response.Sent = messagedetails.Sent;
-                    response.Delivered = messagedetails.Delivered;
-                    response.NotDelivered = messagedetails.NotDelivered;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "An unexpected error occurred obtaining message details. Domain: {domain} and messageId: {messageId}",
-                    domain,
-                    messageId
-                );
-            }
-
-            return Ok(response);
-        }
-
         [Obsolete("This endpoint will be deprecated. It will be replaced by 'push-contacts/visitor-guids'.")]
         [HttpGet]
         [Route("push-contacts/{domain}/visitor-guids")]

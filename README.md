@@ -103,7 +103,7 @@ sequenceDiagram
   participant MongoDb
 DopplerUser->>+Doppler: get Automation report
 loop for each sent message
-  Doppler->>+PushContactApi: GET push-contacts/{domain}/messages/{messageId}/details
+  Doppler->>+PushContactApi: GET domains/{domain}/messages/{messageId}/stats
   PushContactApi->>+MongoDb: get message details
   MongoDb->>-PushContactApi: message details
   PushContactApi-->>-Doppler: message details
