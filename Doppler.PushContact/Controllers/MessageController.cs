@@ -45,36 +45,6 @@ namespace Doppler.PushContact.Controllers
             _logger = logger;
         }
 
-        [Obsolete("This endpoint is deprecated and will be replaced by 'messages/{messageId}/visitors/{visitorGuid}/send'.")]
-        [HttpPost]
-        [Route("message/{messageId}")]
-        public async Task<IActionResult> MessageByVisitorGuid([FromRoute] Guid messageId, [FromBody] string visitorGuid)
-        {
-            if (string.IsNullOrWhiteSpace(visitorGuid))
-            {
-                return BadRequest($"'{nameof(visitorGuid)}' cannot be null, empty or whitespace.");
-            }
-            if (string.IsNullOrWhiteSpace(messageId.ToString()))
-            {
-                return BadRequest($"'{nameof(messageId)}' cannot be null, empty or whitespace.");
-            }
-
-            var deviceTokens = await _pushContactService.GetAllDeviceTokensByVisitorGuidAsync(visitorGuid);
-            var message = await _messageRepository.GetMessageDetailsByMessageIdAsync(messageId);
-            var sendMessageResult = await _messageSender.SendAsync(message.Title, message.Body, deviceTokens, message.OnClickLink, message.ImageUrl);
-
-            await _pushContactService.MarkDeletedContactsAsync(messageId, sendMessageResult);
-
-            var sent = sendMessageResult.SendMessageTargetResult.Count();
-            var delivered = sendMessageResult.SendMessageTargetResult.Count(x => x.IsSuccess);
-            await _messageRepository.IncrementMessageStats(messageId, sent, delivered, sent - delivered);
-
-            return Ok(new MessageResult
-            {
-                MessageId = messageId
-            });
-        }
-
         [HttpPost]
         [Route("messages/{messageId}/visitors/{visitorGuid}/send")]
         public async Task<IActionResult> ProcessWebPushForVisitorGuid(

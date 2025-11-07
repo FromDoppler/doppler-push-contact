@@ -15,7 +15,7 @@ Content-Type: application/json
 "string"
 
 ### Send push notification by domain
-POST /push-contacts/{domain}/message
+POST /messages/domains/{domain}
 Content-Type: application/json
 
 {
