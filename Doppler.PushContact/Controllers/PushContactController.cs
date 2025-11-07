@@ -193,29 +193,6 @@ namespace Doppler.PushContact.Controllers
             return Ok();
         }
 
-        [Obsolete("This endpoint is replaced by 'messages/{messageId}/visitors/{visitorGuid}/send'.")]
-        [HttpPost]
-        [Route("push-contacts/{domain}/{visitorGuid}/message")]
-        public async Task<IActionResult> MessageByVisitorGuid([FromRoute] string domain, [FromRoute] string visitorGuid, [FromBody] Message message)
-        {
-            var deviceTokens = await _pushContactService.GetAllDeviceTokensByVisitorGuidAsync(visitorGuid);
-
-            var sendMessageResult = await _messageSender.SendAsync(message.Title, message.Body, deviceTokens, message.OnClickLink, message.ImageUrl);
-
-            var messageId = Guid.NewGuid();
-            await _pushContactService.MarkDeletedContactsAsync(messageId, sendMessageResult);
-
-            var sent = sendMessageResult.SendMessageTargetResult.Count();
-            var delivered = sendMessageResult.SendMessageTargetResult.Count(x => x.IsSuccess);
-            var notDelivered = sent - delivered;
-            await _messageRepository.AddAsync(messageId, domain, message.Title, message.Body, message.OnClickLink, sent, delivered, notDelivered, message.ImageUrl);
-
-            return Ok(new MessageResult
-            {
-                MessageId = messageId
-            });
-        }
-
         [Obsolete("This endpoint is deprecated. It will be replaced by 'domains/{domain}/messages/{messageId}/stats'.")]
         [HttpGet]
         [Route("push-contacts/{domain}/messages/{messageId}/details")]
