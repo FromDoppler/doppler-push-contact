@@ -611,11 +611,6 @@ with {nameof(deviceToken)} {deviceToken}. {PushContactDocumentProps.EmailPropNam
             }
         }
 
-        public async Task<ApiPage<string>> GetAllVisitorGuidByDomain(string domain, int page, int per_page)
-        {
-            return await _pushContactRepository.GetAllVisitorGuidByDomain(domain, page, per_page);
-        }
-
         public async Task<CursorPage<string>> GetDistinctVisitorGuidByDomain(string domain, string lastVisitorGuid, int per_page)
         {
             return await _pushContactRepository.GetDistinctVisitorGuidByDomain(domain, lastVisitorGuid, per_page);

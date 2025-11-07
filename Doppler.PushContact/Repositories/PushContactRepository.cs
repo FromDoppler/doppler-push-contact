@@ -363,46 +363,6 @@ namespace Doppler.PushContact.Repositories
             }
         }
 
-        // TODO: it could return repeated in different pages. Use GetDistinctVisitorGuidByDomain instead.
-        public async Task<ApiPage<string>> GetAllVisitorGuidByDomain(string domain, int page, int per_page)
-        {
-            var filterBuilder = Builders<BsonDocument>.Filter;
-
-            var filter = filterBuilder.Eq(PushContactDocumentProps.DomainPropName, domain)
-                & filterBuilder.Eq(PushContactDocumentProps.DeletedPropName, false)
-                & filterBuilder.Ne(PushContactDocumentProps.VisitorGuidPropName, (string)null)
-                & filterBuilder.Exists(PushContactDocumentProps.VisitorGuidPropName);
-
-            var options = new FindOptions<BsonDocument>
-            {
-                Projection = Builders<BsonDocument>.Projection
-                .Include(PushContactDocumentProps.VisitorGuidPropName)
-                .Exclude(PushContactDocumentProps.IdPropName),
-                Skip = page,
-                Limit = per_page
-            };
-
-            try
-            {
-                var pushContactsFiltered = await (await PushContacts.FindAsync(filter, options)).ToListAsync();
-
-                // filter distinct visitor_guids in memory
-                var visitorGuids = new HashSet<string>(
-                    pushContactsFiltered.Select(x => x.GetValue(PushContactDocumentProps.VisitorGuidPropName).AsString)
-                );
-
-                var newPage = page + pushContactsFiltered.Count;
-
-                return new ApiPage<string>(visitorGuids.ToList(), newPage, per_page);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error getting {nameof(PushContactModel)}s by {nameof(domain)} {domain}");
-
-                throw new Exception($"Error getting {nameof(PushContactModel)}s by {nameof(domain)} {domain}", ex);
-            }
-        }
-
         private string SafeGetString(BsonDocument doc, string propName)
         {
             var value = doc.GetValue(propName, BsonNull.Value);
