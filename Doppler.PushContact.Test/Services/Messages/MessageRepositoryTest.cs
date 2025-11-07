@@ -556,70 +556,22 @@ namespace Doppler.PushContact.Test.Services.Messages
                 Times.Once);
         }
 
-        [Theory]
-        [InlineData(null)]
-        [InlineData("")]
-        public async Task AddAsync_should_throw_ArgumentException_when_domain_is_null_or_empty(string invalidDomain)
-        {
-            // Arrange
-            var fixture = new Fixture();
-            var loggerMock = new Mock<ILogger<MessageRepository>>();
-            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
-
-            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
-
-            // Act & Assert
-            var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-                sut.AddAsync(
-                    fixture.Create<Guid>(),
-                    invalidDomain,
-                    "title",
-                    "body",
-                    "https://example.com",
-                    0,
-                    0,
-                    0,
-                    "https://image.com/image.png"
-                ));
-
-            Assert.Contains("domain", ex.Message);
-        }
-
-        [Theory]
-        [InlineData(null, "body")]
-        [InlineData("", "body")]
-        [InlineData("title", null)]
-        [InlineData("title", "")]
-        public async Task AddAsync_should_throw_ArgumentException_when_title_or_body_is_null_or_empty(string title, string body)
-        {
-            // Arrange
-            var fixture = new Fixture();
-            var loggerMock = new Mock<ILogger<MessageRepository>>();
-            var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
-
-            var sut = CreateSut(collectionMock.Object, loggerMock.Object);
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(() =>
-                sut.AddAsync(
-                    fixture.Create<Guid>(),
-                    "domain.com",
-                    title,
-                    body,
-                    "https://example.com",
-                    0,
-                    0,
-                    0,
-                    "https://image.com/image.png"
-                ));
-        }
-
         [Fact]
         public async Task AddAsync_should_log_error_and_throw_when_insert_fails()
         {
             // Arrange
             var fixture = new Fixture();
             var messageId = fixture.Create<Guid>();
+
+            var messageDto = new MessageDTO()
+            {
+                MessageId = messageId,
+                Domain = "domain.com",
+                Title = "title",
+                Body = "body",
+                OnClickLink = "https://example.com",
+                ImageUrl = "https://image.com/img.png",
+            };
 
             var loggerMock = new Mock<ILogger<MessageRepository>>();
             var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
@@ -635,17 +587,7 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<Exception>(() =>
-                sut.AddAsync(
-                    messageId,
-                    "domain.com",
-                    "title",
-                    "body",
-                    "https://example.com",
-                    0,
-                    0,
-                    0,
-                    "https://image.com/image.png"
-                ));
+                sut.AddAsync(messageDto));
 
             Assert.Equal("insert error", ex.Message);
 
@@ -654,7 +596,7 @@ namespace Doppler.PushContact.Test.Services.Messages
                     LogLevel.Error,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString().Contains($"Error inserting message with messageId {messageId}")),
+                        v.ToString().Contains($"Error inserting message with")),
                     It.IsAny<Exception>(),
                     It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
                 Times.Once);
@@ -667,23 +609,23 @@ namespace Doppler.PushContact.Test.Services.Messages
             var fixture = new Fixture();
             var messageId = fixture.Create<Guid>();
 
+            var messageDto = new MessageDTO()
+            {
+                MessageId = messageId,
+                Domain = "domain.com",
+                Title = "title",
+                Body = "body",
+                OnClickLink = "https://example.com",
+                ImageUrl = "https://image.com/img.png",
+            };
+
             var loggerMock = new Mock<ILogger<MessageRepository>>();
             var collectionMock = new Mock<IMongoCollection<BsonDocument>>();
 
             var sut = CreateSut(collectionMock.Object, loggerMock.Object);
 
             // Act
-            await sut.AddAsync(
-                messageId,
-                "domain.com",
-                "title",
-                "body",
-                "https://example.com",
-                1,
-                2,
-                3,
-                "https://image.com/img.png"
-            );
+            await sut.AddAsync(messageDto);
 
             // Assert
             collectionMock.Verify(x => x.InsertOneAsync(
@@ -719,19 +661,19 @@ namespace Doppler.PushContact.Test.Services.Messages
                 }
             };
 
+            var messageDto = new MessageDTO()
+            {
+                MessageId = messageId,
+                Domain = "domain.com",
+                Title = "title",
+                Body = "body",
+                OnClickLink = "https://example.com",
+                ImageUrl = "https://image.com/img.png",
+                Actions = actions,
+            };
+
             // Act
-            await sut.AddAsync(
-                messageId,
-                "domain.com",
-                "title",
-                "body",
-                "https://example.com",
-                1,
-                2,
-                3,
-                "https://image.com/img.png",
-                actions
-            );
+            await sut.AddAsync(messageDto);
 
             // Assert
             collectionMock.Verify(x => x.InsertOneAsync(

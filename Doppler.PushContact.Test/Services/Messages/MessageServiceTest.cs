@@ -207,18 +207,7 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var messageRepositoryMock = new Mock<IMessageRepository>();
             messageRepositoryMock
-                .Setup(x => x.AddAsync(
-                    messageDto.MessageId,
-                    messageDto.Domain,
-                    messageDto.Title,
-                    messageDto.Body,
-                    messageDto.OnClickLink,
-                    0,
-                    0,
-                    0,
-                    messageDto.ImageUrl,
-                    It.IsAny<List<MessageActionDTO>>()
-                ))
+                .Setup(x => x.AddAsync(messageDto))
             .Returns(Task.CompletedTask);
 
             var sut = CreateSut(
@@ -229,24 +218,7 @@ namespace Doppler.PushContact.Test.Services.Messages
             await sut.AddMessageAsync(messageDto);
 
             // Assert
-            messageRepositoryMock.Verify(x => x.AddAsync(
-                messageDto.MessageId,
-                messageDto.Domain,
-                messageDto.Title,
-                messageDto.Body,
-                messageDto.OnClickLink,
-                0,
-                0,
-                0,
-                messageDto.ImageUrl,
-                It.Is<List<MessageActionDTO>>(actions =>
-                    actions.Count == 1 &&
-                    actions[0].Action == expectedSanitizedAction1.Action &&
-                    actions[0].Title == expectedSanitizedAction1.Title &&
-                    actions[0].Icon == expectedSanitizedAction1.Icon &&
-                    actions[0].Link == expectedSanitizedAction1.Link
-                )
-            ), Times.Once);
+            messageRepositoryMock.Verify(x => x.AddAsync(messageDto), Times.Once);
         }
 
         [Fact]
@@ -301,18 +273,7 @@ namespace Doppler.PushContact.Test.Services.Messages
 
             var messageRepositoryMock = new Mock<IMessageRepository>();
             messageRepositoryMock
-                .Setup(x => x.AddAsync(
-                    messageDto.MessageId,
-                    messageDto.Domain,
-                    messageDto.Title,
-                    messageDto.Body,
-                    messageDto.OnClickLink,
-                    0,
-                    0,
-                    0,
-                    messageDto.ImageUrl,
-                    It.IsAny<List<MessageActionDTO>>()
-                ))
+                .Setup(x => x.AddAsync(messageDto))
             .Returns(Task.CompletedTask);
 
             var sut = CreateSut(
@@ -323,28 +284,54 @@ namespace Doppler.PushContact.Test.Services.Messages
             await sut.AddMessageAsync(messageDto);
 
             // Assert
-            messageRepositoryMock.Verify(x => x.AddAsync(
-                messageDto.MessageId,
-                messageDto.Domain,
-                messageDto.Title,
-                messageDto.Body,
-                messageDto.OnClickLink,
-                0,
-                0,
-                0,
-                messageDto.ImageUrl,
-                It.Is<List<MessageActionDTO>>(actions =>
-                    actions.Count == 2 &&
-                    actions[0].Action == expectedSanitizedAction1.Action &&
-                    actions[0].Title == expectedSanitizedAction1.Title &&
-                    actions[0].Icon == expectedSanitizedAction1.Icon &&
-                    actions[0].Link == expectedSanitizedAction1.Link &&
-                    actions[1].Action == expectedSanitizedAction2.Action &&
-                    actions[1].Title == expectedSanitizedAction2.Title &&
-                    actions[1].Icon == expectedSanitizedAction2.Icon &&
-                    actions[1].Link == expectedSanitizedAction2.Link
-                )
-            ), Times.Once);
+            messageRepositoryMock.Verify(x => x.AddAsync(messageDto), Times.Once);
+        }
+
+        [Fact]
+        public async Task AddMessageAsync_should_return_argumentnullexception_when_messageDTO_is_null()
+        {
+            // Arrange
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+
+            var sut = CreateSut(
+                messageRepository: messageRepositoryMock.Object
+            );
+
+            // Act
+            // Assert
+            await Assert.ThrowsAsync<ArgumentNullException>(() => sut.AddMessageAsync(null));
+        }
+
+        [Theory]
+        [InlineData(null, "title", "body")]
+        [InlineData("", "title", "body")]
+        [InlineData("domain.com", null, "body")]
+        [InlineData("domain.com", "", "body")]
+        [InlineData("domain.com", "title", null)]
+        [InlineData("domain.com", "title", "")]
+        public async Task AddMessageAsync_should_return_argumentexception_when_Domain_Title_Body_are_null_or_empty(string domain, string title, string body)
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var messageId = fixture.Create<Guid>();
+
+            var messageDto = new MessageDTO()
+            {
+                MessageId = messageId,
+                Title = title,
+                Body = body,
+                Domain = domain,
+            };
+
+            var messageRepositoryMock = new Mock<IMessageRepository>();
+
+            var sut = CreateSut(
+                messageRepository: messageRepositoryMock.Object
+            );
+
+            // Act
+            // Assert
+            await Assert.ThrowsAsync<ArgumentException>(() => sut.AddMessageAsync(messageDto));
         }
     }
 }
