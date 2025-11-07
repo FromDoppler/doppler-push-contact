@@ -131,17 +131,6 @@ namespace Doppler.PushContact.Services.Messages
             };
         }
 
-        // TODO: this method should be removed. Message creation should not be responsibility of MessageSender
-        public async Task<Guid> AddMessageAsync(string domain, string title, string body, string onClickLink, string imageUrl)
-        {
-            ValidateMessage(title, body, onClickLink, imageUrl);
-
-            var messageId = Guid.NewGuid();
-            await _messageRepository.AddAsync(messageId, domain, title, body, onClickLink, 0, 0, 0, imageUrl);
-
-            return messageId;
-        }
-
         public void ValidateMessage(string title, string body, string onClickLink, string imageUrl)
         {
             if (string.IsNullOrEmpty(title))
