@@ -50,7 +50,9 @@ namespace Doppler.PushContact.Services.Messages
                 { MessageDocumentProps.BillableSendsPropName, 0 },
                 { MessageDocumentProps.ReceivedPropName, 0 },
                 { MessageDocumentProps.ClicksPropName, 0 },
-                { MessageDocumentProps.ImageUrlPropName, string.IsNullOrEmpty(messageDTO.ImageUrl) ? BsonNull.Value : messageDTO.ImageUrl},
+                { MessageDocumentProps.ImageUrlPropName, string.IsNullOrEmpty(messageDTO.ImageUrl) ? BsonNull.Value : messageDTO.ImageUrl },
+                { MessageDocumentProps.PreferLargeImagePropName, messageDTO.PreferLargeImage },
+                { MessageDocumentProps.IconUrlPropName, string.IsNullOrEmpty(messageDTO.IconUrl) ? BsonNull.Value : messageDTO.IconUrl },
                 { MessageDocumentProps.InsertedDatePropName, now }
             };
 

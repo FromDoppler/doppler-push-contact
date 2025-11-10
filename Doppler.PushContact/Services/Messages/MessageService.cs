@@ -58,6 +58,7 @@ namespace Doppler.PushContact.Services.Messages
 
             ValidateHttpsUrl(message.OnClickLink, nameof(message.OnClickLink));
             ValidateHttpsUrl(message.ImageUrl, nameof(message.ImageUrl));
+            ValidateHttpsUrl(message.IconUrl, nameof(message.IconUrl));
 
             message.Actions = SanitizeActions(message.Actions);
             await _messageRepository.AddAsync(message);
