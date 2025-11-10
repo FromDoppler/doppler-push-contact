@@ -663,7 +663,7 @@ namespace Doppler.PushContact.Test.Services
         }
 
         [Fact]
-        public async Task ProcessWebPushForVisitorWithFields_should_log_error_when_repository_throws_an_exception()
+        public async Task ProcessWebPushForVisitorWithFields_process_ok_visitors_with_fields()
         {
             // Arrange
             var fixture = new Fixture();
@@ -677,6 +677,8 @@ namespace Doppler.PushContact.Test.Services
                 Body = fixture.Create<string>(),
                 MessageId = messageId,
                 Domain = domain,
+                PreferLargeImage = false,
+                ImageUrl = fixture.Create<string>(),
             };
 
             var visitorFields1 = new VisitorFields
