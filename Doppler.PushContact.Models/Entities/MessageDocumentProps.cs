@@ -24,6 +24,10 @@ namespace Doppler.PushContact.Models.Entities
 
         public const string ImageUrlPropName = "image_url";
 
+        public const string IconUrlPropName = "icon_url";
+
+        public const string PreferLargeImagePropName = "prefer_large_image";
+
         public const string BillableSendsPropName = "billable_sends";
         public const string ClicksPropName = "clicks";
         public const string ReceivedPropName = "received";

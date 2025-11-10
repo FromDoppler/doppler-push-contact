@@ -21,25 +21,16 @@ namespace Doppler.PushContact.Controllers
     [ApiController]
     public class MessageController : ControllerBase
     {
-        private readonly IMessageSender _messageSender;
-        private readonly IMessageRepository _messageRepository;
-        private readonly IPushContactService _pushContactService;
         private readonly IWebPushPublisherService _webPushPublisherService;
         private readonly IMessageService _messageService;
         private readonly ILogger<MessageController> _logger;
 
         public MessageController(
-            IPushContactService pushContactService,
-            IMessageRepository messageRepository,
-            IMessageSender messageSender,
             IWebPushPublisherService webPushPublisherService,
             IMessageService messageService,
             ILogger<MessageController> logger
         )
         {
-            _pushContactService = pushContactService;
-            _messageRepository = messageRepository;
-            _messageSender = messageSender;
             _webPushPublisherService = webPushPublisherService;
             _messageService = messageService;
             _logger = logger;
@@ -82,6 +73,8 @@ namespace Doppler.PushContact.Controllers
                     ImageUrl = message.ImageUrl,
                     Domain = message.Domain,
                     Actions = message.Actions,
+                    PreferLargeImage = message.PreferLargeImage,
+                    IconUrl = message.IconUrl,
                 };
 
                 var visitorsWithReplacements = new FieldsReplacementList()
@@ -172,6 +165,8 @@ namespace Doppler.PushContact.Controllers
                     ImageUrl = message.ImageUrl,
                     Domain = message.Domain,
                     Actions = message.Actions,
+                    PreferLargeImage = message.PreferLargeImage,
+                    IconUrl = message.IconUrl,
                 };
 
                 var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
@@ -291,6 +286,8 @@ namespace Doppler.PushContact.Controllers
                 ImageUrl = createdMessage.ImageUrl,
                 Domain = domain,
                 Actions = createdMessage.Actions,
+                PreferLargeImage = createdMessage.PreferLargeImage,
+                IconUrl = createdMessage.IconUrl,
             };
 
             var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");

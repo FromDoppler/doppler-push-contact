@@ -316,20 +316,8 @@ namespace Doppler.PushContact.Services
             var clickedEventEndpoint = SanityzeEndpointToRegisterEvent(_clickedEventEndpointPath, pushContactId, messageDTO.MessageId.ToString());
             var receivedEventEndpoint = SanityzeEndpointToRegisterEvent(_receivedEventEndpointPath, pushContactId, messageDTO.MessageId.ToString());
 
-            var webPushMessage = new DopplerWebPushDTO()
-            {
-                Title = messageDTO.Title,
-                Body = messageDTO.Body,
-                OnClickLink = messageDTO.OnClickLink,
-                ImageUrl = messageDTO.ImageUrl,
-                Subscription = subscription,
-                MessageId = messageDTO.MessageId,
-                PushContactId = pushContactId,
-                ClickedEventEndpoint = clickedEventEndpoint,
-                ReceivedEventEndpoint = receivedEventEndpoint,
-                Domain = messageDTO.Domain,
-                Actions = messageDTO.Actions,
-            };
+            // map to proper object to publish in queue
+            var webPushMessage = MapToDopplerWebPushDto(messageDTO, pushContactId, subscription, clickedEventEndpoint, receivedEventEndpoint);
 
             string queueName = GetQueueName(subscription.EndPoint);
 
@@ -497,6 +485,40 @@ namespace Doppler.PushContact.Services
                 !string.IsNullOrEmpty(subscription.Subscription.EndPoint) &&
                 !string.IsNullOrEmpty(subscription.Subscription.Keys.Auth) &&
                 !string.IsNullOrEmpty(subscription.Subscription.Keys.P256DH);
+        }
+
+        private DopplerWebPushDTO MapToDopplerWebPushDto(
+            WebPushDTO messageDTO,
+            string pushContactId,
+            SubscriptionDTO subscription,
+            string clickedEventEndpoint,
+            string receivedEventEndpoint
+        )
+        {
+            var iconUrl = messageDTO.IconUrl;
+            var imageUrl = messageDTO.ImageUrl;
+            // if it has image and doesn't prefer large image
+            if (!string.IsNullOrEmpty(imageUrl) && !messageDTO.PreferLargeImage)
+            {
+                iconUrl = imageUrl;
+                imageUrl = null;
+            }
+
+            return new DopplerWebPushDTO()
+            {
+                Title = messageDTO.Title,
+                Body = messageDTO.Body,
+                OnClickLink = messageDTO.OnClickLink,
+                ImageUrl = imageUrl,
+                Subscription = subscription,
+                MessageId = messageDTO.MessageId,
+                PushContactId = pushContactId,
+                ClickedEventEndpoint = clickedEventEndpoint,
+                ReceivedEventEndpoint = receivedEventEndpoint,
+                Domain = messageDTO.Domain,
+                Actions = messageDTO.Actions,
+                IconUrl = iconUrl,
+            };
         }
     }
 }

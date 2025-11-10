@@ -15,6 +15,8 @@ namespace Doppler.PushContact.Models.DTOs
 
         public Guid MessageId { get; set; }
         public string Domain { get; set; }
+        public string IconUrl { get; set; }
+        public bool PreferLargeImage { get; set; }
         public List<MessageActionDTO> Actions { get; set; }
     }
 }

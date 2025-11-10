@@ -36,21 +36,32 @@ namespace Doppler.PushContact.Services.Messages
 
         public async Task AddMessageAsync(MessageDTO message)
         {
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            if (string.IsNullOrEmpty(message.Domain))
+            {
+                throw new ArgumentException($"'{nameof(message.Domain)}' cannot be null or empty.", nameof(message.Domain));
+            }
+
+            if (string.IsNullOrEmpty(message.Title))
+            {
+                throw new ArgumentException($"'{nameof(message.Title)}' cannot be null or empty.", nameof(message.Title));
+            }
+
+            if (string.IsNullOrEmpty(message.Body))
+            {
+                throw new ArgumentException($"'{nameof(message.Body)}' cannot be null or empty.", nameof(message.Body));
+            }
+
             ValidateHttpsUrl(message.OnClickLink, nameof(message.OnClickLink));
             ValidateHttpsUrl(message.ImageUrl, nameof(message.ImageUrl));
+            ValidateHttpsUrl(message.IconUrl, nameof(message.IconUrl));
 
-            await _messageRepository.AddAsync(
-                message.MessageId,
-                message.Domain,
-                message.Title,
-                message.Body,
-                message.OnClickLink,
-                0,
-                0,
-                0,
-                message.ImageUrl,
-                SanitizeActions(message.Actions)
-            );
+            message.Actions = SanitizeActions(message.Actions);
+            await _messageRepository.AddAsync(message);
         }
 
         // TODO: move to Transversal project
@@ -101,6 +112,8 @@ namespace Doppler.PushContact.Services.Messages
                 OnClickLink = message.OnClickLink,
                 ImageUrl = message.ImageUrl,
                 Domain = message.Domain,
+                PreferLargeImage = message.PreferLargeImage,
+                IconUrl = message.IconUrl,
             };
 
             var actions = new List<MessageActionDTO>();

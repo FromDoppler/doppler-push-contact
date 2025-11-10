@@ -31,59 +31,35 @@ namespace Doppler.PushContact.Services.Messages
             _logger = logger;
         }
 
-        public async Task AddAsync(
-            Guid messageId,
-            string domain,
-            string title,
-            string body,
-            string onClickLink,
-            int sent,
-            int delivered,
-            int notDelivered,
-            string imageUrl,
-            List<MessageActionDTO> actions = null
-        )
+        public async Task AddAsync(MessageDTO messageDTO)
         {
-            if (string.IsNullOrEmpty(domain))
-            {
-                throw new ArgumentException($"'{nameof(domain)}' cannot be null or empty.", nameof(domain));
-            }
-
-            if (string.IsNullOrEmpty(title))
-            {
-                throw new ArgumentException($"'{nameof(title)}' cannot be null or empty.", nameof(title));
-            }
-
-            if (string.IsNullOrEmpty(body))
-            {
-                throw new ArgumentException($"'{nameof(body)}' cannot be null or empty.", nameof(body));
-            }
-
             var now = DateTime.UtcNow;
             // TODO: review it. The _id property should be handled automatically by mongodb.
             var key = ObjectId.GenerateNewId(now).ToString();
 
             var messageDocument = new BsonDocument {
                 { MessageDocumentProps.IdPropName, key },
-                { MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageId, GuidRepresentation.Standard) },
-                { MessageDocumentProps.DomainPropName, domain },
-                { MessageDocumentProps.TitlePropName, title },
-                { MessageDocumentProps.BodyPropName, body },
-                { MessageDocumentProps.OnClickLinkPropName, string.IsNullOrEmpty(onClickLink) ? BsonNull.Value : onClickLink },
-                { MessageDocumentProps.SentPropName, sent },
-                { MessageDocumentProps.DeliveredPropName, delivered },
-                { MessageDocumentProps.NotDeliveredPropName, notDelivered },
+                { MessageDocumentProps.MessageIdPropName, new BsonBinaryData(messageDTO.MessageId, GuidRepresentation.Standard) },
+                { MessageDocumentProps.DomainPropName, messageDTO.Domain },
+                { MessageDocumentProps.TitlePropName, messageDTO.Title },
+                { MessageDocumentProps.BodyPropName, messageDTO.Body },
+                { MessageDocumentProps.OnClickLinkPropName, string.IsNullOrEmpty(messageDTO.OnClickLink) ? BsonNull.Value : messageDTO.OnClickLink },
+                { MessageDocumentProps.SentPropName, 0 },
+                { MessageDocumentProps.DeliveredPropName, 0 },
+                { MessageDocumentProps.NotDeliveredPropName, 0 },
                 { MessageDocumentProps.BillableSendsPropName, 0 },
                 { MessageDocumentProps.ReceivedPropName, 0 },
                 { MessageDocumentProps.ClicksPropName, 0 },
-                { MessageDocumentProps.ImageUrlPropName, string.IsNullOrEmpty(imageUrl) ? BsonNull.Value : imageUrl},
+                { MessageDocumentProps.ImageUrlPropName, string.IsNullOrEmpty(messageDTO.ImageUrl) ? BsonNull.Value : messageDTO.ImageUrl },
+                { MessageDocumentProps.PreferLargeImagePropName, messageDTO.PreferLargeImage },
+                { MessageDocumentProps.IconUrlPropName, string.IsNullOrEmpty(messageDTO.IconUrl) ? BsonNull.Value : messageDTO.IconUrl },
                 { MessageDocumentProps.InsertedDatePropName, now }
             };
 
             // only add "actions" property when it has some action defined
-            if (actions != null && actions.Any())
+            if (messageDTO.Actions != null && messageDTO.Actions.Any())
             {
-                var bsonActions = MapActions(actions);
+                var bsonActions = MapActions(messageDTO.Actions);
                 messageDocument.Add(MessageDocumentProps.ActionsPropName, bsonActions);
             }
 
@@ -93,7 +69,7 @@ namespace Doppler.PushContact.Services.Messages
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, @$"Error inserting message with {nameof(messageId)} {messageId}");
+                _logger.LogError(ex, @$"Error inserting message with {nameof(messageDTO.MessageId)} {messageDTO.MessageId}");
 
                 throw;
             }
@@ -282,7 +258,12 @@ namespace Doppler.PushContact.Services.Messages
                     BillableSends = message.GetValue(MessageDocumentProps.BillableSendsPropName, 0).ToInt32(),
                     Clicks = message.GetValue(MessageDocumentProps.ClicksPropName, 0).ToInt32(),
                     Received = message.GetValue(MessageDocumentProps.ReceivedPropName, 0).ToInt32(),
+                    PreferLargeImage = message.GetValue(MessageDocumentProps.PreferLargeImagePropName, false).AsBoolean,
                 };
+
+                // when icon_url is not present in document, it returns null (this validation is because icon_url could no exists in previous messages)
+                var iconUrlValue = message.GetValue(MessageDocumentProps.IconUrlPropName, BsonNull.Value);
+                messageDetails.IconUrl = iconUrlValue.IsBsonNull ? null : iconUrlValue.AsString;
 
                 // Map actions (when exists)
                 if (message.Contains(MessageDocumentProps.ActionsPropName) && message[MessageDocumentProps.ActionsPropName].IsBsonArray)
