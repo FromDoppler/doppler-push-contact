@@ -258,7 +258,12 @@ namespace Doppler.PushContact.Services.Messages
                     BillableSends = message.GetValue(MessageDocumentProps.BillableSendsPropName, 0).ToInt32(),
                     Clicks = message.GetValue(MessageDocumentProps.ClicksPropName, 0).ToInt32(),
                     Received = message.GetValue(MessageDocumentProps.ReceivedPropName, 0).ToInt32(),
+                    PreferLargeImage = message.GetValue(MessageDocumentProps.PreferLargeImagePropName, false).AsBoolean,
                 };
+
+                // when icon_url is not present in document, it returns null (this validation is because icon_url could no exists in previous messages)
+                var iconUrlValue = message.GetValue(MessageDocumentProps.IconUrlPropName, BsonNull.Value);
+                messageDetails.IconUrl = iconUrlValue.IsBsonNull ? null : iconUrlValue.AsString;
 
                 // Map actions (when exists)
                 if (message.Contains(MessageDocumentProps.ActionsPropName) && message[MessageDocumentProps.ActionsPropName].IsBsonArray)

@@ -112,6 +112,8 @@ namespace Doppler.PushContact.Services.Messages
                 OnClickLink = message.OnClickLink,
                 ImageUrl = message.ImageUrl,
                 Domain = message.Domain,
+                PreferLargeImage = message.PreferLargeImage,
+                IconUrl = message.IconUrl,
             };
 
             var actions = new List<MessageActionDTO>();
