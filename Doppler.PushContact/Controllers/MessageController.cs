@@ -82,6 +82,8 @@ namespace Doppler.PushContact.Controllers
                     ImageUrl = message.ImageUrl,
                     Domain = message.Domain,
                     Actions = message.Actions,
+                    PreferLargeImage = message.PreferLargeImage,
+                    IconUrl = message.IconUrl,
                 };
 
                 var visitorsWithReplacements = new FieldsReplacementList()
@@ -172,6 +174,8 @@ namespace Doppler.PushContact.Controllers
                     ImageUrl = message.ImageUrl,
                     Domain = message.Domain,
                     Actions = message.Actions,
+                    PreferLargeImage = message.PreferLargeImage,
+                    IconUrl = message.IconUrl,
                 };
 
                 var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
@@ -291,6 +295,8 @@ namespace Doppler.PushContact.Controllers
                 ImageUrl = createdMessage.ImageUrl,
                 Domain = domain,
                 Actions = createdMessage.Actions,
+                PreferLargeImage = createdMessage.PreferLargeImage,
+                IconUrl = createdMessage.IconUrl,
             };
 
             var authenticationApiToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
