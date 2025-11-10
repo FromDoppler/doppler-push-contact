@@ -21,25 +21,16 @@ namespace Doppler.PushContact.Controllers
     [ApiController]
     public class MessageController : ControllerBase
     {
-        private readonly IMessageSender _messageSender;
-        private readonly IMessageRepository _messageRepository;
-        private readonly IPushContactService _pushContactService;
         private readonly IWebPushPublisherService _webPushPublisherService;
         private readonly IMessageService _messageService;
         private readonly ILogger<MessageController> _logger;
 
         public MessageController(
-            IPushContactService pushContactService,
-            IMessageRepository messageRepository,
-            IMessageSender messageSender,
             IWebPushPublisherService webPushPublisherService,
             IMessageService messageService,
             ILogger<MessageController> logger
         )
         {
-            _pushContactService = pushContactService;
-            _messageRepository = messageRepository;
-            _messageSender = messageSender;
             _webPushPublisherService = webPushPublisherService;
             _messageService = messageService;
             _logger = logger;
