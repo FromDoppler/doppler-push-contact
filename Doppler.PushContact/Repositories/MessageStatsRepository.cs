@@ -152,6 +152,88 @@ namespace Doppler.PushContact.Repositories
             }
         }
 
+        public async Task<List<MessageStatsPeriodDTO>> GetMessageStatsByPeriodAsync(
+            string domain,
+            List<Guid> messageIds,
+            DateTimeOffset dateFrom,
+            DateTimeOffset dateTo,
+            string periodToGroup = "day" // "day", "month", "year"
+        )
+        {
+            var filter = new BsonDocument
+            {
+                { "date", new BsonDocument { { "$gte", dateFrom.UtcDateTime }, { "$lte", dateTo.UtcDateTime } } }
+            };
+
+            if (!string.IsNullOrEmpty(domain))
+            {
+                filter.Add("domain", domain);
+            }
+
+            if (messageIds != null && messageIds.Count > 0)
+            {
+                var bsonIds = messageIds
+                    .Where(g => g != Guid.Empty)
+                    .Select(g => new BsonBinaryData(g, GuidRepresentation.Standard))
+                    .ToList();
+
+                filter.Add("message_id", new BsonDocument("$in", new BsonArray(bsonIds)));
+            }
+
+            var groupStage = new BsonDocument
+            {
+                { "_id", new BsonDocument
+                    {
+                        { "$dateTrunc", new BsonDocument
+                            {
+                                { "date", "$date" },
+                                { "unit", periodToGroup }
+                            }
+                        }
+                    }
+                },
+                { "Sent", new BsonDocument("$sum", $"${MessageStatsDocumentProps.Sent_PropName}") },
+                { "Delivered", new BsonDocument("$sum", $"${MessageStatsDocumentProps.Delivered_PropName}") },
+                { "NotDelivered", new BsonDocument("$sum", $"${MessageStatsDocumentProps.NotDelivered_PropName}") },
+                { "Click", new BsonDocument("$sum", $"${MessageStatsDocumentProps.Click_PropName}") },
+                { "Received", new BsonDocument("$sum", $"${MessageStatsDocumentProps.Received_PropName}") },
+                { "ActionClick", new BsonDocument("$sum", $"${MessageStatsDocumentProps.ActionClick_PropName}") },
+                { "BillableSends", new BsonDocument("$sum", $"${MessageStatsDocumentProps.BillableSends_PropName}") },
+            };
+
+            var pipeline = MessageStats
+                .Aggregate()
+                .Match(filter)
+                .Group(groupStage)
+                .Sort(new BsonDocument("_id", 1))
+                .Project(new BsonDocument
+                {
+                    { "_id", 0 },
+                    { "Date", "$_id" },
+                    { "Sent", 1 },
+                    { "Delivered", 1 },
+                    { "NotDelivered", 1 },
+                    { "Click", 1 },
+                    { "Received", 1 },
+                    { "ActionClick", 1 },
+                    { "BillableSends", 1 },
+                });
+
+            var docs = await pipeline.ToListAsync();
+
+            return docs.Select(d => new MessageStatsPeriodDTO
+            {
+                Date = d["Date"].ToUniversalTime(),
+                Sent = d["Sent"].AsInt32,
+                Delivered = d["Delivered"].AsInt32,
+                NotDelivered = d["NotDelivered"].AsInt32,
+                Click = d["Click"].AsInt32,
+                Received = d["Received"].AsInt32,
+                ActionClick = d["ActionClick"].AsInt32,
+                BillableSends = d["BillableSends"].AsInt32,
+            }).ToList();
+        }
+
         private IMongoCollection<MessageStats> MessageStats
         {
             get
