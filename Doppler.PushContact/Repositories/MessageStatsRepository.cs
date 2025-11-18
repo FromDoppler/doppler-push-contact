@@ -157,7 +157,7 @@ namespace Doppler.PushContact.Repositories
             List<Guid> messageIds,
             DateTimeOffset dateFrom,
             DateTimeOffset dateTo,
-            string periodToGroup = "day" // "day", "month", "year"
+            string periodToGroup = "day"
         )
         {
             var filter = new BsonDocument
