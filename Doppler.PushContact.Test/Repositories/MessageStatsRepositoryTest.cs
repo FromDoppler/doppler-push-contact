@@ -439,5 +439,159 @@ namespace Doppler.PushContact.Test.Repositories
                 It.IsAny<AggregateOptions>(),
                 default), Times.Once);
         }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("00000000-0000-0000-0000-000000000002")]
+        public async Task GetMessageStatsByPeriodAsync_ShouldReturnAggregatedStats_WhenSuccess(string messageIdString)
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+
+            var messageIds = string.IsNullOrEmpty(messageIdString)
+                ? []
+                : new List<Guid> { Guid.Parse(messageIdString) };
+
+            var dateFrom = DateTimeOffset.UtcNow.AddDays(-1);
+            var dateTo = DateTimeOffset.UtcNow;
+
+            var aggregateResult = new BsonDocument
+            {
+                { "Date", DateTime.UtcNow },
+                { "Sent", 10 },
+                { "Delivered", 8 },
+                { "NotDelivered", 2 },
+                { "Received", 7 },
+                { "Click", 3 },
+                { "ActionClick", 1 },
+                { "BillableSends", 9 }
+            };
+
+            var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
+
+            mockCursor
+                .SetupSequence(c => c.MoveNext(It.IsAny<CancellationToken>()))
+                .Returns(true)
+                .Returns(false);
+
+            mockCursor
+                .SetupSequence(c => c.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+
+            mockCursor.Setup(c => c.Current).Returns([aggregateResult]);
+
+            _mockCollection
+                .Setup(c => c.AggregateAsync(
+                    It.IsAny<PipelineDefinition<MessageStats, BsonDocument>>(),
+                    It.IsAny<AggregateOptions>(),
+                    default))
+                .ReturnsAsync(mockCursor.Object);
+
+            // Act
+            var result = await _repository.GetMessageStatsByPeriodAsync(
+                domain,
+                messageIds,
+                dateFrom,
+                dateTo,
+                "day"
+            );
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Single(result);
+
+            var item = result.First();
+
+            Assert.Equal(10, item.Sent);
+            Assert.Equal(8, item.Delivered);
+            Assert.Equal(2, item.NotDelivered);
+            Assert.Equal(7, item.Received);
+            Assert.Equal(3, item.Click);
+            Assert.Equal(1, item.ActionClick);
+            Assert.Equal(9, item.BillableSends);
+
+            Assert.True(item.Date <= DateTime.UtcNow);
+
+            _mockCollection.Verify(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<MessageStats, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                default), Times.Once);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public async Task GetMessageStatsByPeriodAsync_ShouldThrowArgumentException_WhenDomainIsInvalid(string domain)
+        {
+            // Arrange
+            var dateFrom = DateTimeOffset.UtcNow.AddDays(-1);
+            var dateTo = DateTimeOffset.UtcNow;
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+                _repository.GetMessageStatsByPeriodAsync(
+                    domain,
+                    new List<Guid>(),
+                    dateFrom,
+                    dateTo,
+                    "day"
+                )
+            );
+
+            Assert.Equal("domain", ex.ParamName);
+        }
+
+        [Fact]
+        public async Task GetMessageStatsByPeriodAsync_ShouldReturnEmptyList_WhenNoResults()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+
+            var dateFrom = DateTimeOffset.UtcNow.AddDays(-1);
+            var dateTo = DateTimeOffset.UtcNow;
+
+            var mockCursor = new Mock<IAsyncCursor<BsonDocument>>();
+
+            mockCursor
+                .SetupSequence(c => c.MoveNext(It.IsAny<CancellationToken>()))
+                .Returns(true)   // primera iteración
+                .Returns(false); // finaliza
+
+            mockCursor
+                .SetupSequence(c => c.MoveNextAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+
+            mockCursor.Setup(c => c.Current).Returns(Array.Empty<BsonDocument>());
+
+            _mockCollection
+                .Setup(c => c.AggregateAsync(
+                    It.IsAny<PipelineDefinition<MessageStats, BsonDocument>>(),
+                    It.IsAny<AggregateOptions>(),
+                    default))
+                .ReturnsAsync(mockCursor.Object);
+
+            // Act
+            var result = await _repository.GetMessageStatsByPeriodAsync(
+                domain,
+                new List<Guid>(),
+                dateFrom,
+                dateTo,
+                "day"
+            );
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Empty(result);
+
+            _mockCollection.Verify(c => c.AggregateAsync(
+                It.IsAny<PipelineDefinition<MessageStats, BsonDocument>>(),
+                It.IsAny<AggregateOptions>(),
+                default), Times.Once);
+        }
     }
 }

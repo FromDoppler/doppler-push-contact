@@ -165,10 +165,11 @@ namespace Doppler.PushContact.Repositories
                 { "date", new BsonDocument { { "$gte", dateFrom.UtcDateTime }, { "$lte", dateTo.UtcDateTime } } }
             };
 
-            if (!string.IsNullOrEmpty(domain))
+            if (string.IsNullOrWhiteSpace(domain))
             {
-                filter.Add("domain", domain);
+                throw new ArgumentException($"'{nameof(domain)}' cannot be null or whitespace.", nameof(domain));
             }
+            filter.Add("domain", domain);
 
             if (messageIds != null && messageIds.Count > 0)
             {
