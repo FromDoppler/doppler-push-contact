@@ -2,6 +2,7 @@ using AutoFixture;
 using Doppler.PushContact.Controllers;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.Models.Models;
 using Doppler.PushContact.Models.PushContactApiResponses;
 using Doppler.PushContact.Services;
@@ -13,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -1306,6 +1308,348 @@ namespace Doppler.PushContact.Test.Controllers
                     It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("An unexpected error occurred obtaining message stats.")),
                     It.Is<Exception>(e => e.Message == exceptionMessage),
                     It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task GetMessagesStatsGroupedByPeriod_ShouldReturnOk_WithValidStats()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var domain = fixture.Create<string>();
+            var messageId1 = fixture.Create<Guid>();
+            var messageIds = new List<Guid> { messageId1 };
+
+            var from = DateTime.UtcNow.AddDays(-2);
+            var to = DateTime.UtcNow;
+
+            var periods = new List<MessageStatsPeriodDTO>
+            {
+                new MessageStatsPeriodDTO
+                {
+                    Date = DateTime.UtcNow,
+                    Sent = 10,
+                    Delivered = 8,
+                    NotDelivered = 2,
+                    Received = 7,
+                    Click = 3,
+                    ActionClick = 1,
+                    BillableSends = 9
+                },
+                new MessageStatsPeriodDTO
+                {
+                    Date = DateTime.UtcNow,
+                    Sent = 5,
+                    Delivered = 3,
+                    NotDelivered = 2,
+                    Received = 3,
+                    Click = 3,
+                    ActionClick = 0,
+                    BillableSends = 5
+                }
+            };
+
+            var domainServiceMock = new Mock<IDomainService>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
+            var messageServiceMock = new Mock<IMessageService>();
+            var loggerMock = new Mock<ILogger<DomainController>>();
+
+            messageStatsServiceMock
+                .Setup(s => s.GetMessageStatsByPeriodAsync(domain, messageIds, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), MessageStatsGroupedPeriodEnum.Day))
+                .ReturnsAsync(periods);
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(domainServiceMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageStatsServiceMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+            }).CreateClient(new WebApplicationFactoryClientOptions());
+
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                $"domains/{domain}/messages/stats/grouped?messageIds={messageId1}&from={from}&to={to}&period=day")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<MessageStatsGroupedByPeriodModel>();
+
+            Assert.Equal(domain, result.Domain);
+            Assert.Equal(2, result.Periods.Count);
+            Assert.Equal(15, result.Totals.Sent);
+            Assert.Equal(11, result.Totals.Delivered);
+            Assert.Equal(4, result.Totals.NotDelivered);
+            Assert.Equal(10, result.Totals.Received);
+            Assert.Equal(6, result.Totals.Click);
+            Assert.Equal(1, result.Totals.ActionClick);
+            Assert.Equal(14, result.Totals.BillableSends);
+        }
+
+        [Fact]
+        public async Task GetMessagesStatsGroupedByPeriod_ShouldUseDefaultPeriod_WhenPeriodNotProvided()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var domain = fixture.Create<string>();
+            var messageIds = new List<Guid> { fixture.Create<Guid>() };
+
+            var from = DateTime.UtcNow.AddDays(-2);
+            var to = DateTime.UtcNow;
+
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
+            var domainServiceMock = new Mock<IDomainService>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageServiceMock = new Mock<IMessageService>();
+            var loggerMock = new Mock<ILogger<DomainController>>();
+
+            messageStatsServiceMock
+                .Setup(s => s.GetMessageStatsByPeriodAsync(domain, messageIds, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), MessageStatsGroupedPeriodEnum.Day))
+                .ReturnsAsync(new List<MessageStatsPeriodDTO>());
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(messageStatsServiceMock.Object);
+                    services.AddSingleton(domainServiceMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+            }).CreateClient();
+
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                $"domains/{domain}/messages/stats/grouped?messageIds={messageIds[0]}&from={from}&to={to}")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.EnsureSuccessStatusCode();
+
+            messageStatsServiceMock.Verify(s =>
+                s.GetMessageStatsByPeriodAsync(domain, messageIds, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), MessageStatsGroupedPeriodEnum.Day),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task GetMessagesStatsGroupedByPeriod_ShouldReturnBadRequest_WhenInvalidPeriod()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageId = fixture.Create<Guid>();
+
+            var from = DateTime.UtcNow.AddDays(-1);
+            var to = DateTime.UtcNow;
+
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
+            var domainServiceMock = new Mock<IDomainService>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageServiceMock = new Mock<IMessageService>();
+            var loggerMock = new Mock<ILogger<DomainController>>();
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(messageStatsServiceMock.Object);
+                    services.AddSingleton(domainServiceMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+            }).CreateClient();
+
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                $"domains/{domain}/messages/stats/grouped?messageIds={messageId}&from={from}&to={to}&period=INVALID")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("Invalid period", body);
+        }
+
+        [Fact]
+        public async Task GetMessagesStatsGroupedByPeriod_ShouldReturnBadRequest_WhenMessageIdsEmpty()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var from = DateTime.UtcNow.AddDays(-1);
+            var to = DateTime.UtcNow;
+
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
+            var domainServiceMock = new Mock<IDomainService>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageServiceMock = new Mock<IMessageService>();
+            var loggerMock = new Mock<ILogger<DomainController>>();
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(messageStatsServiceMock.Object);
+                    services.AddSingleton(domainServiceMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+            }).CreateClient();
+
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                $"domains/{domain}/messages/stats/grouped?from={from}&to={to}")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+            var msg = await response.Content.ReadAsStringAsync();
+            Assert.Contains("'messageIds' can not be empty", msg, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public async Task GetMessagesStatsGroupedByPeriod_ShouldReturnTotalsZero_WhenPeriodsEmpty()
+        {
+            // Arrange
+            var fixture = new Fixture();
+
+            var domain = fixture.Create<string>();
+            var messageIds = new List<Guid> { fixture.Create<Guid>() };
+            var from = DateTime.UtcNow.AddDays(-2);
+            var to = DateTime.UtcNow;
+
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
+            var domainServiceMock = new Mock<IDomainService>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageServiceMock = new Mock<IMessageService>();
+            var loggerMock = new Mock<ILogger<DomainController>>();
+
+            messageStatsServiceMock
+                .Setup(s => s.GetMessageStatsByPeriodAsync(domain, messageIds, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), MessageStatsGroupedPeriodEnum.Day))
+                .ReturnsAsync(new List<MessageStatsPeriodDTO>()); // empty
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(messageStatsServiceMock.Object);
+                    services.AddSingleton(domainServiceMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+            }).CreateClient();
+
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                $"domains/{domain}/messages/stats/grouped?messageIds={messageIds[0]}&from={from}&to={to}&period=day")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<MessageStatsGroupedByPeriodModel>();
+
+            Assert.Equal([], result.Periods);
+            Assert.Equal(0, result.Totals.Sent);
+            Assert.Equal(0, result.Totals.Delivered);
+            Assert.Equal(0, result.Totals.NotDelivered);
+            Assert.Equal(0, result.Totals.ActionClick);
+        }
+
+        [Fact]
+        public async Task GetMessagesStatsGroupedByPeriod_ShouldLogError_AndReturnOk_WithTotalsZero_WhenServiceThrowsException()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageIds = new List<Guid> { fixture.Create<Guid>() };
+            var from = DateTime.UtcNow.AddDays(-1);
+            var to = DateTime.UtcNow;
+
+            var exceptionMessage = "Test exception";
+
+            var messageStatsServiceMock = new Mock<IMessageStatsService>();
+            var domainServiceMock = new Mock<IDomainService>();
+            var webPushEventServiceMock = new Mock<IWebPushEventService>();
+            var messageServiceMock = new Mock<IMessageService>();
+            var loggerMock = new Mock<ILogger<DomainController>>();
+
+            messageStatsServiceMock
+                .Setup(s => s.GetMessageStatsByPeriodAsync(domain, messageIds, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), MessageStatsGroupedPeriodEnum.Day))
+                .ThrowsAsync(new Exception(exceptionMessage));
+
+            var client = _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(messageStatsServiceMock.Object);
+                    services.AddSingleton(domainServiceMock.Object);
+                    services.AddSingleton(webPushEventServiceMock.Object);
+                    services.AddSingleton(messageServiceMock.Object);
+                    services.AddSingleton(loggerMock.Object);
+                });
+            }).CreateClient();
+
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                $"domains/{domain}/messages/stats/grouped?messageIds={messageIds[0]}&from={from}&to={to}&period=day")
+            {
+                Headers = { { "Authorization", $"Bearer {TestApiUsersData.TOKEN_SUPERUSER_EXPIRE_20330518}" } }
+            };
+
+            // Act
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<MessageStatsGroupedByPeriodModel>();
+
+            Assert.Equal([], result.Periods);
+            Assert.Equal(0, result.Totals.Sent);
+            Assert.Equal(0, result.Totals.Delivered);
+            Assert.Equal(0, result.Totals.NotDelivered);
+            Assert.Equal(0, result.Totals.ActionClick);
+
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("unexpected error occurred obtaining message stats")),
+                    It.Is<Exception>(e => e.Message == exceptionMessage),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
                 Times.Once);
         }
     }

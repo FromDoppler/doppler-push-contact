@@ -279,8 +279,8 @@ namespace Doppler.PushContact.Controllers
         }
 
         [HttpGet]
-        [Route("domains/{domain}/messages/stats")]
-        public async Task<ActionResult<MessageStatsGroupedByPeriodModel>> GetMessagesStats(
+        [Route("domains/{domain}/messages/stats/grouped")]
+        public async Task<ActionResult<MessageStatsGroupedByPeriodModel>> GetMessagesStatsGroupedByPeriod(
             [FromRoute] string domain,
             [FromQuery] List<Guid> messageIds,
             [FromQuery][Required] DateTimeOffset from,
@@ -308,6 +308,7 @@ namespace Doppler.PushContact.Controllers
                 DateFrom = from,
                 DateTo = to,
                 Periods = [],
+                Totals = new MessageStatsTotals(),
             };
 
             try
