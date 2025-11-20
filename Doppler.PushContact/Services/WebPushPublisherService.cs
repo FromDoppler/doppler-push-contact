@@ -437,11 +437,18 @@ namespace Doppler.PushContact.Services
                     return;
                 }
 
-                // replace fields in Title and Body
-                messageDTO.Title = ReplaceFields(messageDTO.Title, visitorWithFields.Fields);
-                messageDTO.Body = ReplaceFields(messageDTO.Body, visitorWithFields.Fields);
+                var messageWithReplacedFields = new WebPushDTO()
+                {
+                    MessageId = messageDTO.MessageId,
+                    Title = ReplaceFields(messageDTO.Title, visitorWithFields.Fields),
+                    Body = ReplaceFields(messageDTO.Body, visitorWithFields.Fields),
+                    ImageUrl = messageDTO.ImageUrl,
+                    OnClickLink = messageDTO.OnClickLink,
+                    Domain = messageDTO.Domain,
+                    Actions = messageDTO.Actions,
+                };
 
-                _logger.LogDebug($"Message with replaced fields: {JsonSerializer.Serialize(messageDTO)}");
+                _logger.LogDebug($"Message with replaced fields: {JsonSerializer.Serialize(messageWithReplacedFields)}");
 
                 var deviceTokens = new List<string>();
                 var subscriptionsInfo = await _pushContactRepository.GetAllSubscriptionInfoByVisitorGuidAsync(messageDTO.Domain, visitorWithFields.VisitorGuid);
@@ -449,7 +456,7 @@ namespace Doppler.PushContact.Services
                 {
                     if (IsValidSubscription(subscription))
                     {
-                        await EnqueueWebPushAsync(messageDTO, subscription.Subscription, subscription.PushContactId, cancellationToken);
+                        await EnqueueWebPushAsync(messageWithReplacedFields, subscription.Subscription, subscription.PushContactId, cancellationToken);
                     }
                     else if (!string.IsNullOrEmpty(subscription.DeviceToken))
                     {
@@ -457,7 +464,7 @@ namespace Doppler.PushContact.Services
                     }
                 }
 
-                await _messageSender.SendFirebaseWebPushAsync(messageDTO, deviceTokens, authenticationApiToken);
+                await _messageSender.SendFirebaseWebPushAsync(messageWithReplacedFields, deviceTokens, authenticationApiToken);
             }
             catch (Exception ex)
             {
