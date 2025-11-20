@@ -446,6 +446,8 @@ namespace Doppler.PushContact.Services
                     OnClickLink = messageDTO.OnClickLink,
                     Domain = messageDTO.Domain,
                     Actions = messageDTO.Actions,
+                    PreferLargeImage = messageDTO.PreferLargeImage,
+                    IconUrl = messageDTO.IconUrl,
                 };
 
                 _logger.LogDebug($"Message with replaced fields: {JsonSerializer.Serialize(messageWithReplacedFields)}");
