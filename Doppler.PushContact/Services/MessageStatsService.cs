@@ -1,5 +1,6 @@
 using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
+using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.Repositories.Interfaces;
 using Doppler.PushContact.Transversal;
 using Microsoft.Extensions.Logging;
@@ -73,6 +74,34 @@ namespace Doppler.PushContact.Services
                     DateFrom = dateFrom,
                     DateTo = dateTo
                 };
+            }
+        }
+
+        public async Task<List<MessageStatsPeriodDTO>> GetMessageStatsByPeriodAsync(
+            string domain,
+            List<Guid> messageIds,
+            DateTimeOffset dateFrom,
+            DateTimeOffset dateTo,
+            MessageStatsGroupedPeriodEnum periodToGroup
+        )
+        {
+            try
+            {
+                return await _messageStatsRepository.GetMessageStatsByPeriodAsync(domain, messageIds, dateFrom, dateTo, periodToGroup.ToString().ToLower());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error getting MessageStats grouped by {periodToGroup} for domain: {Domain}, messageIds: {messageIds}, from: {dateFrom}, to: {dateTo}.",
+                    periodToGroup,
+                    domain,
+                    messageIds,
+                    dateFrom,
+                    dateTo
+                );
+
+                return new List<MessageStatsPeriodDTO>();
             }
         }
     }

@@ -1,5 +1,6 @@
 using Doppler.PushContact.Models.DTOs;
 using Doppler.PushContact.Models.Entities;
+using Doppler.PushContact.Models.Enums;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -14,6 +15,13 @@ namespace Doppler.PushContact.Services
             Guid? messageId,
             DateTimeOffset dateFrom,
             DateTimeOffset dateTo
+        );
+        Task<List<MessageStatsPeriodDTO>> GetMessageStatsByPeriodAsync(
+            string domain,
+            List<Guid> messageIds,
+            DateTimeOffset dateFrom,
+            DateTimeOffset dateTo,
+            MessageStatsGroupedPeriodEnum periodToGroup
         );
     }
 }

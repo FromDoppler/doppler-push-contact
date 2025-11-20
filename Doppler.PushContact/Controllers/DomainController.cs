@@ -1,6 +1,7 @@
 using Doppler.PushContact.DopplerSecurity;
 using Doppler.PushContact.Models;
 using Doppler.PushContact.Models.DTOs;
+using Doppler.PushContact.Models.Enums;
 using Doppler.PushContact.Models.Models;
 using Doppler.PushContact.Models.PushContactApiResponses;
 using Doppler.PushContact.Services;
@@ -11,7 +12,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Doppler.PushContact.Controllers
@@ -273,6 +276,75 @@ namespace Doppler.PushContact.Controllers
             }
 
             return Ok(response);
+        }
+
+        [HttpGet]
+        [Route("domains/{domain}/messages/stats/grouped")]
+        public async Task<ActionResult<MessageStatsGroupedByPeriodModel>> GetMessagesStatsGroupedByPeriod(
+            [FromRoute] string domain,
+            [FromQuery] List<Guid> messageIds,
+            [FromQuery][Required] DateTimeOffset from,
+            [FromQuery][Required] DateTimeOffset to,
+            [FromQuery] string period
+        )
+        {
+            period = string.IsNullOrWhiteSpace(period) ? "day" : period;
+
+            if (!Enum.TryParse<MessageStatsGroupedPeriodEnum>(period, ignoreCase: true, out var periodToGroup))
+            {
+                return BadRequest($"Invalid period '{period}'. Allowed values are: day, week, month, year.");
+            }
+
+            if (messageIds == null || messageIds.Count == 0)
+            {
+                return BadRequest("The 'messageIds' can not be empty.");
+            }
+
+            var response = new MessageStatsGroupedByPeriodModel()
+            {
+                Domain = domain,
+                MessageIds = messageIds,
+                GroupedPeriod = period.ToLower(),
+                DateFrom = from,
+                DateTo = to,
+                Periods = [],
+                Totals = new MessageStatsTotals(),
+            };
+
+            try
+            {
+                response.Periods = await _messageStatsService.GetMessageStatsByPeriodAsync(domain, messageIds, from, to, periodToGroup);
+                response.Totals = CalculateMessageStatsTotals(response.Periods);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An unexpected error occurred obtaining message stats grouped by {periodToGroup} for domain: {Domain} and messageIds: {messageIds}.",
+                    period,
+                    domain,
+                    messageIds
+                );
+            }
+
+            return Ok(response);
+        }
+
+        private MessageStatsTotals CalculateMessageStatsTotals(List<MessageStatsPeriodDTO> periods)
+        {
+            var result = new MessageStatsTotals();
+            if (periods != null && periods.Count > 0)
+            {
+                result.Sent = periods.Sum(x => x.Sent);
+                result.Delivered = periods.Sum(x => x.Delivered);
+                result.NotDelivered = periods.Sum(x => x.NotDelivered);
+                result.Click = periods.Sum(x => x.Click);
+                result.Received = periods.Sum(x => x.Received);
+                result.ActionClick = periods.Sum(x => x.ActionClick);
+                result.BillableSends = periods.Sum(x => x.BillableSends);
+            }
+
+            return result;
         }
     }
 }

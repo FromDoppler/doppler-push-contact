@@ -319,5 +319,111 @@ namespace Doppler.PushContact.Test.Services
             Assert.Equal(messageStatsDTO.Click, messageStats.Click);
             Assert.Equal(messageStatsDTO.ActionClick, messageStats.ActionClick);
         }
+
+        [Fact]
+        public async Task GetMessageStatsByPeriodAsync_ShouldReturnStats_WhenSuccess()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageIds = new List<Guid> { fixture.Create<Guid>() };
+            var dateFrom = fixture.Create<DateTimeOffset>();
+            var dateTo = fixture.Create<DateTimeOffset>();
+            var period = MessageStatsGroupedPeriodEnum.Day;
+
+            var expectedList = new List<MessageStatsPeriodDTO>
+            {
+                new MessageStatsPeriodDTO
+                {
+                    Date = DateTime.UtcNow,
+                    Sent = 10,
+                    Delivered = 8,
+                    NotDelivered = 2,
+                    Received = 7,
+                    Click = 3,
+                    ActionClick = 1,
+                    BillableSends = 9
+                }
+            };
+
+            var mockRepository = new Mock<IMessageStatsRepository>();
+            var mockLogger = new Mock<ILogger<MessageStatsService>>();
+
+            mockRepository
+                .Setup(r => r.GetMessageStatsByPeriodAsync(
+                    domain,
+                    messageIds,
+                    dateFrom,
+                    dateTo,
+                    period.ToString().ToLower()))
+                .ReturnsAsync(expectedList);
+
+            var sut = CreateSut(repository: mockRepository.Object, logger: mockLogger.Object);
+
+            // Act
+            var result = await sut.GetMessageStatsByPeriodAsync(domain, messageIds, dateFrom, dateTo, period);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Single(result);
+            Assert.Equal(expectedList.First().Sent, result.First().Sent);
+            Assert.Equal(expectedList.First().Delivered, result.First().Delivered);
+            Assert.Equal(expectedList.First().NotDelivered, result.First().NotDelivered);
+            Assert.Equal(expectedList.First().Received, result.First().Received);
+            Assert.Equal(expectedList.First().Click, result.First().Click);
+            Assert.Equal(expectedList.First().ActionClick, result.First().ActionClick);
+            Assert.Equal(expectedList.First().BillableSends, result.First().BillableSends);
+
+            mockRepository.Verify(r => r.GetMessageStatsByPeriodAsync(
+                domain,
+                messageIds,
+                dateFrom,
+                dateTo,
+                period.ToString().ToLower()), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetMessageStatsByPeriodAsync_ShouldReturnEmptyList_AndLogError_WhenExceptionThrown()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var domain = fixture.Create<string>();
+            var messageIds = new List<Guid> { fixture.Create<Guid>() };
+            var dateFrom = fixture.Create<DateTimeOffset>();
+            var dateTo = fixture.Create<DateTimeOffset>();
+            var period = MessageStatsGroupedPeriodEnum.Month;
+
+            var exceptionMessage = "Test exception";
+
+            var mockRepository = new Mock<IMessageStatsRepository>();
+            var mockLogger = new Mock<ILogger<MessageStatsService>>();
+
+            mockRepository
+                .Setup(r => r.GetMessageStatsByPeriodAsync(
+                    domain,
+                    messageIds,
+                    dateFrom,
+                    dateTo,
+                    period.ToString().ToLower()))
+                .ThrowsAsync(new Exception(exceptionMessage));
+
+            var sut = CreateSut(repository: mockRepository.Object, logger: mockLogger.Object);
+
+            // Act
+            var result = await sut.GetMessageStatsByPeriodAsync(domain, messageIds, dateFrom, dateTo, period);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Empty(result);
+
+            mockLogger.Verify(
+                x => x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, _) => v.ToString().Contains("Error getting MessageStats grouped")),
+                    It.Is<Exception>(e => e.Message == exceptionMessage),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
+        }
     }
 }
